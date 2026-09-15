@@ -1,0 +1,29 @@
+circuit: active_lowpass
+description: >
+  Non-inverting active low-pass. Two coupled specs: the DC gain is set by
+  Rf/Rg, and the corner by Rf*C1 -- so Rf moves both, which is exactly the
+  kind of interaction the robustness layer is for.
+
+analyses:
+  ac:
+    command: ac dec 200 10 1meg
+    vectors: [vdb(out)]
+
+measurements:
+  - name: gain
+    label: passband gain
+    units: dB
+    extract: {kind: value_at, of: vdb(out), at: 10}
+    target: 20.83          # 20*log10(1 + 100k/10k)
+    abs_tol: 0.5
+
+  - name: fc
+    label: f(-3dB)
+    units: Hz
+    extract:
+      kind: crossing
+      of: vdb(out)
+      level: first - 3
+      direction: falling
+    target: 995            # 1 / (2*pi*Rf*C1)
+    tol: 10%

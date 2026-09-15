@@ -2,6 +2,43 @@
 
 [![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
 
+**Natural language to a verified analog circuit.** Describe a circuit, get an
+ngspice netlist that simulates, then check whether it is actually *correct* --
+and whether it stays correct once the parts have tolerances, the supply sags
+and the board runs from -40 to +85 C.
+
+Three layers, because "it ran" is not "it works":
+
+| Layer | Question | Cost |
+|-------|----------|------|
+| `main.py` | does the deck simulate at all? | one API call per repair |
+| `speccheck.py` + `specs.py` | does it meet its electrical spec? | free (ngspice only) |
+| `robustness.py` | how often does it meet it, across tolerance, supply and temperature? | free (ngspice only) |
+
+On the 8-circuit benchmark those three questions get three very different
+answers: **100% simulate cleanly, 62% meet spec**, and the worst offender had
+a **1% Monte Carlo yield** before repair. Sim-success overstates real
+capability by 38 points.
+
+<p align="center">
+  <img src="docs/schematic.png" width="420" alt="An op-amp active low-pass rendered from an LTspice .asc file">
+</p>
+
+<p align="center">
+  <img src="docs/spec-fail.png" width="760" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
+</p>
+
+*The failure a "did it run?" check cannot see: this deck simulates perfectly
+and has more than twice its specified gain.*
+
+<p align="center">
+  <img src="docs/spec-pass.png" width="760" alt="Gain of 51.5 V/V inside the acceptance band">
+</p>
+
+*After spec-in-the-loop repair, the same measurement inside the band.*
+
+## The generate-and-repair CLI
+
 A tiny CLI that turns a plain-English circuit description into a working
 [ngspice](https://ngspice.sourceforge.io/) netlist. It asks Claude for a
 netlist, runs it through `ngspice -b`, and if the simulation fails it feeds the
@@ -130,6 +167,42 @@ The ten specs in `specs_lib/` cover the benchmark's circuits, and the test
 suite asserts that each one reaches the same verdict *and the same measured
 number* as the hand-written checker it replaces.
 
+## Plotting what the spec measured (`plot.py`)
+
+`speccheck` prints a number; `plot.py` draws the curve it came from, with the
+acceptance band on it.
+
+```powershell
+python plot.py my_filter.cir --spec my_filter.yaml --open
+python plot.py deck.cir --analysis "tran 10u 5m" --vectors "v(in)" "v(out)"
+```
+
+![Bode plot of the example active low-pass](docs/response.png)
+
+The HTML page carries a crosshair readout (every series at the pointer's
+frequency), a legend, and a table of the specs, so the numbers stay reachable
+without hovering. Vectors are grouped into panels **by unit**, so a Bode plot
+is a magnitude panel stacked on a phase panel rather than one chart with two
+y-scales: with two scales on one set of axes, wherever the curves cross is an
+artefact of where the scales were pinned, not a fact about the circuit.
+
+## A worked example (`examples/`)
+
+`examples/` holds one circuit in all four forms: schematic, netlist, spec, and
+the plot above.
+
+```powershell
+python ascview.py examples/active_lowpass.asc --open
+python speccheck.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml
+python robustness.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml --mc 500 --sens
+python plot.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml --open
+```
+
+The sensitivity output doubles as a check that the layer measures physics
+rather than noise. For `fc = 1 / (2*pi*Rf*C1)` it reports **-1.01 %/% for C1
+and -1.02 %/% for Rf**, and for the gain it reports equal and opposite
+sensitivities to `Rf` and `Rg`. Those are the textbook answers.
+
 ## Viewing LTspice schematics (`ascview.py`)
 
 Opens LTspice `.asc` schematic files **without LTspice** and renders them to a
@@ -166,6 +239,24 @@ cannot be guessed from the name. Those are drawn as a labeled block whose pins
 are **inferred from the schematic's own wiring**: the pins are the wire
 endpoints no other symbol claims. Connectivity is never invented — wires are
 always drawn from their own coordinates.
+
+## Known limitations
+
+- The spec and robustness layers are **nominal-topology tools**: they perturb
+  component values, supplies, model parameters and temperature. They know
+  nothing about layout parasitics, EMC, or anything the netlist does not say.
+- `extract_params` descends into `.subckt` definitions, so a macromodel's
+  internal components are perturbed like discrete parts. For an op-amp
+  macromodel that is a rough stand-in for gain-bandwidth spread rather than a
+  datasheet figure, so read those sensitivities as directional.
+- Specs whose **target is computed from the netlist** (the `rl_step` circuit's
+  tau = L/R) are not expressible declaratively yet; a spec target is a
+  constant. The hand-written check still covers that circuit.
+- Symbol geometry for `ind`, `diode`, BJTs and `sw` is standard LTspice but
+  **not yet verified against a real file**. `ascview --check` reports any pin
+  that misses rather than drawing it wrong quietly.
+- ngspice accepts some malformed decks (a component with no value) and reports
+  a clean run. That gap is the reason the spec layer exists.
 
 ## Tests
 
