@@ -26,7 +26,6 @@ This module perturbs the deck the way the physical world does and re-measures:
 Everything here is pure ngspice. Zero API calls, zero cost.
 """
 
-import json
 import math
 import random
 import re
@@ -611,7 +610,7 @@ def pvt_corners(circuit: str, netlist: str, *, workers: int = 8) -> list[dict]:
                              "supply": sname, "beta": bname, "vals": vals})
 
     out = _map(lambda g: _evaluate(metric_fn, netlist, params, g["vals"]), grid, workers)
-    for g, r in zip(grid, out):
+    for g, r in zip(grid, out, strict=False):
         g["metrics"] = r["metrics"]
         g["error"] = r.get("error")
         g.pop("vals")
@@ -620,7 +619,7 @@ def pvt_corners(circuit: str, netlist: str, *, workers: int = 8) -> list[dict]:
 
 # --------------------------------------------------------------------- CLI
 
-def _fmt(v, nd=4):
+def _show(v, nd=4):
     return "n/a" if v is None else f"{v:.{nd}g}"
 
 
@@ -670,8 +669,8 @@ def _cli(argv=None) -> int:
     for name, spec in limits.items():
         v = nom["metrics"].get(name)
         mark = "" if v is None else ("  ok" if spec.ok(v) else "  OUT OF SPEC")
-        print(f"    {spec.label:14s} {_fmt(v):>12s} {spec.units:4s}"
-              f" target {_fmt(spec.target):>8s}{mark}")
+        print(f"    {spec.label:14s} {_show(v):>12s} {spec.units:4s}"
+              f" target {_show(spec.target):>8s}{mark}")
 
     rc = 0
     if args.mc or args.all:
@@ -679,10 +678,10 @@ def _cli(argv=None) -> int:
         mc = monte_carlo(circuit, netlist, n, seed=args.seed, dist=args.dist,
                          workers=args.workers)
         print(f"\n  monte carlo  ({n} samples, {args.dist}, seed {args.seed})")
-        for name, m in mc["metrics"].items():
-            print(f"    {m['label']:14s} mean {_fmt(m['mean']):>10s}  "
-                  f"sigma {_fmt(m['sigma']):>9s}  in-spec {m['pass_rate']:5.0%}  "
-                  f"Cpk {_fmt(m['cpk'], 3):>6s}")
+        for m in mc["metrics"].values():
+            print(f"    {m['label']:14s} mean {_show(m['mean']):>10s}  "
+                  f"sigma {_show(m['sigma']):>9s}  in-spec {m['pass_rate']:5.0%}  "
+                  f"Cpk {_show(m['cpk'], 3):>6s}")
         if mc["n_sim_fail"]:
             print(f"    {mc['n_sim_fail']} of {n} samples failed to simulate")
         print(f"    yield {mc['yield']:.0%}  (every spec met simultaneously)")
@@ -709,8 +708,8 @@ def _cli(argv=None) -> int:
             lo = (wc.get("low") or {}).get("metrics", {}).get(name)
             hi = (wc.get("high") or {}).get("metrics", {}).get(name)
             inside = all(spec.ok(v) for v in (lo, hi) if v is not None)
-            print(f"    {spec.label:14s} {_fmt(lo):>10s} .. {_fmt(hi):>10s}"
-                  f"   limits {_fmt(spec.lsl):>8s} .. {_fmt(spec.usl):>8s}"
+            print(f"    {spec.label:14s} {_show(lo):>10s} .. {_show(hi):>10s}"
+                  f"   limits {_show(spec.lsl):>8s} .. {_show(spec.usl):>8s}"
                   f"   {'ok' if inside else 'OUT OF SPEC'}")
             if not inside:
                 rc = 1

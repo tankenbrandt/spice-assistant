@@ -20,7 +20,6 @@ Pure ngspice. No API calls, no cost.
 import argparse
 import json
 import math
-import statistics
 import sys
 import time
 from datetime import datetime, timezone

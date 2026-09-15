@@ -9,7 +9,7 @@ authors = [{ name = "Thomas Ankenbrandt" }]
 dependencies = ["anthropic", "pyyaml"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "ruff>=0.5"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -18,3 +18,12 @@ addopts = "-q"
 markers = [
   "slow: end-to-end runs that invoke ngspice repeatedly",
 ]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# F: real errors (undefined names, unused imports, redefinitions -- the class
+# that caught a display formatter shadowing the netlist formatter).
+# E9: syntax. B: likely bugs. UP: modern-Python idioms.
+select = ["F", "E9", "B", "UP"]

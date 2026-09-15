@@ -147,7 +147,7 @@ def _mean(v):
 def _window(xs, ys, frac_from):
     """Slice of ys where xs >= frac_from * xs[-1]."""
     x0 = frac_from * xs[-1]
-    out = [y for x, y in zip(xs, ys) if x >= x0]
+    out = [y for x, y in zip(xs, ys, strict=False) if x >= x0]
     return out if out else ys
 
 

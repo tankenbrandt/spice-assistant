@@ -6,8 +6,6 @@ reach the same verdict on the same deck. That is what makes the declarative
 format trustworthy -- it is not a parallel implementation with its own
 opinions, it reproduces the measurements the report was built from.
 """
-import math
-
 import pytest
 
 import specs

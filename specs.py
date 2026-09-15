@@ -369,7 +369,7 @@ def _window(xs, ys, cfg):
         raise SpecError(f"cannot read window {spec!r}; use e.g. 'last 20%'")
     frac = 1.0 - float(m.group(1)) / 100.0
     x0 = xs[0] + frac * (xs[-1] - xs[0])
-    pairs = [(x, y) for x, y in zip(xs, ys) if x >= x0]
+    pairs = [(x, y) for x, y in zip(xs, ys, strict=False) if x >= x0]
     if not pairs:
         return xs, ys
     return [p[0] for p in pairs], [p[1] for p in pairs]
@@ -487,7 +487,7 @@ def _run_analysis(netlist: str, analysis: Analysis):
         raise SpecError(
             f"analysis {analysis.name!r} produced no usable data ({exc}). "
             f"ngspice said:\n{out.strip()[-600:]}") from exc
-    return xs, dict(zip(analysis.vectors, cols))
+    return xs, dict(zip(analysis.vectors, cols, strict=False))
 
 
 def measure(spec: CircuitSpec, netlist: str) -> dict:

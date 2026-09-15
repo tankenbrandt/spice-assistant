@@ -92,7 +92,7 @@ def test_apply_params_round_trips_at_nominal():
     lines, ps = rb.extract_params(DECK)
     out = rb.apply_params(DECK, ps, {p.key: p.nominal for p in ps})
     _l2, ps2 = rb.extract_params(out)
-    for a, b in zip(sorted(ps, key=lambda p: p.key), sorted(ps2, key=lambda p: p.key)):
+    for a, b in zip(sorted(ps, key=lambda p: p.key), sorted(ps2, key=lambda p: p.key), strict=False):
         assert a.key == b.key
         assert a.nominal == pytest.approx(b.nominal, rel=1e-6)
 
@@ -112,6 +112,30 @@ def test_temperature_becomes_a_temp_directive():
     vals["TEMP"] = 85.0
     out = rb.apply_params(DECK, ps, vals).lower()
     assert ".temp" in out and "85" in out
+
+
+def test_perturbed_values_keep_their_precision():
+    """Regression: a display formatter once shadowed the netlist formatter and
+    silently rounded every Monte Carlo sample to 4 significant digits.
+
+    Round nominal values survive that, which is why it went unnoticed -- so
+    this deliberately uses values that do not.
+    """
+    lines, ps = rb.extract_params(DECK)
+    vals = {p.key: p.nominal for p in ps}
+    vals["Rc"] = 5123.456789
+    vals["Cin"] = 1.23456789e-6
+    out = rb.apply_params(DECK, ps, vals)
+    _l2, ps2 = rb.extract_params(out)
+    got = {p.key: p.nominal for p in ps2}
+    assert got["Rc"] == pytest.approx(5123.456789, rel=1e-5)
+    assert got["Cin"] == pytest.approx(1.23456789e-6, rel=1e-5)
+
+
+def test_netlist_numbers_avoid_the_plus_exponent():
+    """Some SPICE parsers dislike `1e+06`; the netlist formatter strips it."""
+    assert "e+" not in rb._fmt(1.5e6)
+    assert rb._fmt(1.5e6).startswith("1.5e")
 
 
 # ----------------------------------------------------------------- sampling

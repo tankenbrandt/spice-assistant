@@ -240,10 +240,10 @@ def main() -> int:
             print(f"--- Simulation succeeded on attempt {attempt} ---", file=sys.stderr)
             break
         if attempt < MAX_ATTEMPTS:
-            print(f"--- Simulation failed; asking the model to fix it ---", file=sys.stderr)
+            print("--- Simulation failed; asking the model to fix it ---", file=sys.stderr)
             netlist = fix_netlist(netlist, output)
         else:
-            print(f"--- Out of attempts; giving up ---", file=sys.stderr)
+            print("--- Out of attempts; giving up ---", file=sys.stderr)
 
     print("\n============================ FINAL NETLIST ============================")
     print(netlist.rstrip("\n"))
