@@ -14,10 +14,10 @@ clean screenshot into a lab report.
 
 Symbol geometry
 ---------------
-Pin offsets for `res`, `cap` and `voltage` are VERIFIED against real LTspice
-schematics: every declared pin lands exactly on a wire endpoint (see --check).
-Other primitives use the standard LTspice geometry and are checked the same
-way. Library symbols (`OpAmps\\OP07`) fall back to a triangle or a labeled box,
+Pin offsets for `res`, `cap`, `voltage`, `nmos` and `pmos` are VERIFIED against
+real LTspice schematics: every declared pin lands exactly on a wire endpoint
+(see --check), across all four orientations those parts appear in. Other
+primitives use the standard LTspice geometry and are checked the same way. Library symbols (`OpAmps\\OP07`) fall back to a triangle or a labeled box,
 which is cosmetic only -- wires are always drawn from their own coordinates,
 so connectivity is never guessed at.
 """
@@ -82,6 +82,25 @@ def _coils(x, y0, y1, n=4):
     for i in range(n):
         ops.append(("arc", x, y0 + step * i, x, y0 + step * (i + 1), step / 2))
     return ops
+
+
+def _mos_body():
+    """Shared MOSFET drawing: gate plate, broken channel, D/S/bulk leads.
+
+    Local frame is 48 x 96 with D(48,0), G(0,80), S(48,96). The bulk arrow is
+    added per-type by the caller (nmos points in, pmos points out).
+    """
+    return [
+        ("line", 0, 80, 16, 80),                   # gate lead
+        ("line", 16, 20, 16, 80),                  # gate plate
+        ("line", 28, 20, 28, 36),                  # channel (enhancement mode:
+        ("line", 28, 42, 28, 58),                  #  three separate segments)
+        ("line", 28, 64, 28, 80),
+        ("line", 28, 28, 48, 28), ("line", 48, 0, 48, 28),    # drain
+        ("line", 28, 72, 48, 72), ("line", 48, 72, 48, 96),   # source
+        ("line", 28, 50, 48, 50),                  # bulk, tied to source
+        ("line", 48, 50, 48, 72),
+    ]
 
 
 SYMBOLS: dict[str, Sym] = {
@@ -149,27 +168,18 @@ SYMBOLS: dict[str, Sym] = {
               ("line", 0, 16, 16, -16), ("line", 0, 32, 16, 64),
               ("poly", [(0, 32), (10, 14), (14, 26)], True)],
         box=(-16, -16, 16, 64)),
-    # MOSFET: gate left, drain up-right, source down-right
+    # ---- MOSFET geometry verified against a real CMOS schematic ----
+    # Drain top-right, source bottom-right, gate at the LOWER left (not
+    # centred): confirmed on 8 FETs across R0/M0/R180/M180 placements, every
+    # pin landing on a wire endpoint. See --check.
     "nmos": Sym(
-        pins=[(16, -16), (-16, 24), (16, 64)],     # D, G, S
-        draw=[("line", -16, 24, -4, 24), ("line", -4, 8, -4, 40),
-              ("line", 4, 6, 4, 18), ("line", 4, 42, 4, 54),
-              ("line", 4, 20, 4, 40),
-              ("line", 4, 12, 16, 12), ("line", 16, 12, 16, -16),
-              ("line", 4, 48, 16, 48), ("line", 16, 48, 16, 64),
-              ("line", 4, 30, 16, 30), ("line", 16, 30, 16, 48),
-              ("poly", [(10, 26), (16, 30), (10, 34)], True)],
-        box=(-16, -16, 16, 64)),
+        pins=[(48, 0), (0, 80), (48, 96)],         # D, G, S
+        draw=_mos_body() + [("poly", [(37, 45), (28, 50), (37, 55)], True)],
+        box=(0, 0, 48, 96), verified=True),
     "pmos": Sym(
-        pins=[(16, -16), (-16, 24), (16, 64)],
-        draw=[("line", -16, 24, -4, 24), ("line", -4, 8, -4, 40),
-              ("line", 4, 6, 4, 18), ("line", 4, 42, 4, 54),
-              ("line", 4, 20, 4, 40),
-              ("line", 4, 12, 16, 12), ("line", 16, 12, 16, -16),
-              ("line", 4, 48, 16, 48), ("line", 16, 48, 16, 64),
-              ("line", 4, 30, 16, 30), ("line", 16, 30, 16, 48),
-              ("poly", [(10, 26), (4, 30), (10, 34)], True)],
-        box=(-16, -16, 16, 64)),
+        pins=[(48, 0), (0, 80), (48, 96)],         # D, G, S
+        draw=_mos_body() + [("poly", [(39, 45), (48, 50), (39, 55)], True)],
+        box=(0, 0, 48, 96), verified=True),
     "sw": Sym(
         pins=[(16, 0), (16, 96)],
         draw=[("line", 16, 0, 16, 24), ("line", 16, 24, 32, 72),
@@ -282,9 +292,13 @@ def parse_asc(path: Path) -> Schematic:
                 cur.windows[parts[1]] = (int(parts[2]), int(parts[3]))
             elif key == "TEXT" and len(parts) >= 5:
                 body = " ".join(parts[5:])
+                directive = body.startswith("!")
+                # LTspice stores a multi-line comment on one .asc line, with
+                # the breaks escaped as a literal backslash-n.
+                body = body.lstrip("!;").strip().replace("\\n", "\n")
                 sch.texts.append(TextItem(
                     int(parts[1]), int(parts[2]), parts[3], int(parts[4]),
-                    body.lstrip("!;").strip(), body.startswith("!")))
+                    body, directive))
                 cur = None
         except ValueError:
             continue  # malformed line: skip rather than fail the whole file
@@ -370,7 +384,9 @@ def bounds(sch: Schematic) -> tuple[int, int, int, int]:
     for f in sch.flags:
         xs.append(f.x); ys.append(f.y)
     for t in sch.texts:
-        xs += [t.x, t.x + 8 * len(t.text)]; ys.append(t.y)
+        lines = t.text.splitlines() or [""]
+        xs += [t.x, t.x + 8 * max(len(ln) for ln in lines)]
+        ys += [t.y, t.y + 20 * (len(lines) - 1)]
     for s in sch.symbols:
         geo, kind = symbol_for(s.name)
         if kind == "unknown":
@@ -705,6 +721,26 @@ def open_file(path: Path) -> None:
         print(f"could not open {path}: {exc}", file=sys.stderr)
 
 
+def expand(pat: str) -> list[Path]:
+    """Resolve one CLI path argument to concrete paths.
+
+    POSIX shells expand globs themselves; PowerShell and cmd do not, so a
+    literal `*.asc` has to be expanded here. `Path().glob()` rejects absolute
+    patterns outright, so those are globbed relative to their own anchor.
+    A pattern with no magic characters is passed through untouched, which
+    keeps a plain absolute filename working.
+    """
+    path = Path(pat)
+    if not any(ch in pat for ch in "*?["):
+        return [path]
+    if path.is_absolute():
+        anchor = Path(path.anchor)
+        hits = sorted(anchor.glob(str(path.relative_to(anchor))))
+    else:
+        hits = sorted(Path().glob(pat))
+    return hits or [path]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("files", nargs="+", help=".asc schematic file(s)")
@@ -722,7 +758,7 @@ def main() -> int:
 
     rc = 0
     for pat in args.files:
-        for path in sorted(Path().glob(pat)) or [Path(pat)]:
+        for path in expand(pat):
             if not path.exists():
                 print(f"not found: {path}", file=sys.stderr)
                 rc = 1

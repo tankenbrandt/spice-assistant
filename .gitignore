@@ -8,3 +8,6 @@ __pycache__/
 
 # Bundled ngspice binary distribution (49 MB; see README for setup)
 tools/
+
+# pytest
+.pytest_cache/

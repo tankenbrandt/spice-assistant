@@ -17,6 +17,29 @@ from pathlib import Path
 
 import anthropic
 
+PROJECT_DIR = Path(__file__).resolve().parent
+
+
+def load_dotenv(path: Path | None = None) -> None:
+    """Minimal stdlib-only .env loader (KEY=value, optional quotes).
+
+    Real environment variables always win, so an exported key overrides the
+    file. Lives here rather than in the benchmark so that every entry point
+    -- CLI, benchmark, study -- picks the key up the same way.
+    """
+    path = path or PROJECT_DIR / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
 MODEL = "claude-sonnet-5"
 MAX_ATTEMPTS = 4
 
@@ -195,9 +218,11 @@ def main() -> int:
         print(f'Usage: python {prog} "<circuit description>"', file=sys.stderr)
         return 2
 
+    load_dotenv()
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print(
-            "ERROR: ANTHROPIC_API_KEY is not set. Set it and try again.",
+            "ERROR: ANTHROPIC_API_KEY is not set. Export it, or put it in a "
+            ".env file next to main.py as ANTHROPIC_API_KEY=sk-ant-...",
             file=sys.stderr,
         )
         return 2

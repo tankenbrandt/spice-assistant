@@ -19,24 +19,10 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parent
 
 
-def load_dotenv(path: Path) -> None:
-    """Minimal stdlib-only .env loader (KEY=value, optional quotes)."""
-    import os
-    if not path.exists():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, val = line.partition("=")
-        key, val = key.strip(), val.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = val
+import main  # noqa: E402  (imported first so its .env loader runs)
 
+main.load_dotenv(PROJECT_DIR / ".env")
 
-load_dotenv(PROJECT_DIR / ".env")
-
-import main  # noqa: E402  (needs env loaded first is not strictly true, but keep order)
 import speccheck  # noqa: E402
 
 MAX_ATTEMPTS = 4

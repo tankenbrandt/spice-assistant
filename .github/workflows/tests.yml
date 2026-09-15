@@ -1,0 +1,62 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Full suite, including everything that drives ngspice.
+  #
+  # Note: apt ships an older ngspice than the 46 bundled for Windows. The
+  # measurement assertions carry engineering tolerances rather than exact
+  # numbers for that reason; if a version difference ever moves one, the
+  # failure names the circuit and the measured value.
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install ngspice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ngspice
+          ngspice --version | head -2
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
+
+  # No ngspice here on purpose: the simulation tests skip themselves and what
+  # remains is the parsing, geometry and path handling. Windows is where the
+  # shell does not expand globs, so it is the platform that matters for the
+  # CLI's own path handling.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests (simulation tests skip without ngspice)
+        run: pytest -q -rs

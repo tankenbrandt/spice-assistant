@@ -1,5 +1,7 @@
 # spice-assistant
 
+[![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
+
 A tiny CLI that turns a plain-English circuit description into a working
 [ngspice](https://ngspice.sourceforge.io/) netlist. It asks Claude for a
 netlist, runs it through `ngspice -b`, and if the simulation fails it feeds the
@@ -56,6 +58,13 @@ $env:ANTHROPIC_API_KEY = "sk-ant-..."   # current shell
 setx ANTHROPIC_API_KEY "sk-ant-..."     # new shells only
 ```
 
+Or drop a `.env` file next to `main.py` — every entry point reads it, and a
+real environment variable always wins over the file:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
 ## Usage
 
 ```powershell
@@ -99,14 +108,39 @@ so rendering needs no placement or routing — it is a parse-and-draw problem.
 
 ### Symbol geometry
 
-Pin offsets for `res`, `cap`, `voltage` and OP07-class op-amps are **verified**
-against real schematics: `--check` confirms every pin lands on a wire endpoint.
-Other primitives (`ind`, `diode`, BJTs, MOSFETs, `sw`) use standard LTspice
-geometry but have not been checked against a real file yet — run `--check` and
-any mismatch is reported rather than silently drawn wrong.
+Pin offsets for `res`, `cap`, `voltage`, `nmos`, `pmos` and OP07-class op-amps
+are **verified** against real schematics: `--check` confirms every pin lands on
+a wire endpoint. The MOSFET geometry is measured across all four orientations
+(`R0`, `M0`, `R180`, `M180`) that appear in a real CMOS deck, and those exact
+coordinates are pinned in `tests/test_geometry.py` so the offsets cannot drift.
+
+Other primitives (`ind`, `diode`, BJTs, `sw`) use standard LTspice geometry but
+have not been checked against a real file yet — run `--check` and any mismatch
+is reported rather than silently drawn wrong.
 
 Library parts (`OpAmps\LTC2053`, vendor symbols) have per-part pin layouts that
 cannot be guessed from the name. Those are drawn as a labeled block whose pins
 are **inferred from the schematic's own wiring**: the pins are the wire
 endpoints no other symbol claims. Connectivity is never invented — wires are
 always drawn from their own coordinates.
+
+## Tests
+
+```powershell
+pip install -r requirements-dev.txt
+pytest
+```
+
+The suite makes **no API calls** — it covers the netlist helpers, the spec
+extractors, the robustness statistics and the `.asc` parser and symbol
+geometry, using ngspice alone. That includes the project's central claim as an
+executable contract: every baseline deck simulates cleanly, the ones the spec
+layer rejects are exactly the ones the repaired decks fix, and the repair moves
+the Monte Carlo *distribution* onto target rather than just the nominal value.
+
+Tests that need ngspice skip themselves if it is not installed, so the parser
+and geometry tests still run anywhere.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
