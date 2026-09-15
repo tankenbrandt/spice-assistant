@@ -1,4 +1,4 @@
-### Narrative (grounded in run_log.json)
+### Narrative (grounded in logs/run_log.json)
 
 **1. The system-prompt fix worked.** The previous run's only error class —
 `batch_analysis_invocation` (mixing `.op`/`.ac`/`.tran` dot-lines with a `.control run`

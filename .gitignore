@@ -11,3 +11,8 @@ tools/
 
 # pytest
 .pytest_cache/
+
+# editable install metadata
+*.egg-info/
+build/
+dist/

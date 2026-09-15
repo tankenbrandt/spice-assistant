@@ -1,4 +1,4 @@
-### Round-2 narrative (grounded in run_log_round2.json)
+### Round-2 narrative (grounded in logs/run_log_round2.json)
 
 **What generalized well.** 4/7 circuits passed spec with no repair, including *both*
 easy/medium coupled-spec circuits — and those are the striking ones:

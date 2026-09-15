@@ -3,7 +3,7 @@
 
 Runs the existing generate -> run -> fix loop (max 4 attempts per circuit)
 against a fixed test set of 8 circuits across three difficulty tiers, logs
-everything, and writes run_log.json + REPORT.md into the project directory.
+everything, and writes logs/run_log.json + REPORT.md.
 
 Usage:  python benchmark.py
 """
@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
+LOG_DIR = PROJECT_DIR / "logs"       # bulky per-attempt evidence
+DOC_DIR = PROJECT_DIR / "docs"       # hand-written analysis prose
 
 
 import main  # noqa: E402  (imported first so its .env loader runs)
@@ -388,7 +390,7 @@ def build_report(run: dict) -> str:
     lines.append(f"- **Simulation success (clean run): {solved}/{total} ({solved/total:.0%})**")
     lines.append(f"- **First-attempt clean-run rate: {first_try}/{total}**")
     repair_log = None
-    repair_path = PROJECT_DIR / "repair_log.json"
+    repair_path = LOG_DIR / "repair_log.json"
     if repair_path.exists():
         repair_log = json.loads(repair_path.read_text(encoding="utf-8"))
 
@@ -508,7 +510,7 @@ def build_report(run: dict) -> str:
         lines.append("")
         lines.append(f"**{repair_log['result']}**")
         lines.append("")
-        lines.append("Repaired netlists: `repaired/*.cir`; full before/after evidence: `repair_log.json`.")
+        lines.append("Repaired netlists: `repaired/*.cir`; full before/after evidence: `logs/repair_log.json`.")
         lines.append("")
 
     lines.append("## Failure pattern analysis (from logged ngspice output)")
@@ -525,16 +527,16 @@ def build_report(run: dict) -> str:
     else:
         lines.append("No failed attempts — every circuit simulated cleanly on attempt 1.")
     lines.append("")
-    narrative_path = PROJECT_DIR / "NARRATIVE.md"
+    narrative_path = DOC_DIR / "analysis-round-1.md"
     if narrative_path.exists():
         lines.append(narrative_path.read_text(encoding="utf-8").strip())
     else:
-        lines.append("<!-- NARRATIVE: write per-run analysis into NARRATIVE.md -->")
+        lines.append("<!-- NARRATIVE: write per-run analysis into analysis-round-1.md -->")
     lines.append("")
-    lines.append("Full per-attempt netlists and ngspice output: `run_log.json`.")
+    lines.append("Full per-attempt netlists and ngspice output: `logs/run_log.json`.")
     lines.append("")
 
-    r2_path = PROJECT_DIR / "run_log_round2.json"
+    r2_path = LOG_DIR / "run_log_round2.json"
     if r2_path.exists():
         run2 = json.loads(r2_path.read_text(encoding="utf-8"))
         lines.append(_round2_section(run2, results, run))
@@ -678,11 +680,11 @@ def _round2_section(run2: dict, r1_results: list, r1_run: dict | None) -> str:
         L.append(f"| API cost | {r1_cost} (repairs free, in-session) | {r2_cost} (repairs included) |")
         L.append("")
 
-    n2 = PROJECT_DIR / "NARRATIVE2.md"
+    n2 = DOC_DIR / "analysis-round-2.md"
     if n2.exists():
         L.append(n2.read_text(encoding="utf-8").strip())
         L.append("")
-    L.append("Full round-2 evidence: `run_log_round2.json`.")
+    L.append("Full round-2 evidence: `logs/run_log_round2.json`.")
     L.append("")
     return "\n".join(L)
 
@@ -693,12 +695,12 @@ def rebuild_report_only() -> int:
     Re-categorizes failed attempts from their raw logged output so that
     pattern updates apply retroactively, and persists the refresh to the log.
     """
-    log_path = PROJECT_DIR / "run_log.json"
+    log_path = LOG_DIR / "run_log.json"
     if not log_path.exists():
-        print("ERROR: run_log.json not found — run the benchmark first.", file=sys.stderr)
+        print("ERROR: logs/run_log.json not found — run the benchmark first.", file=sys.stderr)
         return 2
     run = None
-    for lp in (log_path, PROJECT_DIR / "run_log_round2.json"):
+    for lp in (log_path, LOG_DIR / "run_log_round2.json"):
         if not lp.exists():
             continue
         r = json.loads(lp.read_text(encoding="utf-8"))
@@ -757,7 +759,7 @@ def main_entry() -> int:
     # REPORT.md's main body is always built from the round-1 log; the round-2
     # section is appended from run_log_round2.json inside build_report.
     round1 = run
-    r1_path = PROJECT_DIR / "run_log.json"
+    r1_path = LOG_DIR / "run_log.json"
     if round2 and r1_path.exists():
         round1 = json.loads(r1_path.read_text(encoding="utf-8"))
     (PROJECT_DIR / "REPORT.md").write_text(build_report(round1), encoding="utf-8")

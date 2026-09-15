@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "spice-assistant"
 version = "0.1.0"
@@ -7,6 +11,23 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Thomas Ankenbrandt" }]
 dependencies = ["anthropic", "pyyaml"]
+
+# The verification layers need no API key, so `anthropic` is only actually
+# required by main.py and benchmark.py.
+
+[project.scripts]
+spice-assistant  = "main:main"              # natural language -> netlist
+spice-speccheck  = "speccheck:_cli"         # does a deck meet its spec?
+spice-robustness = "robustness:_cli"        # Monte Carlo / sensitivity signoff
+spice-plot       = "plot:_cli"              # waveforms with the spec band on them
+spice-netlist    = "netlist:_cli"           # .asc schematic -> deck
+ascview          = "ascview:main"           # render a .asc without LTspice
+
+[tool.setuptools]
+# A flat layout of single-purpose CLIs, so the modules are listed rather than
+# discovered -- that keeps tests/ and the report scripts out of the wheel.
+py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
+              "robustness_study", "ascview", "plot", "netlist"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]

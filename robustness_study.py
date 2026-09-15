@@ -6,7 +6,7 @@ that PASSED, and asks a question the nominal spec check cannot: does the repair
 hold up once the parts, the supply, the transistor and the temperature are
 allowed to be what they actually are?
 
-Writes robustness_log.json (full evidence) and ROBUSTNESS.md (the report).
+Writes logs/robustness_log.json (full evidence) and ROBUSTNESS.md (the report).
 
 Usage:
     python robustness_study.py                  # full study, N=500
@@ -28,8 +28,10 @@ from pathlib import Path
 import main
 import robustness as rb
 
+LOG_DIR = Path(__file__).resolve().parent / "logs"
+
 PROJECT_DIR = Path(__file__).resolve().parent
-LOG_PATH = PROJECT_DIR / "robustness_log.json"
+LOG_PATH = PROJECT_DIR / str(LOG_DIR / "robustness_log.json")
 REPORT_PATH = PROJECT_DIR / "ROBUSTNESS.md"
 
 # circuit id, pre-repair deck, post-repair deck, headline metric, note

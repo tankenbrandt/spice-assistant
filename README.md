@@ -62,8 +62,23 @@ no PySpice / InSpice / other binding — raw text in, raw text out.
 # from the project root
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -e .
 ```
+
+That installs the CLIs on your `PATH`:
+
+| Command | Module | Does |
+|---------|--------|------|
+| `spice-assistant` | `main.py` | description -> netlist -> simulate -> self-heal |
+| `spice-speccheck` | `speccheck.py` | measure a deck and judge it against a spec |
+| `spice-robustness` | `robustness.py` | Monte Carlo, sensitivity, worst case, PVT |
+| `spice-plot` | `plot.py` | waveforms with the acceptance band on them |
+| `spice-netlist` | `netlist.py` | `.asc` schematic -> ngspice deck |
+| `ascview` | `ascview.py` | render a `.asc` without LTspice |
+
+Every example below also works as `python <module>.py ...` straight from a
+clone, with no install. Only `spice-assistant` needs an API key; everything
+else is ngspice only.
 
 ### ngspice
 
@@ -270,6 +285,29 @@ cannot be guessed from the name. Those are drawn as a labeled block whose pins
 are **inferred from the schematic's own wiring**: the pins are the wire
 endpoints no other symbol claims. Connectivity is never invented — wires are
 always drawn from their own coordinates.
+
+## Layout
+
+```
+main.py  speccheck.py  specs.py  robustness.py      the layers
+plot.py  ascview.py    netlist.py                   viewing and extraction
+benchmark.py  robustness_study.py                   the study drivers
+specs_lib/       declarative specs for the benchmark circuits
+examples/        one circuit as schematic, netlist, spec and plot
+baseline/        the decks the model generated, as generated
+repaired/        the same decks after spec-in-the-loop repair
+logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
+docs/            per-round analysis prose and the README images
+tests/           353 tests, no API calls
+```
+
+`REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
+byte-identically:
+
+```powershell
+python benchmark.py --report-only
+python robustness_study.py --report-only
+```
 
 ## Known limitations
 

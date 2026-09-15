@@ -85,7 +85,7 @@ Performed by: in-session Claude (Claude Code subscription) — per user cost rul
 
 **Spec compliance after repair: 8/8 (from 5/8). Every repair converged in a single iteration once the measured value was available as feedback.**
 
-Repaired netlists: `repaired/*.cir`; full before/after evidence: `repair_log.json`.
+Repaired netlists: `repaired/*.cir`; full before/after evidence: `logs/repair_log.json`.
 
 ## Failure pattern analysis (from logged ngspice output)
 
@@ -97,7 +97,7 @@ circuits that were eventually solved.
 | convergence | 3 | bridge_rectifier attempt 1: doAnalyses: TRAN:  Timestep too small; time = 0.0101951, timestep = 6.25e-17: trouble with node "a" |
 | control_or_vector | 2 | bridge_rectifier attempt 1: Warning from checkvalid: vector vout_ripple is not available or has zero length. |
 
-### Narrative (grounded in run_log.json)
+### Narrative (grounded in logs/run_log.json)
 
 **1. The system-prompt fix worked.** The previous run's only error class —
 `batch_analysis_invocation` (mixing `.op`/`.ac`/`.tran` dot-lines with a `.control run`
@@ -145,7 +145,7 @@ that gap requires feeding *measured values* back into the repair loop (spec-in-t
 not just stderr — which stage 2 (below) confirmed: all three repairs converged in a
 single iteration once the measured number was available.
 
-Full per-attempt netlists and ngspice output: `run_log.json`.
+Full per-attempt netlists and ngspice output: `logs/run_log.json`.
 
 ---
 
@@ -201,7 +201,7 @@ Full per-attempt netlists and ngspice output: `run_log.json`.
 | Spec compliance after repair | 8/8 (manual, in-session) | 5/7 (automated --spec-repair) |
 | API cost | $0.187 (repairs free, in-session) | $0.218 (repairs included) |
 
-### Round-2 narrative (grounded in run_log_round2.json)
+### Round-2 narrative (grounded in logs/run_log_round2.json)
 
 **What generalized well.** 4/7 circuits passed spec with no repair, including *both*
 easy/medium coupled-spec circuits — and those are the striking ones:
@@ -277,4 +277,4 @@ Spec-in-the-loop repair generalizes when the failure is quantitative (boost); it
 yet self-recover when the failure is structural — that requires anchoring the repair
 prompts, which is a harness fix, not a model limitation.
 
-Full round-2 evidence: `run_log_round2.json`.
+Full round-2 evidence: `logs/run_log_round2.json`.
