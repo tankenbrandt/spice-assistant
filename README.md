@@ -54,7 +54,9 @@ no PySpice / InSpice / other binding — raw text in, raw text out.
 - Python 3.10+
 - ngspice on your `PATH` (or reachable via `NGSPICE_PATH`, or bundled under
   `tools/Spice64/bin`)
-- An Anthropic API key
+- An Anthropic API key **only for `spice-assistant` and the benchmark**. The
+  spec, robustness, plotting and schematic tools are ngspice-only and cost
+  nothing to run.
 
 ## Install
 
