@@ -1,0 +1,58 @@
+{
+  "stage": "spec_in_the_loop_repair",
+  "date_utc": "2026-07-08",
+  "performed_by": "in-session Claude (Claude Code subscription) — per user cost rule: benchmark ran once on API; repair iteration done on subscription. Zero API calls in this stage.",
+  "base_run": "run_log.json (2026-07-08 benchmark, claude-sonnet-5, spec compliance 5/8)",
+  "method": "For each spec-failing circuit: diagnose from the measured value in the spec report, apply a targeted design change, verify with main.run_ngspice (clean-run) + speccheck.check (spec measurement), iterate until PASS.",
+  "repairs": [
+    {
+      "id": "ce_bjt_amp",
+      "netlist_file": "repaired/ce_bjt_amp.cir",
+      "before": {
+        "spec_pass": false,
+        "measured": "|gain| = 107.31 (+114.6%), phase = -180 deg"
+      },
+      "diagnosis": "Emitter resistor fully bypassed by 100uF -> AC gain set by intrinsic re (~26 ohm) instead of a designed ratio.",
+      "change": "Split emitter resistance into unbypassed Re1=56 + bypassed Re2=910; rebias with R1=68k/R2=11k (IE~1.0mA); Rc=7.5k so gain ~ (Rc||RL||ro)/(re+Re1) ~ 50; removed 600-ohm series source resistor so measured source-referred gain equals designed gain.",
+      "after": {
+        "sim_clean": true,
+        "spec_pass": true,
+        "measured": "|gain| = 51.53 (+3.1%), phase = -180 deg"
+      },
+      "iterations": 1
+    },
+    {
+      "id": "buck_converter",
+      "netlist_file": "repaired/buck_converter.cir",
+      "before": {
+        "spec_pass": false,
+        "measured": "V(out) avg = 4.519 V (-9.6%), ripple = 8.3 mVpp"
+      },
+      "diagnosis": "Duty cycle 41.67% is exact for an ideal converter (D*Vin = 5.0 V) but does not compensate the freewheeling diode drop during the (1-D) interval.",
+      "change": "Scaled duty by 5/4.519 -> 46.1% (PULSE width 4.61u at 10u period). No other changes.",
+      "after": {
+        "sim_clean": true,
+        "spec_pass": true,
+        "measured": "V(out) avg = 5.085 V (+1.7%), ripple = 8.5 mVpp"
+      },
+      "iterations": 1
+    },
+    {
+      "id": "halfwave_rectifier",
+      "netlist_file": "repaired/halfwave_rectifier.cir",
+      "before": {
+        "spec_pass": false,
+        "measured": "peak_out = 8.93 V (drop 1.07 V vs peak_in 10.00 V), min = -0.000 V"
+      },
+      "diagnosis": "Generated diode model used emission coefficient N=1.5 -> non-physical ~1.07 V forward drop at ~9 mA; a real silicon diode (N~1) drops ~0.6-0.7 V.",
+      "change": "Diode model changed to IS=1e-12, N=1 (RS/BV kept). No topology change.",
+      "after": {
+        "sim_clean": true,
+        "spec_pass": true,
+        "measured": "peak_out = 9.40 V (drop 0.60 V vs peak_in 10.00 V), min = -0.000 V"
+      },
+      "iterations": 1
+    }
+  ],
+  "result": "Spec compliance after repair: 8/8 (from 5/8). Every repair converged in a single iteration once the measured value was available as feedback."
+}

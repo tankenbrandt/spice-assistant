@@ -1,0 +1,16 @@
+Half-wave rectifier with silicon diode and 1k load
+* SPEC REPAIR: original diode model used emission coefficient N=1.5, giving a
+* non-physical ~1.07V forward drop at ~9mA. Fix: N=1 with IS=1e-12 gives a
+* realistic ~0.6V silicon drop.
+
+Vin in 0 SIN(0 10 60 0 0)
+D1 in out DMOD
+Rload out 0 1k
+.model DMOD D(IS=1e-12 N=1 RS=0.5 BV=100)
+
+.control
+tran 10us 50ms
+print v(in) v(out)
+.endc
+
+.end

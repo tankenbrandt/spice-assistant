@@ -1,0 +1,36 @@
+* Common-Emitter BJT Amplifier (2N2222-style), Gain ~ -50, Vcc=12V
+* SPEC REPAIR: original measured |gain|=107 (Re fully bypassed -> gain set by
+* intrinsic re). Fix: split emitter resistance into unbypassed Re1 + bypassed
+* Re2 so mid-band gain ~ (Rc||RL||ro)/(re+Re1) ~ 50 by design.
+* Bias: VB=12*11k/79k~1.62V, VE~0.97V, IE~1.0mA, re~26 ohm.
+* Gain = (7.5k||10k||ro~105k)/(26+56) = 4.12k/82 ~ 50.2
+
+.model QN2222 NPN(IS=14.34f BF=200 VAF=100 IKF=0.3 RB=10 CJE=25p CJC=8p TF=0.4n TR=60n)
+
+Vcc vcc 0 DC 12
+Vin in 0 DC 0 AC 1
+
+Cin in base 10u
+
+R1 vcc base 68k
+R2 base 0 11k
+
+Rc vcc coll 7.5k
+
+Re1 emit e2 56
+Re2 e2 0 910
+Ce e2 0 220u
+
+Cout coll out 10u
+RL out 0 10k
+
+Q1 coll base emit 0 QN2222
+
+.control
+op
+print v(base) v(coll) v(emit)
+ac dec 20 1 1meg
+print vm(out)
+.endc
+
+.end

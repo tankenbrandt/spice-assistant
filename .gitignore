@@ -1,0 +1,10 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Bundled ngspice binary distribution (49 MB; see README for setup)
+tools/

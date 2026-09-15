@@ -1,0 +1,35 @@
+* Common-Emitter BJT Amplifier: Vce=6V, Av=-80, Vcc=12V
+* IN-SESSION REPAIR: the generated deck's only flaw was a floating output node
+* ('out' connected solely through Cout, no load) which silently corrupted the
+* .op solution (degenerate cutoff: Vce read 12V) while AC still measured
+* gain 77. The bias design itself was correct. Fix: add a light load RL=100k
+* to give 'out' a DC path without loading down the gain.
+* Verified coupled effect: a "typical" RL=10k fixes Vce but drops gain to 63.6
+* (-20.5%, FAIL) — the light load passes both specs.
+
+Vcc vcc 0 DC 12
+Vin in 0 DC 0 AC 1
+
+R1 vcc base 68k
+R2 base 0 47k
+Rc vcc coll 2.2k
+Re emit 0 4.3k
+
+Cin in base 10u
+Cout coll out 10u
+Ce emit 0 100u
+
+Q1 coll base emit 0 QNPN
+
+.model QNPN NPN(BF=100 IS=1e-14 VAF=100)
+
+RL out 0 100k
+
+.control
+op
+print v(coll) v(emit) v(base)
+ac dec 10 1 1meg
+print vm(out)
+.endc
+
+.end

@@ -1,0 +1,30 @@
+* BJT differential pair: Ad = 25 (single-ended), CMRR >= 60 dB
+* IN-SESSION REPAIR: the benchmark's "solved" netlist was a trivial RC circuit
+* (identity drift in the error-fix loop); automated spec repair then failed.
+* Design: Itail = 1 mA ideal current source -> IE = 0.5 mA each, gm = 19.3 mS.
+* Ad = gm*Rc/2 = 19.3m * 2.6k / 2 ~ 25.1. Ideal tail -> Acm ~ 0 -> CMRR huge.
+
+Vcc vcc 0 DC 12
+Vee vee 0 DC -12
+
+Vinp inp 0 DC 0 AC 1
+Vinn inn 0 DC 0 AC 1
+
+Q1 c1 inp e QNPN
+Q2 out inn e QNPN
+
+Rc1 vcc c1 2.6k
+Rc2 vcc out 2.6k
+
+Itail e vee 1m
+
+.model QNPN NPN(BF=200 IS=1e-14 VAF=150)
+
+.control
+op
+print v(out) v(e)
+ac dec 20 10 1meg
+print vm(out)
+.endc
+
+.end
