@@ -186,13 +186,44 @@ is a magnitude panel stacked on a phase panel rather than one chart with two
 y-scales: with two scales on one set of axes, wherever the curves cross is an
 artefact of where the scales were pinned, not a fact about the circuit.
 
+## Schematic to netlist (`netlist.py`)
+
+Closes the loop: extract the connectivity from an `.asc` and emit a deck, so a
+schematic drawn in LTspice can be simulated and verified here.
+
+```powershell
+python netlist.py schematic.asc -o deck.cir
+python netlist.py schematic.asc --pinorder "OP07=in+,in-,v+,v-,out"
+python netlist.py schematic.asc --strict     # fail rather than emit a TODO
+```
+
+Nets come from the drawing. Wire endpoints and symbol pins are merged with a
+union-find, including T-junctions where a wire lands part-way along another,
+and a net takes its name from any `FLAG` on it (`0` for ground); the rest
+become `N001`, `N002`, ...
+
+What it will not do is invent a pin order. Primitives have a fixed, verified
+order. A library part's subcircuit pin order is a property of the library, not
+the drawing, so by default it is emitted as a commented `X` line listing the
+nets its pins landed on, and `--pinorder` is how you state the real one.
+
+That T-junction rule earns its keep. The first version of the example
+schematic looked right and passed `ascview --check` -- every pin sat on a
+wire -- but the feedback wire ran straight *through* the non-inverting input
+pin on its way down to `Rg`, shorting the two op-amp inputs. `--check` cannot
+see that; extracting the netlist named both inputs the same net and made it
+obvious.
+
 ## A worked example (`examples/`)
 
 `examples/` holds one circuit in all four forms: schematic, netlist, spec, and
-the plot above.
+the plot above. The schematic is self-contained -- supplies and the op-amp
+macromodel included -- so the deck extracted from it measures **identically**
+to the hand-written one, which the test suite asserts.
 
 ```powershell
 python ascview.py examples/active_lowpass.asc --open
+python netlist.py examples/active_lowpass.asc --pinorder "OP07=in+,in-,v+,v-,out"
 python speccheck.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml
 python robustness.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml --mc 500 --sens
 python plot.py examples/active_lowpass.cir --spec examples/active_lowpass.yaml --open
