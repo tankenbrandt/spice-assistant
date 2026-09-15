@@ -1,0 +1,12 @@
+Half-wave rectifier with silicon diode and 1k load
+Vin in 0 SIN(0 10 60 0 0)
+D1 in out DMOD
+Rload out 0 1k
+.model DMOD D(IS=1e-14 N=1.5 RS=0.5 BV=100)
+
+.control
+tran 10us 50ms
+print v(in) v(out)
+.endc
+
+.end

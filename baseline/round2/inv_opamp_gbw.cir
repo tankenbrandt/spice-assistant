@@ -1,0 +1,28 @@
+Inverting op-amp amplifier with realistic single-pole op-amp model (GBW ~2MHz)
+
+.control
+op
+ac dec 20 1 10meg
+print ac vdb(out)
+print ac vp(out)
+tran 1u 2m
+print tran v(in) v(out)
+.endc
+
+* Input source
+Vin in 0 AC 1 DC 0
+
+* Feedback network for inverting amplifier, gain = -Rf/Rin = -20
+Rin in vneg 1k
+Rf vneg out 20k
+
+* Non-inverting input grounded
+Vp vplus 0 DC 0
+
+* Op-amp macromodel: single-pole, DC gain 100k, pole at 20Hz (GBW ~2MHz)
+Egain nmid 0 vplus vneg 100000
+Rp nmid npole 1
+Cp npole 0 7.9577e-3
+Ebuf out 0 npole 0 1
+
+.end

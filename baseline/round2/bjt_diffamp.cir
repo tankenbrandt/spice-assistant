@@ -1,0 +1,12 @@
+Simple RC Circuit Test
+
+V1 in 0 DC 5
+R1 in out 1k
+C1 out 0 1u
+
+.control
+op
+print v(in) v(out)
+.endc
+
+.end

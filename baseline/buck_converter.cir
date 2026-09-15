@@ -1,0 +1,26 @@
+Buck converter 12V to 5V, 100kHz switching, LC output filter
+
+Vin 1 0 DC 12
+Vctrl gate 0 PULSE(0 5 0 10n 10n 4.167u 10u)
+
+* Voltage-controlled switch from Vin to switching node
+S1 1 sw gate 0 SWMOD
+.model SWMOD SW(Ron=0.01 Roff=1Meg Vt=2.5 Vh=0.5)
+
+* Freewheeling diode: anode at ground, cathode at switching node
+D1 0 sw DMOD
+.model DMOD D(Is=1e-14 Rs=0.01 N=1.0 Cjo=1e-11 Tt=1e-9)
+
+* LC output filter
+L1 sw out 100u IC=0
+C1 out 0 47u IC=0
+
+* Resistive load
+Rload out 0 5
+
+.control
+tran 100n 2m 0 uic
+print v(out)
+.endc
+
+.end

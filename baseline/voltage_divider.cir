@@ -1,0 +1,12 @@
+Resistive voltage divider producing 3.3V from 12V source
+
+V1 in 0 DC 12
+R1 in out 8.7k
+R2 out 0 3.3k
+
+.control
+op
+print v(in) v(out)
+.endc
+
+.end

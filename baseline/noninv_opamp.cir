@@ -1,0 +1,19 @@
+Non-inverting op-amp amplifier with gain of 11
+* Input: 100mV, 1kHz sine wave
+* Ideal op-amp modeled as high-gain VCVS
+
+Vin in 0 SIN(0 0.1 1k)
+
+* Feedback network
+R1 fb 0 1k
+Rf out fb 10k
+
+* Ideal op-amp: high-gain VCVS, out = A*(V(in) - V(fb))
+Eopamp out 0 in fb 1e6
+
+.control
+tran 10u 5m
+print V(in) V(out)
+.endc
+
+.end

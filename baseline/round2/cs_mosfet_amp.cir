@@ -1,0 +1,37 @@
+* Common-Source NMOS Amplifier - Mid-band Gain ~10
+
+.model NMOSMOD NMOS(LEVEL=1 VTO=1.0 KP=200U LAMBDA=0.01)
+
+Vdd vdd 0 DC 10
+Vin in 0 DC 0 AC 1
+
+* Input coupling capacitor
+Cin in g 1u
+
+* Bias network (voltage divider)
+R1 vdd g 700k
+R2 g 0 300k
+
+* MOSFET (common-source)
+M1 out g s 0 NMOSMOD W=100u L=10u
+
+* Source resistor with bypass capacitor
+Rs s 0 1k
+Cs s 0 10u
+
+* Drain resistor
+Rd vdd out 5k
+
+* Output coupling capacitor
+Cout out outp 1u
+Rload outp 0 100k
+
+.control
+op
+print v(g) v(out) v(s)
+ac dec 20 1 1meg
+print vm(out)/vm(in)
+print vdb(out)
+.endc
+
+.end

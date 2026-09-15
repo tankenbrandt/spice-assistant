@@ -1,0 +1,12 @@
+Series RL circuit with step input transient response
+
+Vin in 0 PWL(0 0 1n 5)
+R1 in out 100
+L1 out 0 10mH
+
+.control
+tran 1u 1m
+print v(in) v(out) i(L1)
+.endc
+
+.end

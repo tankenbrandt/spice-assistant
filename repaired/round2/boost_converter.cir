@@ -1,0 +1,19 @@
+Boost Converter 5V to 12V, 100kHz switching
+
+.control
+    tran 0.1u 5m uic
+    print v(out)
+.endc
+
+Vin 1 0 DC 5
+L1 1 2 100uH
+Vgate gate 0 PULSE(0 5 0 1n 1n 6.05u 10u)
+S1 2 0 gate 0 SWMOD
+D1 2 out DMOD
+Cout out 0 100uF IC=0
+Rload out 0 20
+
+.model SWMOD SW(Ron=0.01 Roff=1Meg Vt=2.5 Vh=0.1)
+.model DMOD D(Rs=0.01 N=1 Is=1e-14)
+
+.end

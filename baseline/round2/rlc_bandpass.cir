@@ -1,0 +1,13 @@
+* Series RLC Bandpass Filter, f0=10kHz, Q=5, output across R
+.control
+  ac dec 100 100 1meg
+  print frequency vdb(out)
+  print frequency vp(out)
+.endc
+
+Vin in 0 AC 1
+L1 in n1 7.958mH
+C1 n1 out 31.83nF
+R1 out 0 100
+
+.end

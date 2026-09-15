@@ -1,0 +1,48 @@
+* Common-Emitter BJT Amplifier (2N2222-style), Gain ~ -50, Vcc=12V
+
+.model QN2222 NPN(IS=14.34f BF=200 VAF=100 IKF=0.3 RB=10 CJE=25p CJC=8p TF=0.4n TR=60n)
+
+* Power supply
+Vcc vcc 0 DC 12
+
+* Input source with series resistance and AC stimulus
+Vin in 0 DC 0 AC 1
+Rs in b_in 600
+
+* Coupling capacitor into base
+Cin b_in base 1u
+
+* Bias resistors (voltage divider)
+R1 vcc base 220k
+R2 base 0 16k
+
+* Collector resistor
+Rc vcc coll 5k
+
+* Emitter resistor with bypass capacitor
+Re emit 0 100
+Ce emit 0 100u
+
+* Output coupling capacitor and load
+Cout coll out 1u
+RL out 0 10k
+
+* BJT transistor
+Q1 coll base emit 0 QN2222
+
+.control
+op
+print v(base) v(coll) v(emit)
+
+ac dec 20 1 1meg
+print vdb(out)
+print vm(out)
+let gain = vm(out)/vm(in)
+print gain
+
+* Print gain at approximate mid-band frequency (1kHz)
+let midband_index = 20
+print gain[midband_index]
+.endc
+
+.end

@@ -1,0 +1,18 @@
+RC Low-Pass Filter, fc=1kHz
+* Vin: DC 5V with AC magnitude 1 for AC analysis
+Vin in 0 DC 5 AC 1
+R1 in out 1k
+C1 out 0 159.15n
+
+.control
+op
+print v(in) v(out)
+
+ac dec 20 1 1meg
+print ac v(out)
+
+tran 10u 5m
+print tran v(in) v(out)
+.endc
+
+.end

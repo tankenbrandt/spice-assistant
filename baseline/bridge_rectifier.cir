@@ -1,0 +1,30 @@
+Full-wave bridge rectifier with smoothing capacitor, 12V RMS 60Hz source, 100 ohm load
+
+Vin A B SIN(0 16.97 60)
+Rs1 A A1 1
+Rs2 B B1 1
+
+D1 A1 out DMOD
+D2 B1 out DMOD
+D3 0 A1 DMOD
+D4 0 B1 DMOD
+
+Rload out 0 100
+Cout out 0 2000u IC=0
+
+.model DMOD D(IS=1e-14 N=1.5 RS=0.5 CJO=10p TT=1n)
+
+.options GMIN=1e-9 RELTOL=0.01 ABSTOL=1e-6 VNTOL=1e-6 ITL1=200 ITL2=200 ITL4=200 METHOD=GEAR
+
+.control
+tran 5u 200m 0 uic
+meas tran vout_max MAX v(out) FROM=150m TO=200m
+meas tran vout_min MIN v(out) FROM=150m TO=200m
+let vout_ripple = vout_max - vout_min
+print vout_max
+print vout_min
+print vout_ripple
+print v(out)
+.endc
+
+.end
