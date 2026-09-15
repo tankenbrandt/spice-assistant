@@ -299,6 +299,12 @@ python symlib.py npn OpAmps/OP07     # pin coordinates and SpiceOrder
 
 Set `LTSPICE_SYM_DIR` if your install is somewhere unusual.
 
+LTspice can also netlist a schematic headlessly, so `netlist.py` is
+**differentially tested against LTspice itself** — both netlisters run over
+every shipped `.asc` and the connectivity is compared device by device, same
+nets in the same node order. Node order is the whole game: `Q1 c b e` and
+`Q1 e b c` are different circuits.
+
 ## Layout
 
 ```
@@ -311,7 +317,7 @@ baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 docs/            per-round analysis prose and the README images
-tests/           397 tests, no API calls
+tests/           407 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

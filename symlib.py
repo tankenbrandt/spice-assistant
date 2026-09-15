@@ -104,6 +104,56 @@ def find_library(explicit: str | None = None) -> Path | None:
     return None
 
 
+_EXE_CANDIDATES = [
+    r"%LOCALAPPDATA%\Programs\ADI\LTspice\LTspice.exe",
+    r"%ProgramFiles%\ADI\LTspice\LTspice.exe",
+    r"%ProgramFiles%\LTC\LTspiceXVII\XVIIx64.exe",
+    r"%ProgramFiles(x86)%\LTC\LTspiceIV\scad3.exe",
+    "/Applications/LTspice.app/Contents/MacOS/LTspice",
+]
+
+
+def find_executable(explicit: str | None = None) -> Path | None:
+    """Locate the LTspice binary. LTSPICE_EXE overrides.
+
+    Only used to ask LTspice to netlist a schematic itself -- which is how
+    `netlist.py` gets differentially tested against the tool it imitates.
+    """
+    for raw in filter(None, [explicit, os.environ.get("LTSPICE_EXE")]):
+        p = Path(os.path.expandvars(os.path.expanduser(raw)))
+        if p.is_file():
+            return p
+    for raw in _EXE_CANDIDATES:
+        expanded = os.path.expandvars(os.path.expanduser(raw))
+        if "%" in expanded or "$" in expanded:
+            continue
+        p = Path(expanded)
+        if p.is_file():
+            return p
+    return None
+
+
+def netlist_with_ltspice(asc: Path, exe: Path | None = None,
+                         timeout: int = 120) -> str:
+    """Ask LTspice to netlist a schematic and return the .net it writes.
+
+    Runs headless (`-netlist`); no window appears.
+    """
+    import subprocess
+    exe = exe or find_executable()
+    if exe is None:
+        raise FileNotFoundError("LTspice executable not found; set LTSPICE_EXE")
+    asc = Path(asc).resolve()
+    out = asc.with_suffix(".net")
+    if out.exists():
+        out.unlink()
+    subprocess.run([str(exe), "-netlist", str(asc)],
+                   capture_output=True, timeout=timeout)
+    if not out.exists():
+        raise RuntimeError(f"LTspice wrote no netlist for {asc.name}")
+    return _read_text(out)
+
+
 def _read_text(path: Path) -> str:
     """Some .asy files are UTF-16; most are plain ASCII."""
     raw = path.read_bytes()
