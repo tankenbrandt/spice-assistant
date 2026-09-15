@@ -87,6 +87,49 @@ successful simulation, `1` if all attempts failed.
 - `fix_netlist(netlist_text, error_output)` — sends the failing netlist plus the
   ngspice output back to the model and returns a corrected netlist.
 
+## Specs for your own circuits (`specs_lib/`, `specs.py`)
+
+The benchmark's spec checks are one hand-written Python function per circuit,
+which is fine for a fixed test set and useless for your own amplifier. A
+**declarative spec** describes a measurement instead of implementing it --
+run an analysis, pull a quantity out of the resulting vectors, compare it to
+a limit:
+
+```yaml
+circuit: rc_lowpass
+analyses:
+  ac: {command: ac dec 200 10 1meg, vectors: [vdb(out)]}
+measurements:
+  - name: f3db
+    label: f(-3dB)
+    units: Hz
+    extract: {kind: crossing, of: vdb(out), level: first - 3, direction: falling}
+    target: 1000
+    tol: 5%
+```
+
+```powershell
+python speccheck.py my_filter.cir --spec my_filter.yaml
+python robustness.py my_filter.cir --spec my_filter.yaml --mc 500 --sens --worst
+```
+
+**One spec file drives both layers.** The measurements that produce the
+nominal verdict are the same ones Monte Carlo, sensitivity and worst-case
+perturb, so a circuit is described once and signed off end to end.
+
+Extractors: `max`, `min`, `mean`, `peak_to_peak`, `crossing`, `value_at`,
+`at_peak`. A `window: last 20%` restricts a transient to steady state, and
+levels may reference the curve itself (`first - 3`, `max / sqrt(2)`).
+Measurements can be `expr`-derived from earlier ones (`q: f0 / (f_hi - f_lo)`),
+and intermediates that exist only to be referenced are marked
+`informational: true` so they are measured and reported without deciding the
+verdict. Expressions are evaluated through an AST whitelist, so a spec file
+is data, not code.
+
+The ten specs in `specs_lib/` cover the benchmark's circuits, and the test
+suite asserts that each one reaches the same verdict *and the same measured
+number* as the hand-written checker it replaces.
+
 ## Viewing LTspice schematics (`ascview.py`)
 
 Opens LTspice `.asc` schematic files **without LTspice** and renders them to a

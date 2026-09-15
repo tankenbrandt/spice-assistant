@@ -1,0 +1,40 @@
+circuit: ce_bjt_amp
+description: Common-emitter BJT amplifier, |gain| = 50, inverting
+
+analyses:
+  ac:
+    options: [set units=degrees]
+    command: ac dec 20 10 10meg
+    vectors: [vm(out), vp(out)]
+
+measurements:
+  - name: gain
+    label: "|gain|"
+    units: V/V
+    extract: {kind: max, of: vm(out)}
+    target: 50
+    tol: 5%
+
+  - name: f_mid
+    label: mid-band
+    units: Hz
+    extract: {kind: at_peak, of: vm(out)}
+
+  # A common-emitter stage must invert. Phase is read at the frequency the
+  # gain measurement peaked at, not at an arbitrary point in the sweep.
+    informational: true
+
+  # Raw phase is an intermediate, not a spec: it wraps at +/-180, so a
+  # normalised sensitivity on it reports a meaningless 200% swing. The spec
+  # is the inversion below, which is wrap-free.
+  - name: phase
+    units: deg
+    extract: {kind: value_at, of: vp(out), at: f_mid}
+    informational: true
+
+  - name: inversion
+    label: "|phase|"
+    units: deg
+    expr: abs(phase)
+    min: 90
+    max: 270

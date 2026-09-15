@@ -1,0 +1,27 @@
+circuit: buck_converter
+description: Buck converter, 5 V output from a 12 V rail
+
+analyses:
+  tran:
+    command: tran 200n 8m
+    vectors: [v(out)]
+
+measurements:
+  - name: vout
+    label: V(out) avg
+    units: V
+    extract:
+      kind: mean
+      of: v(out)
+      window: last 20%      # steady state, after the startup transient
+    target: 5.0
+    tol: 3%
+
+  - name: ripple
+    label: ripple
+    units: Vpp
+    extract:
+      kind: peak_to_peak
+      of: v(out)
+      window: last 20%
+    max: 0.1

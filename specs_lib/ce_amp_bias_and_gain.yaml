@@ -1,0 +1,65 @@
+circuit: ce_amp_bias_and_gain
+description: >
+  Common-emitter stage with two coupled specs: the bias point and the
+  small-signal gain. Moving one moves the other, which is the point.
+
+analyses:
+  op:
+    command: op
+    vectors: [v(coll), v(emit)]
+  ac:
+    # `op` runs first on purpose. This deck's operating point is convergence
+    # sensitive: a standalone `ac` linearises around a degenerate solution and
+    # measures a gain of ~1e-9, while an `op` beforehand lands on the real
+    # bias and measures 77. Both hard-coded layers happen to do this because
+    # they needed the bias anyway; here it is deliberate and written down.
+    options: [op, set units=degrees]
+    command: ac dec 20 10 10meg
+    vectors: [vm(out), vp(out)]
+
+measurements:
+  - name: v_coll
+    units: V
+    analysis: op
+    extract: {kind: mean, of: v(coll)}
+    informational: true
+
+  - name: v_emit
+    units: V
+    analysis: op
+    extract: {kind: mean, of: v(emit)}
+    informational: true
+
+  - name: vce
+    label: Vce
+    units: V
+    expr: v_coll - v_emit
+    target: 6.0
+    tol: 10%
+
+  - name: gain
+    label: "|gain|"
+    units: V/V
+    analysis: ac
+    extract: {kind: max, of: vm(out)}
+    target: 80
+    tol: 10%
+
+  - name: f_mid
+    units: Hz
+    analysis: ac
+    extract: {kind: at_peak, of: vm(out)}
+    informational: true
+
+  - name: phase
+    units: deg
+    analysis: ac
+    extract: {kind: value_at, of: vp(out), at: f_mid}
+    informational: true
+
+  - name: inversion
+    label: "|phase|"
+    units: deg
+    expr: abs(phase)
+    min: 90
+    max: 270

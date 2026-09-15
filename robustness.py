@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import speccheck
+import specs as specfile
 from speccheck import spice_value
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -386,6 +387,43 @@ METRICS = {
 }
 
 
+def from_spec(spec) -> tuple:
+    """Adapt a declarative CircuitSpec to this module's (metric_fn, specs) pair.
+
+    This is what lets one spec file drive the whole signoff: the same
+    measurements that produce the nominal verdict become the metrics that
+    Monte Carlo, sensitivity and worst-case perturb. Informational
+    measurements are still computed -- derived specs may depend on them --
+    but only real specs get acceptance limits.
+    """
+    def metric_fn(netlist: str) -> dict:
+        return specfile.measure(spec, netlist)
+
+    limits = {m.name: Spec(m.title, m.limits.target, m.limits.lsl,
+                           m.limits.usl, m.units)
+              for m in spec.specs}
+    return metric_fn, limits
+
+
+def resolve(circuit) -> tuple:
+    """Look up a circuit by benchmark name, or adapt a loaded spec file.
+
+    Every analysis below goes through here, so passing a CircuitSpec anywhere
+    a circuit name was accepted works without further plumbing.
+    """
+    if isinstance(circuit, str):
+        if circuit not in METRICS:
+            raise KeyError(
+                f"no built-in metrics for {circuit!r}; pass a spec file "
+                f"instead, or choose one of: {', '.join(sorted(METRICS))}")
+        return METRICS[circuit]
+    return from_spec(circuit)
+
+
+def circuit_name(circuit) -> str:
+    return circuit if isinstance(circuit, str) else circuit.name
+
+
 # ---------------------------------------------------------------- statistics
 
 def cpk(values: list[float], spec: Spec) -> float | None:
@@ -452,7 +490,7 @@ def _map(fn, jobs: list, workers: int) -> list:
 
 
 def nominal(circuit: str, netlist: str) -> dict:
-    metric_fn, _ = METRICS[circuit]
+    metric_fn, _ = resolve(circuit)
     _, params = extract_params(netlist, vary_temp=True)
     vals = {p.key: (TEMP_NOM if p.kind == "temp" else p.nominal) for p in params}
     return _evaluate(metric_fn, netlist, params, vals)
@@ -461,7 +499,7 @@ def nominal(circuit: str, netlist: str) -> dict:
 def monte_carlo(circuit: str, netlist: str, n: int, *, seed: int = 0,
                 dist: str = "gaussian", vary_temp: bool = True,
                 workers: int = 8) -> dict:
-    metric_fn, specs = METRICS[circuit]
+    metric_fn, specs = resolve(circuit)
     _, params = extract_params(netlist, vary_temp=vary_temp)
     rng = random.Random(seed)
     draws = [{p.key: p.sample(rng, dist) for p in params} for _ in range(n)]
@@ -478,7 +516,7 @@ def sensitivity(circuit: str, netlist: str, *, workers: int = 8) -> dict:
     S = (dMetric / Metric_nom) / (dParam / Param_nom)  -- "% per %".
     Temperature is reported as % of the metric per TEMP_SENS_STEP degrees.
     """
-    metric_fn, specs = METRICS[circuit]
+    metric_fn, specs = resolve(circuit)
     _, params = extract_params(netlist, vary_temp=True)
     base = {p.key: (TEMP_NOM if p.kind == "temp" else p.nominal) for p in params}
     nom = _evaluate(metric_fn, netlist, params, base)
@@ -532,7 +570,7 @@ def worst_case(circuit: str, netlist: str, metric: str, sens: dict) -> dict:
     linearized worst case -- exact only if the response is monotonic in each
     parameter, which is why it is reported alongside Monte Carlo, not instead.
     """
-    metric_fn, _ = METRICS[circuit]
+    metric_fn, _ = resolve(circuit)
     _, params = extract_params(netlist, vary_temp=True)
     sign = {r["param"]: r["metrics"].get(metric, {}).get("sign", 1)
             for r in sens["rows"]}
@@ -549,7 +587,7 @@ def worst_case(circuit: str, netlist: str, metric: str, sens: dict) -> dict:
 
 def pvt_corners(circuit: str, netlist: str, *, workers: int = 8) -> list[dict]:
     """Deterministic temperature x supply x beta grid (passives at nominal)."""
-    metric_fn, _ = METRICS[circuit]
+    metric_fn, _ = resolve(circuit)
     _, params = extract_params(netlist, vary_temp=True)
     supply_keys = {p.key for p in params if p.kind == "supply"}
     beta_keys = {p.key for p in params
@@ -578,3 +616,122 @@ def pvt_corners(circuit: str, netlist: str, *, workers: int = 8) -> list[dict]:
         g["error"] = r.get("error")
         g.pop("vals")
     return grid
+
+
+# --------------------------------------------------------------------- CLI
+
+def _fmt(v, nd=4):
+    return "n/a" if v is None else f"{v:.{nd}g}"
+
+
+def _cli(argv=None) -> int:
+    """Sign one deck off against a spec: nominal, Monte Carlo, sensitivity,
+    worst case and PVT corners -- all from the same spec file, no API calls."""
+    import argparse
+    import specs as specfile
+
+    ap = argparse.ArgumentParser(
+        prog="robustness",
+        description="Monte Carlo / sensitivity / worst-case signoff for one deck.")
+    ap.add_argument("deck", help="netlist file")
+    group = ap.add_mutually_exclusive_group(required=True)
+    group.add_argument("--spec", help="declarative spec file (.yaml/.json)")
+    group.add_argument("--circuit", choices=sorted(METRICS),
+                       help="name of a built-in benchmark circuit")
+    ap.add_argument("--mc", type=int, default=200, metavar="N",
+                    help="Monte Carlo samples (0 to skip; default 200)")
+    ap.add_argument("--sens", action="store_true", help="per-parameter sensitivity")
+    ap.add_argument("--worst", action="store_true", help="worst-case corner")
+    ap.add_argument("--pvt", action="store_true", help="temperature x supply x beta grid")
+    ap.add_argument("--all", action="store_true", help="every analysis")
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--dist", choices=("gaussian", "uniform"), default="gaussian")
+    ap.add_argument("--workers", type=int, default=8)
+    args = ap.parse_args(argv)
+
+    path = Path(args.deck)
+    if not path.exists():
+        print(f"not found: {path}")
+        return 2
+    netlist = path.read_text(encoding="utf-8")
+    circuit = specfile.load(args.spec) if args.spec else args.circuit
+    _, limits = resolve(circuit)
+
+    print(f"{path}  [{circuit_name(circuit)}]")
+    params = extract_params(netlist)[1]
+    print(f"  {len(params)} perturbable parameters: "
+          f"{', '.join(p.label() for p in params)}")
+
+    nom = nominal(circuit, netlist)
+    if not nom.get("metrics"):
+        print(f"  nominal measurement failed: {nom.get('error')}")
+        return 1
+    print("\n  nominal")
+    for name, spec in limits.items():
+        v = nom["metrics"].get(name)
+        mark = "" if v is None else ("  ok" if spec.ok(v) else "  OUT OF SPEC")
+        print(f"    {spec.label:14s} {_fmt(v):>12s} {spec.units:4s}"
+              f" target {_fmt(spec.target):>8s}{mark}")
+
+    rc = 0
+    if args.mc or args.all:
+        n = args.mc or 200
+        mc = monte_carlo(circuit, netlist, n, seed=args.seed, dist=args.dist,
+                         workers=args.workers)
+        print(f"\n  monte carlo  ({n} samples, {args.dist}, seed {args.seed})")
+        for name, m in mc["metrics"].items():
+            print(f"    {m['label']:14s} mean {_fmt(m['mean']):>10s}  "
+                  f"sigma {_fmt(m['sigma']):>9s}  in-spec {m['pass_rate']:5.0%}  "
+                  f"Cpk {_fmt(m['cpk'], 3):>6s}")
+        if mc["n_sim_fail"]:
+            print(f"    {mc['n_sim_fail']} of {n} samples failed to simulate")
+        print(f"    yield {mc['yield']:.0%}  (every spec met simultaneously)")
+        if mc["yield"] < 1.0:
+            rc = 1
+
+    if args.sens or args.all:
+        sens = sensitivity(circuit, netlist, workers=args.workers)
+        print("\n  sensitivity  (% change in the spec per % change in the part)")
+        for name in limits:
+            rows = [(r["param"], r["metrics"][name]) for r in sens["rows"]
+                    if name in r["metrics"]]
+            if not rows:
+                continue
+            print(f"    {name}:")
+            for pname, m in rows[:6]:
+                print(f"      {pname:12s} S = {m['S']:+8.3f}   span {m['span_pct']:+7.2f}%")
+
+    if args.worst or args.all:
+        sens = sensitivity(circuit, netlist, workers=args.workers)
+        print("\n  worst case  (every parameter pushed the wrong way at once)")
+        for name, spec in limits.items():
+            wc = worst_case(circuit, netlist, name, sens)
+            lo = (wc.get("low") or {}).get("metrics", {}).get(name)
+            hi = (wc.get("high") or {}).get("metrics", {}).get(name)
+            inside = all(spec.ok(v) for v in (lo, hi) if v is not None)
+            print(f"    {spec.label:14s} {_fmt(lo):>10s} .. {_fmt(hi):>10s}"
+                  f"   limits {_fmt(spec.lsl):>8s} .. {_fmt(spec.usl):>8s}"
+                  f"   {'ok' if inside else 'OUT OF SPEC'}")
+            if not inside:
+                rc = 1
+
+    if args.pvt or args.all:
+        corners = pvt_corners(circuit, netlist, workers=args.workers)
+        good = [c for c in corners if c.get("metrics")]
+        print(f"\n  pvt corners  ({len(good)} of {len(corners)} measured)")
+        for name, spec in limits.items():
+            vals = [c["metrics"][name] for c in good if name in c["metrics"]]
+            if not vals:
+                continue
+            bad = sum(1 for v in vals if not spec.ok(v))
+            print(f"    {spec.label:14s} {min(vals):.4g} .. {max(vals):.4g}"
+                  f"   {bad} corner(s) out of spec")
+            if bad:
+                rc = 1
+
+    return rc
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(_cli())

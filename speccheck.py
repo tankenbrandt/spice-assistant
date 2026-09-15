@@ -496,3 +496,58 @@ def check(circuit_id: str, netlist: str) -> dict:
     except Exception as exc:
         return {"pass": False, "target": TARGETS.get(circuit_id),
                 "measured": None, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --------------------------------------------------------------------- CLI
+
+def _cli(argv=None) -> int:
+    """Verify one or more decks against a spec.
+
+    The spec is either a declarative file (works on any circuit) or the name
+    of one of the benchmark's built-in checks.
+    """
+    import argparse
+    import specs as specfile
+
+    ap = argparse.ArgumentParser(
+        prog="speccheck",
+        description="Measure an ngspice deck and check it against its spec.")
+    ap.add_argument("decks", nargs="+", help="netlist file(s) to verify")
+    group = ap.add_mutually_exclusive_group(required=True)
+    group.add_argument("--spec", help="declarative spec file (.yaml/.json)")
+    group.add_argument("--circuit", choices=sorted(CHECKS),
+                       help="name of a built-in benchmark check")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="also print informational measurements")
+    args = ap.parse_args(argv)
+
+    spec = specfile.load(args.spec) if args.spec else None
+    rc = 0
+    for name in args.decks:
+        path = Path(name)
+        if not path.exists():
+            print(f"not found: {path}")
+            rc = 1
+            continue
+        deck = path.read_text(encoding="utf-8")
+        result = specfile.verdict(spec, deck) if spec else check(args.circuit, deck)
+
+        verdict_text = "PASS" if result["pass"] else "FAIL"
+        print(f"{path}: {verdict_text}")
+        if result.get("target"):
+            print(f"  spec     {result['target']}")
+        if result.get("measured"):
+            print(f"  measured {result['measured']}")
+        if args.verbose and result.get("informational"):
+            for label, row in result["informational"].items():
+                print(f"  ({label} = {row['measured']})")
+        if result.get("error"):
+            print(f"  error    {result['error']}")
+        if not result["pass"]:
+            rc = 1
+    return rc
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(_cli())

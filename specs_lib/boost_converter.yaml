@@ -1,0 +1,15 @@
+circuit: boost_converter
+description: Boost converter, 12 V output from a 5 V rail
+
+analyses:
+  tran:
+    command: tran 200n 12m
+    vectors: [v(out)]
+
+measurements:
+  - name: vout
+    label: V(out) avg
+    units: V
+    extract: {kind: mean, of: v(out), window: last 20%}
+    target: 12.0
+    tol: 3%

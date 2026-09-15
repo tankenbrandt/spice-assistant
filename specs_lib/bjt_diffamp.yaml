@@ -1,0 +1,54 @@
+circuit: bjt_diffamp
+description: >
+  BJT differential amplifier. CMRR needs two separate drives of the same
+  deck, so the spec declares two analyses and derives the ratio.
+
+analyses:
+  differential:
+    options:
+      - alter @vinp[acmag]=0.5
+      - alter @vinp[acphase]=0
+      - alter @vinn[acmag]=0.5
+      - alter @vinn[acphase]=180
+    command: ac dec 20 10 1meg
+    vectors: [vm(out)]
+
+  common_mode:
+    options:
+      - alter @vinp[acmag]=1
+      - alter @vinp[acphase]=0
+      - alter @vinn[acmag]=1
+      - alter @vinn[acphase]=0
+    command: ac dec 20 10 1meg
+    vectors: [vm(out)]
+
+measurements:
+  - name: ad
+    label: Ad
+    units: V/V
+    analysis: differential
+    extract: {kind: max, of: vm(out)}
+    target: 25
+    tol: 10%
+
+  - name: f_mid
+    units: Hz
+    analysis: differential
+    extract: {kind: at_peak, of: vm(out)}
+
+  # Read the common-mode gain at the same frequency the differential gain
+  # peaked at, so the ratio compares like with like.
+    informational: true
+
+  - name: acm
+    label: Acm
+    units: V/V
+    analysis: common_mode
+    extract: {kind: value_at, of: vm(out), at: f_mid}
+    informational: true
+
+  - name: cmrr
+    label: CMRR
+    units: dB
+    expr: 20 * log10(ad / acm)
+    min: 60

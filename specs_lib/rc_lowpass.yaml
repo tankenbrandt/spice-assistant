@@ -1,0 +1,19 @@
+circuit: rc_lowpass
+description: First-order RC low-pass, 1 kHz cutoff
+
+analyses:
+  ac:
+    command: ac dec 200 10 1meg
+    vectors: [vdb(out)]
+
+measurements:
+  - name: f3db
+    label: f(-3dB)
+    units: Hz
+    extract:
+      kind: crossing
+      of: vdb(out)
+      level: first - 3      # flat at DC, so the passband is the first point
+      direction: falling
+    target: 1000
+    tol: 5%

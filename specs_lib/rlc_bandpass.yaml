@@ -1,0 +1,43 @@
+circuit: rlc_bandpass
+description: Series RLC band-pass, f0 = 10 kHz, Q = 5
+
+analyses:
+  ac:
+    command: ac dec 400 100 1meg
+    vectors: [vm(out)]
+
+measurements:
+  - name: f0
+    label: f0
+    units: Hz
+    extract: {kind: at_peak, of: vm(out)}
+    target: 10000
+    tol: 3%
+
+  # Band edges are the half-power points either side of the peak. They are
+  # not specs in themselves -- they exist so Q can be derived from them.
+  - name: f_lo
+    units: Hz
+    extract:
+      kind: crossing
+      of: vm(out)
+      level: max / sqrt(2)
+      direction: rising
+      search: before_peak
+    informational: true
+
+  - name: f_hi
+    units: Hz
+    extract:
+      kind: crossing
+      of: vm(out)
+      level: max / sqrt(2)
+      direction: falling
+      search: after_peak
+    informational: true
+
+  - name: q
+    label: Q
+    expr: f0 / (f_hi - f_lo)
+    target: 5.0
+    tol: 10%

@@ -1,0 +1,19 @@
+circuit: rc_highpass
+description: First-order RC high-pass, 2 kHz cutoff
+
+analyses:
+  ac:
+    command: ac dec 200 10 1meg
+    vectors: [vdb(out)]
+
+measurements:
+  - name: f3db
+    label: f(-3dB)
+    units: Hz
+    extract:
+      kind: crossing
+      of: vdb(out)
+      level: max - 3        # passband is at high frequency for a high-pass
+      direction: rising
+    target: 2000
+    tol: 3%

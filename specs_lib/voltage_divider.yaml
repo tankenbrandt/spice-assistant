@@ -1,0 +1,15 @@
+circuit: voltage_divider
+description: Resistive divider, 3.3 V from a 12 V rail
+
+analyses:
+  op:
+    command: op
+    vectors: [v(out)]
+
+measurements:
+  - name: vout
+    label: V(out)
+    units: V
+    extract: {kind: mean, of: v(out)}   # a single operating point
+    target: 3.3
+    tol: 1%

@@ -1,0 +1,34 @@
+circuit: halfwave_rectifier
+description: Half-wave rectifier, one diode drop from a 10 V peak source
+
+analyses:
+  tran:
+    command: tran 50u 50m
+    vectors: [v(in), v(out)]
+
+measurements:
+  - name: peak_in
+    units: V
+    extract: {kind: max, of: v(in)}
+    informational: true
+
+  - name: peak_out
+    units: V
+    extract: {kind: max, of: v(out)}
+
+  # The spec is the forward drop, which is the difference of two measurements
+  # rather than anything ngspice reports directly.
+    informational: true
+
+  - name: drop
+    label: peak drop
+    units: V
+    expr: peak_in - peak_out
+    min: -0.01
+    max: 1.0
+
+  - name: vmin
+    label: min V(out)
+    units: V
+    extract: {kind: min, of: v(out)}
+    min: -0.1
