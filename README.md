@@ -77,6 +77,7 @@ That installs the CLIs on your `PATH`:
 | `spice-plot` | `plot.py` | waveforms with the acceptance band on them |
 | `spice-netlist` | `netlist.py` | `.asc` schematic -> ngspice deck |
 | `ascview` | `ascview.py` | render a `.asc` without LTspice |
+| `spice-symlib` | `symlib.py` | inspect LTspice's own `.asy` symbol library |
 
 Every example below also works as `python <module>.py ...` straight from a
 clone, with no install. Only `spice-assistant` needs an API key; everything
@@ -272,27 +273,37 @@ so rendering needs no placement or routing — it is a parse-and-draw problem.
 
 ### Symbol geometry
 
-Pin offsets for `res`, `cap`, `voltage`, `nmos`, `pmos` and OP07-class op-amps
-are **verified** against real schematics: `--check` confirms every pin lands on
-a wire endpoint. The MOSFET geometry is measured across all four orientations
-(`R0`, `M0`, `R180`, `M180`) that appear in a real CMOS deck, and those exact
-coordinates are pinned in `tests/test_geometry.py` so the offsets cannot drift.
+The built-in symbol table is **validated against LTspice's own `lib/sym`**, and
+the test suite re-checks it on every run (`tests/test_symlib.py`) rather than
+resting on a measurement taken once. That check is what caught `nmos`/`pmos`
+carrying the BJT's pin offsets, and `sw` being modelled with two pins when
+LTspice's voltage-controlled switch has four.
 
-Other primitives (`ind`, `diode`, BJTs, `sw`) use standard LTspice geometry but
-have not been checked against a real file yet — run `--check` and any mismatch
-is reported rather than silently drawn wrong.
+Library parts (`OpAmps\\LTC2053`, vendor symbols) have per-part pin layouts
+that cannot be guessed from the name. Two paths:
 
-Library parts (`OpAmps\LTC2053`, vendor symbols) have per-part pin layouts that
-cannot be guessed from the name. Those are drawn as a labeled block whose pins
-are **inferred from the schematic's own wiring**: the pins are the wire
-endpoints no other symbol claims. Connectivity is never invented — wires are
-always drawn from their own coordinates.
+- **LTspice installed** — `symlib.py` reads the part's real `.asy`, so it is
+  drawn from its true geometry and, because every pin carries a `SpiceOrder`,
+  netlisted in its true node order. No configuration.
+- **No LTspice** — the part is drawn as a labelled block whose pins are
+  inferred from the schematic's own wiring, and `netlist.py` reports the pin
+  order rather than inventing one. `--no-lib` forces this path.
+
+Connectivity is never invented either way: wires are always drawn from their
+own coordinates.
+
+```powershell
+python symlib.py                     # is a library installed, and how big
+python symlib.py npn OpAmps/OP07     # pin coordinates and SpiceOrder
+```
+
+Set `LTSPICE_SYM_DIR` if your install is somewhere unusual.
 
 ## Layout
 
 ```
 main.py  speccheck.py  specs.py  robustness.py      the layers
-plot.py  ascview.py    netlist.py                   viewing and extraction
+plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
 benchmark.py  robustness_study.py                   the study drivers
 specs_lib/       declarative specs for the benchmark circuits
 examples/        one circuit as schematic, netlist, spec and plot
@@ -300,7 +311,7 @@ baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 docs/            per-round analysis prose and the README images
-tests/           353 tests, no API calls
+tests/           397 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
@@ -323,9 +334,9 @@ python robustness_study.py --report-only
 - Specs whose **target is computed from the netlist** (the `rl_step` circuit's
   tau = L/R) are not expressible declaratively yet; a spec target is a
   constant. The hand-written check still covers that circuit.
-- Symbol geometry for `ind`, `diode`, BJTs and `sw` is standard LTspice but
-  **not yet verified against a real file**. `ascview --check` reports any pin
-  that misses rather than drawing it wrong quietly.
+- `ARC` primitives from `.asy` files are approximated as circular arcs
+  through their endpoints, so a few vendor symbols draw slightly differently
+  from LTspice. Pin positions, and therefore connectivity, are exact.
 - ngspice accepts some malformed decks (a component with no value) and reports
   a clean run. That gap is the reason the spec layer exists.
 

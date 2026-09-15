@@ -22,12 +22,13 @@ spice-robustness = "robustness:_cli"        # Monte Carlo / sensitivity signoff
 spice-plot       = "plot:_cli"              # waveforms with the spec band on them
 spice-netlist    = "netlist:_cli"           # .asc schematic -> deck
 ascview          = "ascview:main"           # render a .asc without LTspice
+spice-symlib     = "symlib:_cli"            # inspect LTspice's .asy library
 
 [tool.setuptools]
 # A flat layout of single-purpose CLIs, so the modules are listed rather than
 # discovered -- that keeps tests/ and the report scripts out of the wheel.
 py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
-              "robustness_study", "ascview", "plot", "netlist"]
+              "robustness_study", "ascview", "plot", "netlist", "symlib"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]

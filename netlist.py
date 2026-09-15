@@ -43,7 +43,7 @@ DEVICES = {
     "pnp":     ("Q", ["C", "B", "E"]),
     "nmos":    ("M", ["D", "G", "S"]),
     "pmos":    ("M", ["D", "G", "S"]),
-    "sw":      ("S", ["n1", "n2"]),
+    "sw":      ("S", ["n+", "n-", "nc+", "nc-"]),
 }
 
 # Devices that need a model name, and a default if the schematic gives none.
@@ -181,6 +181,45 @@ def build_nets(sch) -> dict:
 
 # ------------------------------------------------------------------ emission
 
+def _library_symbol(name: str):
+    """The parsed .asy for a symbol, or None when no library is installed.
+
+    Honours ascview.USE_SYMBOL_LIBRARY so one switch covers drawing and
+    netlisting alike -- which is also what lets the tests exercise the
+    no-LTspice path on a machine that has it.
+    """
+    if not getattr(ascview, "USE_SYMBOL_LIBRARY", True):
+        return None
+    try:
+        import symlib
+        return symlib.lookup(name)
+    except Exception:
+        return None
+
+
+def _nets_at(offsets, sym, net_of):
+    """Nets touching a symbol's pins, in the order the offsets are given.
+
+    Returns None if any pin lands somewhere the drawing has no net, so the
+    caller falls back to reporting rather than emitting a wrong node list.
+    """
+    out = []
+    for dx, dy in offsets:
+        gx, gy = ascview.xf(sym.rot, dx, dy)
+        net = net_of.get((int(sym.x + gx), int(sym.y + gy)))
+        if net is None:
+            return None
+        out.append(net)
+    return out
+
+
+def _subckt_name(sym, asy, leaf: str) -> str:
+    """The subcircuit to call: the schematic's Value if it names one, else
+    the symbol's own name."""
+    value = (sym.attrs.get("Value") or "").strip()
+    return value or (asy.attrs.get("Value") or "").strip() or leaf.upper()
+
+
 def _refdes(prefix: str, sym, index: int) -> str:
     """Use the schematic's InstName when it already fits SPICE's convention."""
     inst = (sym.attrs.get("InstName") or "").strip()
@@ -228,6 +267,24 @@ def emit(sch, strict: bool = False, pinorder: dict | None = None) -> tuple[list,
             lines.append(f"{_refdes(prefix, sym, counter)} "
                          f"{' '.join(node_list)} {_value(sym, leaf)}")
             continue
+
+        # LTspice's own .asy states a SpiceOrder per pin, which IS the
+        # subcircuit's node order -- so when the library is available the
+        # pin order is read, not guessed at.
+        # Op-amps resolve to the built-in generic shape for DRAWING, but the
+        # real pin order still lives in the library, so both kinds ask it.
+        #
+        # The nets must be looked up at the LIBRARY's own pin coordinates:
+        # `nets` above is in the built-in table's pin order, which is not the
+        # SpiceOrder and would emit a correctly-named but wrongly-ordered call.
+        if kind in ("library", "opamp") and not pinorder.get(leaf):
+            asy = _library_symbol(sym.name)
+            if asy is not None and all(pp.order for pp in asy.pins):
+                ordered = _nets_at(asy.coords, sym, net_of)
+                if ordered is not None:
+                    lines.append(f"X{inst} {' '.join(ordered)} "
+                                 f"{_subckt_name(sym, asy, leaf)}")
+                    continue
 
         # A declared pin order makes a subcircuit emittable.
         roles = roles_for(kind, len(pins))

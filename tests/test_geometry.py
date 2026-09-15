@@ -81,7 +81,9 @@ def test_r90_r270_are_inverse():
         assert av.xf("R270", *av.xf("R90", *pt)) == pytest.approx(pt)
 
 
-def test_unknown_symbol_reports_no_builtin_geometry():
+def test_unknown_symbol_reports_no_builtin_geometry(no_symbol_library):
+    """Without an LTspice library to consult, a vendor part has no geometry
+    and its pins get inferred from the wiring instead."""
     sym, kind = av.symbol_for(r"OpAmps\LTC2053")
     assert kind == "unknown"
     assert sym.pins == []

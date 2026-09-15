@@ -134,20 +134,28 @@ def primitives(fixtures):
 def test_every_primitive_emits_cleanly(primitives):
     lines, warnings = primitives
     assert warnings == []
-    assert len(lines) == 7
+    assert len(lines) == 9
 
 
 @pytest.mark.parametrize("expected", [
-    "V1 vp 0 5",             # + terminal first
+    "V1 vp 0 5",                      # + terminal first
     "R1 a b 1k",
     "C1 b c 100n",
     "L1 c d 10m",
-    "D1 d e 1N4148",         # anode then cathode
-    "Q1 f e 0 2N2222",       # collector, base, emitter
-    "M1 g f 0 0 NMOS",       # drain, gate, source, bulk
+    "D1 d e 1N4148",                  # anode then cathode
+    "Q1 f e 0 2N2222",                # collector, base, emitter
+    "Q2 g f 0 2N3906",                # same order for the PNP
+    "M1 h g 0 0 NMOS",                # drain, gate, source, bulk
+    "S1 i 0 ctlp ctln MYSW",          # n+, n-, control+, control-
 ])
 def test_pin_order_per_device(primitives, expected):
     assert expected in primitives[0]
+
+
+def test_switch_is_four_terminal(primitives):
+    """LTspice's `sw` is the voltage-controlled switch: S n+ n- nc+ nc-."""
+    line = next(ln for ln in primitives[0] if ln.startswith("S1"))
+    assert len(line.split()) == 6
 
 
 def test_mosfet_bulk_is_tied_to_source(primitives):
@@ -184,20 +192,21 @@ def test_a_missing_model_name_falls_back_to_a_default():
 
 # ------------------------------------------------------------- subckt pins
 
-def test_unknown_symbol_becomes_a_todo_not_a_guess(project_dir):
+def test_unknown_symbol_becomes_a_todo_not_a_guess(project_dir, no_symbol_library):
+    """The no-LTspice path: pin order is reported, never invented."""
     sch = ascview.parse_asc(project_dir / "examples" / "active_lowpass.asc")
     lines, warnings = netlist.emit(sch)
     assert any("no known SPICE pin order" in w for w in warnings)
     assert any(ln.startswith("* TODO") for ln in lines)
 
 
-def test_strict_mode_refuses_to_emit_a_todo(project_dir):
+def test_strict_mode_refuses_to_emit_a_todo(project_dir, no_symbol_library):
     sch = ascview.parse_asc(project_dir / "examples" / "active_lowpass.asc")
     with pytest.raises(netlist.NetlistError, match="no known SPICE pin order"):
         netlist.emit(sch, strict=True)
 
 
-def test_the_warning_tells_you_the_flag_to_use(project_dir):
+def test_the_warning_tells_you_the_flag_to_use(project_dir, no_symbol_library):
     sch = ascview.parse_asc(project_dir / "examples" / "active_lowpass.asc")
     _lines, warnings = netlist.emit(sch)
     assert "--pinorder op07=in-,in+,out,v+,v-" in warnings[0]

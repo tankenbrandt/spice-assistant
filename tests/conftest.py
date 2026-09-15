@@ -36,3 +36,28 @@ def project_dir() -> Path:
 @pytest.fixture(scope="session")
 def fixtures() -> Path:
     return FIXTURES
+
+
+@pytest.fixture
+def no_symbol_library(monkeypatch):
+    """Force the built-in symbol table, as on a machine without LTspice.
+
+    Several behaviours only exist on that path -- inferred pins, the
+    pin-order TODO -- and they must stay tested on a machine that does have
+    LTspice installed.
+    """
+    import ascview
+    monkeypatch.setattr(ascview, "USE_SYMBOL_LIBRARY", False)
+    ascview._lib_cache.clear()
+    yield
+    ascview._lib_cache.clear()
+
+
+@pytest.fixture(scope="session")
+def symbol_library():
+    """The LTspice symbol library, or skip if this machine has none."""
+    import symlib
+    root = symlib.find_library()
+    if root is None:
+        pytest.skip("no LTspice symbol library installed")
+    return root

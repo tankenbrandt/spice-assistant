@@ -63,7 +63,8 @@ class Sym:
     draw: list[tuple]                 # ("line",x1,y1,x2,y2) ("poly",pts,closed)
                                       # ("circle",cx,cy,r) ("arc",...) ("text",x,y,s,size)
     box: tuple[float, float, float, float]
-    verified: bool = False            # pin offsets confirmed against real files
+    verified: bool = False            # pins match LTspice's own .asy
+                                      # (tests/test_symlib.py checks this)
 
 
 def _zigzag(x, y0, y1, n=6, amp=8):
@@ -82,6 +83,20 @@ def _coils(x, y0, y1, n=4):
     for i in range(n):
         ops.append(("arc", x, y0 + step * i, x, y0 + step * (i + 1), step / 2))
     return ops
+
+
+def _bjt_body():
+    """Shared BJT drawing: base lead and bar, collector and emitter legs.
+
+    Local frame is 64 x 96 with C(64,0), B(0,48), E(64,96). The emitter arrow
+    is added per-type by the caller (npn points out, pnp points in).
+    """
+    return [
+        ("line", 0, 48, 32, 48),                   # base lead
+        ("line", 32, 24, 32, 72),                  # base bar
+        ("line", 32, 40, 64, 10), ("line", 64, 10, 64, 0),     # collector
+        ("line", 32, 56, 64, 86), ("line", 64, 86, 64, 96),    # emitter
+    ]
 
 
 def _mos_body():
@@ -128,46 +143,43 @@ SYMBOLS: dict[str, Sym] = {
         pins=[(16, 16), (16, 96)],
         draw=[("line", 16, 16, 16, 24)] + _coils(16, 24, 88) +
              [("line", 16, 88, 16, 96)],
-        box=(8, 16, 24, 96)),
+        box=(8, 16, 24, 96), verified=True),
     "current": Sym(
         pins=[(0, 0), (0, 80)],
         draw=[("line", 0, 0, 0, 16), ("circle", 0, 40, 24),
               ("line", 0, 56, 0, 80),
               ("line", 0, 28, 0, 52), ("poly", [(-5, 34), (0, 24), (5, 34)], True)],
-        box=(-24, 0, 24, 80)),
+        box=(-24, 0, 24, 80), verified=True),
     "diode": Sym(
         pins=[(16, 0), (16, 64)],
         draw=[("line", 16, 0, 16, 16),
               ("poly", [(4, 16), (28, 16), (16, 48)], True),
               ("line", 4, 48, 28, 48), ("line", 16, 48, 16, 64)],
-        box=(4, 0, 28, 64)),
+        box=(4, 0, 28, 64), verified=True),
     "zener": Sym(
         pins=[(16, 0), (16, 64)],
         draw=[("line", 16, 0, 16, 16),
               ("poly", [(4, 16), (28, 16), (16, 48)], True),
               ("poly", [(4, 56), (4, 48), (28, 48), (28, 40)], False),
               ("line", 16, 48, 16, 64)],
-        box=(4, 0, 28, 64)),
+        box=(4, 0, 28, 64), verified=True),
     "schottky": Sym(
         pins=[(16, 0), (16, 64)],
         draw=[("line", 16, 0, 16, 16),
               ("poly", [(4, 16), (28, 16), (16, 48)], True),
               ("poly", [(2, 40), (2, 48), (30, 48), (30, 56)], False),
               ("line", 16, 48, 16, 64)],
-        box=(4, 0, 28, 64)),
-    # BJT: base lead left, collector up-right, emitter down-right
+        box=(4, 0, 28, 64), verified=True),
+    # ---- BJT geometry transcribed from LTspice's own npn.asy / pnp.asy ----
+    # C(64,0) B(0,48) E(64,96), confirmed against a real schematic.
     "npn": Sym(
-        pins=[(16, -16), (-16, 24), (16, 64)],     # C, B, E
-        draw=[("line", -16, 24, 0, 24), ("line", 0, 8, 0, 40),
-              ("line", 0, 16, 16, -16), ("line", 0, 32, 16, 64),
-              ("poly", [(10, 42), (16, 64), (4, 52)], True)],
-        box=(-16, -16, 16, 64)),
+        pins=[(64, 0), (0, 48), (64, 96)],         # C, B, E
+        draw=_bjt_body() + [("poly", [(48, 74), (64, 88), (44, 84)], True)],
+        box=(0, 0, 64, 96), verified=True),
     "pnp": Sym(
-        pins=[(16, -16), (-16, 24), (16, 64)],
-        draw=[("line", -16, 24, 0, 24), ("line", 0, 8, 0, 40),
-              ("line", 0, 16, 16, -16), ("line", 0, 32, 16, 64),
-              ("poly", [(0, 32), (10, 14), (14, 26)], True)],
-        box=(-16, -16, 16, 64)),
+        pins=[(64, 0), (0, 48), (64, 96)],         # C, B, E
+        draw=_bjt_body() + [("poly", [(32, 56), (52, 60), (36, 70)], True)],
+        box=(0, 0, 64, 96), verified=True),
     # ---- MOSFET geometry verified against a real CMOS schematic ----
     # Drain top-right, source bottom-right, gate at the LOWER left (not
     # centred): confirmed on 8 FETs across R0/M0/R180/M180 placements, every
@@ -180,12 +192,17 @@ SYMBOLS: dict[str, Sym] = {
         pins=[(48, 0), (0, 80), (48, 96)],         # D, G, S
         draw=_mos_body() + [("poly", [(39, 45), (48, 50), (39, 55)], True)],
         box=(0, 0, 48, 96), verified=True),
+    # LTspice's `sw` is the VOLTAGE-CONTROLLED switch: four pins, not two.
+    # A(0,16) B(0,96) NC+(-48,80) NC-(-48,32), from sw.asy and confirmed
+    # against a real schematic.
     "sw": Sym(
-        pins=[(16, 0), (16, 96)],
-        draw=[("line", 16, 0, 16, 24), ("line", 16, 24, 32, 72),
-              ("line", 16, 72, 16, 96), ("circle", 16, 24, 3),
-              ("circle", 16, 72, 3)],
-        box=(8, 0, 32, 96)),
+        pins=[(0, 16), (0, 96), (-48, 80), (-48, 32)],   # A, B, NC+, NC-
+        draw=[("line", 0, 16, 0, 32), ("line", 0, 32, 20, 72),
+              ("line", 0, 80, 0, 96),
+              ("circle", 0, 32, 3), ("circle", 0, 80, 3),
+              ("line", -48, 32, -24, 32), ("line", -48, 80, -24, 80),
+              ("line", -24, 32, -24, 80), ("line", -24, 56, -4, 56)],
+        box=(-48, 16, 24, 96), verified=True),
 }
 
 # Op-amp geometry derived from a real OpAmps\OP07 placement: pins sit at
@@ -210,13 +227,48 @@ OPAMP_NAMES = {"opamp", "opamp2", "op07", "op27", "op37", "ua741", "lt1001",
 _EMPTY = Sym(pins=[], draw=[], box=(-32, 0, 32, 64))
 
 
+# When LTspice is installed, its own lib/sym answers for everything the table
+# above does not cover -- exact pin coordinates and real drawing geometry, for
+# all ~6600 parts. Set False to force the built-in table (what a machine
+# without LTspice sees).
+USE_SYMBOL_LIBRARY = True
+
+_lib_cache: dict = {}
+
+
+def library_sym(name: str):
+    """Build a Sym from LTspice's own .asy, or None if unavailable."""
+    if not USE_SYMBOL_LIBRARY:
+        return None
+    if name in _lib_cache:
+        return _lib_cache[name]
+    sym = None
+    try:
+        import symlib
+        asy = symlib.lookup(name)
+        if asy is not None and asy.pins:
+            sym = Sym(pins=asy.coords, draw=list(asy.draw), box=asy.box(),
+                      verified=True)
+    except Exception:
+        sym = None          # a broken or unreadable .asy must not stop a render
+    _lib_cache[name] = sym
+    return sym
+
+
 def symbol_for(name: str) -> tuple[Sym, str]:
-    """Resolve an .asc SYMBOL name to geometry. Returns (sym, kind)."""
+    """Resolve an .asc SYMBOL name to geometry. Returns (sym, kind).
+
+    Order: the built-in table, then the generic op-amp shapes, then LTspice's
+    own library if one is installed, then unknown (pins inferred from wiring).
+    """
     leaf = name.replace("\\\\", "\\").split("\\")[-1].lower()
     if leaf in SYMBOLS:
         return SYMBOLS[leaf], "primitive"
     if leaf in OPAMP_NAMES:
         return OPAMP, "opamp"
+    lib = library_sym(name)
+    if lib is not None:
+        return lib, "library"
     return _EMPTY, "unknown"
 
 
@@ -652,6 +704,7 @@ def check(sch: Schematic) -> list[str]:
                         f"({s.x},{s.y}) {s.rot}: no built-in geometry — "
                         f"{len(s.inferred)} pins inferred from wiring")
             continue
+        source = " [from LTspice lib]" if kind == "library" else ""
         if not geo.pins:
             msgs.append(f"  ?  {s.name} {s.attrs.get('InstName','')} — no pins")
             continue
@@ -665,7 +718,8 @@ def check(sch: Schematic) -> list[str]:
                         f"wire; unconnected {miss}")
         else:
             msgs.append(f"  {tag}{s.name} {s.attrs.get('InstName','')} @"
-                        f"({s.x},{s.y}) {s.rot}: {len(hit)}/{len(pins)} pins")
+                        f"({s.x},{s.y}) {s.rot}: {len(hit)}/{len(pins)} pins"
+                        f"{source}")
     return msgs
 
 
@@ -754,7 +808,13 @@ def main() -> int:
                     help="also write a PNG (headless Chrome/Edge), sized to the drawing")
     ap.add_argument("--check", action="store_true",
                     help="report symbol pin geometry against wire endpoints")
+    ap.add_argument("--no-lib", action="store_true",
+                    help="ignore an installed LTspice library and use only the "
+                         "built-in symbol table")
     args = ap.parse_args()
+    if args.no_lib:
+        global USE_SYMBOL_LIBRARY
+        USE_SYMBOL_LIBRARY = False
 
     rc = 0
     for pat in args.files:
