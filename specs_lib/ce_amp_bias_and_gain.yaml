@@ -8,11 +8,13 @@ analyses:
     command: op
     vectors: [v(coll), v(emit)]
   ac:
-    # `op` runs first on purpose. This deck's operating point is convergence
-    # sensitive: a standalone `ac` linearises around a degenerate solution and
-    # measures a gain of ~1e-9, while an `op` beforehand lands on the real
-    # bias and measures 77. Both hard-coded layers happen to do this because
-    # they needed the bias anyway; here it is deliberate and written down.
+    # `op` runs first on purpose. This deck's `out` node hangs off a single
+    # series coupling capacitor with no DC path to ground, which leaves the
+    # operating point ill-conditioned: a standalone `ac` linearises around a
+    # degenerate solution and measures a gain of ~1e-9, while an `op`
+    # beforehand settles it and measures 77. Both hand-written layers happen
+    # to run `op` first because they needed the bias anyway, so their numbers
+    # agree; here it is deliberate and written down.
     options: [op, set units=degrees]
     command: ac dec 20 10 10meg
     vectors: [vm(out), vp(out)]
