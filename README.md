@@ -77,3 +77,36 @@ successful simulation, `1` if all attempts failed.
   bad deck, success also requires that the output contains no error signatures.
 - `fix_netlist(netlist_text, error_output)` — sends the failing netlist plus the
   ngspice output back to the model and returns a corrected netlist.
+
+## Viewing LTspice schematics (`ascview.py`)
+
+Opens LTspice `.asc` schematic files **without LTspice** and renders them to a
+standalone SVG, an HTML page, or a PNG — for screenshotting into lab reports.
+
+```powershell
+python ascview.py "Sallen-Key Filter Sim.asc" --open     # render + open in browser
+python ascview.py sch.asc --png                          # also write a PNG
+python ascview.py sch.asc --format svg --theme dark
+python ascview.py *.asc --check                          # validate symbol geometry
+```
+
+The `.asc` format stores explicit coordinates for every wire, symbol and label,
+so rendering needs no placement or routing — it is a parse-and-draw problem.
+
+- `--open` writes an HTML page and opens it in the default browser.
+- `--png` rasterizes via headless Chrome/Edge, sized exactly to the drawing.
+- `--check` reports, per symbol, how many of its pins land on a wire endpoint.
+
+### Symbol geometry
+
+Pin offsets for `res`, `cap`, `voltage` and OP07-class op-amps are **verified**
+against real schematics: `--check` confirms every pin lands on a wire endpoint.
+Other primitives (`ind`, `diode`, BJTs, MOSFETs, `sw`) use standard LTspice
+geometry but have not been checked against a real file yet — run `--check` and
+any mismatch is reported rather than silently drawn wrong.
+
+Library parts (`OpAmps\LTC2053`, vendor symbols) have per-part pin layouts that
+cannot be guessed from the name. Those are drawn as a labeled block whose pins
+are **inferred from the schematic's own wiring**: the pins are the wire
+endpoints no other symbol claims. Connectivity is never invented — wires are
+always drawn from their own coordinates.
