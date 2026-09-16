@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="176 48 1402 2160" width="1402" height="2160" font-family="ui-sans-serif, Segoe UI, Helvetica, Arial, sans-serif">
+<rect x="176" y="48" width="1402" height="2160" fill="#ffffff"/>
+<g stroke="#1b3a6b" stroke-width="2.5" stroke-linecap="round">
+<line x1="288" y1="128" x2="224" y2="128"/>
+<line x1="480" y1="288" x2="416" y2="288"/>
+<line x1="552" y1="400" x2="416" y2="400"/>
+<line x1="616" y1="400" x2="608" y2="400"/>
+<line x1="472" y1="560" x2="224" y2="560"/>
+<line x1="552" y1="560" x2="608" y2="560"/>
+<line x1="688" y1="768" x2="608" y2="768"/>
+<line x1="568" y1="880" x2="224" y2="880"/>
+<line x1="648" y1="880" x2="800" y2="880"/>
+<line x1="1144" y1="1040" x2="992" y2="1040"/>
+<line x1="1224" y1="1040" x2="1184" y2="1040"/>
+<line x1="1264" y1="1248" x2="1184" y2="1248"/>
+<line x1="1264" y1="1392" x2="1184" y2="1392"/>
+<line x1="1128" y1="1520" x2="800" y2="1520"/>
+<line x1="1192" y1="1520" x2="1376" y2="1520"/>
+<line x1="1456" y1="1728" x2="1376" y2="1728"/>
+<line x1="928" y1="1872" x2="800" y2="1872"/>
+<line x1="864" y1="1920" x2="608" y2="1920"/>
+<line x1="928" y1="1968" x2="992" y2="1968"/>
+<line x1="224" y1="96" x2="224" y2="880"/>
+<line x1="416" y1="256" x2="416" y2="400"/>
+<line x1="608" y1="368" x2="608" y2="1920"/>
+<line x1="800" y1="848" x2="800" y2="1872"/>
+<line x1="992" y1="1008" x2="992" y2="1968"/>
+<line x1="1184" y1="1008" x2="1184" y2="1392"/>
+<line x1="1376" y1="1488" x2="1376" y2="1728"/>
+</g>
+<g transform="translate(288,112) ">
+<line x1="0" y1="16" x2="0" y2="32" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<circle cx="0" cy="56" r="24" fill="none" stroke="#14181f" stroke-width="2.0"/>
+<line x1="0" y1="80" x2="0" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="-6" y1="42" x2="6" y2="42" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="36" x2="0" y2="48" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="-6" y1="70" x2="6" y2="70" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="322" y="144" font-size="15" font-weight="600" fill="#14181f">Vcc</text>
+<text x="322" y="161" font-size="14" fill="#14181f" opacity="0.85">DC 12</text>
+<g transform="translate(480,272) ">
+<line x1="0" y1="16" x2="0" y2="32" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<circle cx="0" cy="56" r="24" fill="none" stroke="#14181f" stroke-width="2.0"/>
+<line x1="0" y1="80" x2="0" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="-6" y1="42" x2="6" y2="42" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="36" x2="0" y2="48" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="-6" y1="70" x2="6" y2="70" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="514" y="304" font-size="15" font-weight="600" fill="#14181f">Vin</text>
+<text x="514" y="321" font-size="14" fill="#14181f" opacity="0.85">DC 0 AC 1</text>
+<g transform="translate(552,416) rotate(270)">
+<line x1="16" y1="0" x2="16" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="28" x2="32" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="36" x2="32" y2="36" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="16" y1="36" x2="16" y2="64" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="626" y="400" font-size="15" font-weight="600" fill="#14181f">Cin</text>
+<text x="626" y="417" font-size="14" fill="#14181f" opacity="0.85">10u</text>
+<g transform="translate(456,576) rotate(270)">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="562" y="568" font-size="15" font-weight="600" fill="#14181f">R1</text>
+<text x="562" y="585" font-size="14" fill="#14181f" opacity="0.85">68k</text>
+<g transform="translate(672,752) ">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="706" y="784" font-size="15" font-weight="600" fill="#14181f">R2</text>
+<text x="706" y="801" font-size="14" fill="#14181f" opacity="0.85">11k</text>
+<g transform="translate(552,896) rotate(270)">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="658" y="888" font-size="15" font-weight="600" fill="#14181f">Rc</text>
+<text x="658" y="905" font-size="14" fill="#14181f" opacity="0.85">7.5k</text>
+<g transform="translate(1128,1056) rotate(270)">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="1234" y="1048" font-size="15" font-weight="600" fill="#14181f">Re1</text>
+<text x="1234" y="1065" font-size="14" fill="#14181f" opacity="0.85">56</text>
+<g transform="translate(1248,1232) ">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="1282" y="1264" font-size="15" font-weight="600" fill="#14181f">Re2</text>
+<text x="1282" y="1281" font-size="14" fill="#14181f" opacity="0.85">910</text>
+<g transform="translate(1248,1392) ">
+<line x1="16" y1="0" x2="16" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="28" x2="32" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="36" x2="32" y2="36" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="16" y1="36" x2="16" y2="64" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="1290" y="1408" font-size="15" font-weight="600" fill="#14181f">Ce</text>
+<text x="1290" y="1425" font-size="14" fill="#14181f" opacity="0.85">220u</text>
+<g transform="translate(1128,1536) rotate(270)">
+<line x1="16" y1="0" x2="16" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="28" x2="32" y2="28" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="0" y1="36" x2="32" y2="36" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="16" y1="36" x2="16" y2="64" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="1202" y="1520" font-size="15" font-weight="600" fill="#14181f">Cout</text>
+<text x="1202" y="1537" font-size="14" fill="#14181f" opacity="0.85">10u</text>
+<g transform="translate(1440,1712) ">
+<line x1="16" y1="16" x2="16" y2="24" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polyline points="16,24 24,29.333333333333332 8,40.0 24,50.666666666666664 8,61.33333333333333 24,72.0 8,82.66666666666666 16,88" fill="none" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+<line x1="16" y1="88" x2="16" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+</g>
+<text x="1474" y="1744" font-size="15" font-weight="600" fill="#14181f">RL</text>
+<text x="1474" y="1761" font-size="14" fill="#14181f" opacity="0.85">10k</text>
+<g transform="translate(864,1872) ">
+<line x1="0" y1="48" x2="32" y2="48" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="32" y1="24" x2="32" y2="72" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="32" y1="40" x2="64" y2="10" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="64" y1="10" x2="64" y2="0" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="32" y1="56" x2="64" y2="86" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<line x1="64" y1="86" x2="64" y2="96" stroke="#14181f" stroke-width="2.0" stroke-linecap="round"/>
+<polygon points="48,74 64,88 44,84" fill="#14181f" stroke="#14181f" stroke-width="2.0" stroke-linejoin="round"/>
+</g>
+<text x="938" y="1888" font-size="15" font-weight="600" fill="#14181f">Q1</text>
+<text x="938" y="1905" font-size="14" fill="#14181f" opacity="0.85">QN2222</text>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="288" y1="208" x2="288" y2="214"/><line x1="277" y1="214" x2="299" y2="214"/><line x1="281" y1="219" x2="295" y2="219"/><line x1="285" y1="224" x2="291" y2="224"/></g>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="480" y1="368" x2="480" y2="374"/><line x1="469" y1="374" x2="491" y2="374"/><line x1="473" y1="379" x2="487" y2="379"/><line x1="477" y1="384" x2="483" y2="384"/></g>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="688" y1="848" x2="688" y2="854"/><line x1="677" y1="854" x2="699" y2="854"/><line x1="681" y1="859" x2="695" y2="859"/><line x1="685" y1="864" x2="691" y2="864"/></g>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="1264" y1="1328" x2="1264" y2="1334"/><line x1="1253" y1="1334" x2="1275" y2="1334"/><line x1="1257" y1="1339" x2="1271" y2="1339"/><line x1="1261" y1="1344" x2="1267" y2="1344"/></g>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="1264" y1="1456" x2="1264" y2="1462"/><line x1="1253" y1="1462" x2="1275" y2="1462"/><line x1="1257" y1="1467" x2="1271" y2="1467"/><line x1="1261" y1="1472" x2="1267" y2="1472"/></g>
+<g stroke="#1b3a6b" stroke-width="2" stroke-linecap="round"><line x1="1456" y1="1808" x2="1456" y2="1814"/><line x1="1445" y1="1814" x2="1467" y2="1814"/><line x1="1449" y1="1819" x2="1463" y2="1819"/><line x1="1453" y1="1824" x2="1459" y2="1824"/></g>
+<circle cx="224" cy="96" r="3" fill="#0b7a5a"/>
+<text x="231" y="90" font-size="14" font-weight="600" fill="#0b7a5a">vcc</text>
+<circle cx="416" cy="256" r="3" fill="#0b7a5a"/>
+<text x="423" y="250" font-size="14" font-weight="600" fill="#0b7a5a">in</text>
+<circle cx="608" cy="368" r="3" fill="#0b7a5a"/>
+<text x="615" y="362" font-size="14" font-weight="600" fill="#0b7a5a">base</text>
+<circle cx="800" cy="848" r="3" fill="#0b7a5a"/>
+<text x="807" y="842" font-size="14" font-weight="600" fill="#0b7a5a">coll</text>
+<circle cx="992" cy="1008" r="3" fill="#0b7a5a"/>
+<text x="999" y="1002" font-size="14" font-weight="600" fill="#0b7a5a">emit</text>
+<circle cx="1184" cy="1008" r="3" fill="#0b7a5a"/>
+<text x="1191" y="1002" font-size="14" font-weight="600" fill="#0b7a5a">e2</text>
+<circle cx="1376" cy="1488" r="3" fill="#0b7a5a"/>
+<text x="1383" y="1482" font-size="14" font-weight="600" fill="#0b7a5a">out</text>
+<text x="224" y="2096" font-size="15" text-anchor="start" fill="#7a3fb8" font-family="ui-monospace, Consolas, monospace">.model QN2222 NPN(IS=14.34f BF=200 VAF=100 IKF=0.3 RB=10 CJE=25p CJC=8p TF=0.4n TR=60n)</text>
+<text x="224" y="2128" font-size="15" text-anchor="start" fill="#7a3fb8" font-family="ui-monospace, Consolas, monospace">.op</text>
+<text x="224" y="2160" font-size="15" text-anchor="start" fill="#7a3fb8" font-family="ui-monospace, Consolas, monospace">.ac dec 20 1 1meg</text>
+</svg>

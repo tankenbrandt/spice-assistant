@@ -24,13 +24,14 @@ spice-netlist    = "netlist:_cli"           # .asc schematic -> deck
 ascview          = "ascview:main"           # render a .asc without LTspice
 spice-symlib     = "symlib:_cli"            # inspect LTspice's .asy library
 spice-crosscheck = "crosscheck:_cli"        # same spec, ngspice vs LTspice
+spice-ascgen     = "ascgen:_cli"            # deck -> .asc schematic
 
 [tool.setuptools]
 # A flat layout of single-purpose CLIs, so the modules are listed rather than
 # discovered -- that keeps tests/ and the report scripts out of the wheel.
 py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
               "robustness_study", "ascview", "plot", "netlist", "symlib",
-              "ltspice", "crosscheck"]
+              "ltspice", "crosscheck", "ascgen"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]
