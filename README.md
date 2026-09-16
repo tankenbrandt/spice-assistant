@@ -20,6 +20,11 @@ answers: **100% simulate cleanly, 62% meet spec**, and the worst offender had
 a **1% Monte Carlo yield** before repair. Sim-success overstates real
 capability by 38 points.
 
+Every measurement is then cross-checked against a **second, independently
+written simulator**: the same spec is re-measured in LTspice, headlessly, and
+**9 of 10 circuits agree within 1%** — most to six significant figures. See
+[Two simulators, one spec](#two-simulators-one-spec-crosscheckpy-ltspicepy).
+
 <p align="center">
   <img src="docs/schematic.png" width="420" alt="An op-amp active low-pass rendered from an LTspice .asc file">
 </p>
@@ -305,11 +310,66 @@ every shipped `.asc` and the connectivity is compared device by device, same
 nets in the same node order. Node order is the whole game: `Q1 c b e` and
 `Q1 e b c` are different circuits.
 
+## Two simulators, one spec (`crosscheck.py`, `ltspice.py`)
+
+Everything above measures with ngspice. That is one program's opinion. The same
+spec can be asked of **LTspice** — a separately written, closed-source
+simulator that most analog designers already have open — and the two compared:
+
+```powershell
+python crosscheck.py --all
+python crosscheck.py repaired/ce_bjt_amp.cir --spec specs_lib/ce_bjt_amp.yaml
+```
+
+```
+repaired\ce_bjt_amp.cir  (spec: ce_bjt_amp.yaml)
+  ok   gain         ngspice=51.5266       ltspice=51.5265         0.000%
+  ok   f_mid        ngspice=8912.51       ltspice=8912.51         0.000% (informational)
+  ok   inversion    ngspice=179.999       ltspice=179.999         0.000%
+
+9/10 circuits agree within 1.0% on every spec measurement
+```
+
+Two independently written simulators agreeing on a nonlinear BJT stage's gain
+to six figures is a much stronger claim than either one alone. LTspice runs
+headless (`-b -ascii -Run`, ~90 ms for a small AC sweep) so this is a test, not
+a manual step — and the schematics in `examples/` still open in the LTspice GUI
+normally, because a `.asc` file is just text.
+
+The disagreements are the interesting part:
+
+| Circuit | Measurement | ngspice | LTspice | |
+|---|---|---|---|---|
+| buck_converter | ripple | 8.51 mV | 11.03 mV | real: ripple depends on timestep control |
+| ce_amp | `f_mid` | 1.26 MHz | 10 MHz | **not** a disagreement — see below |
+| boost_converter | vout | 11.766 V | 11.832 V | 0.56%, within tolerance |
+
+`f_mid` reads as an 87% gap and is not one. It is `argmax` over the gain curve,
+and *both* simulators put the gain within 0.5% of its peak across the same 85
+of 121 points — a flat plateau from 631 Hz to 10 MHz. The physics agrees; only
+the tiebreak differs. It is marked `informational`, so it never fails a run.
+
+Switching-converter ripple is the one genuine disagreement, and it is worth
+knowing before quoting a ripple figure from either tool to three digits.
+
+Getting this right required translating two things, and the second one bites
+silently:
+
+- **`.control` blocks.** LTspice has never understood one. Left in place it
+  does not error — it runs the deck with *no analysis* and writes an empty raw
+  file.
+- **Analysis options.** A spec may re-drive a source between analyses
+  (`alter @vinp[acmag]=0.5`). Dropping those lines left the differential pair's
+  two inputs driven in phase, so its "differential" gain was really the
+  common-mode gain — reported as a perfectly plausible 3.7e-05. An option with
+  no LTspice equivalent now raises rather than being skipped.
+
 ## Layout
 
 ```
 main.py  speccheck.py  specs.py  robustness.py      the layers
 plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
+ltspice.py  crosscheck.py                           the second simulator
 benchmark.py  robustness_study.py                   the study drivers
 specs_lib/       declarative specs for the benchmark circuits
 examples/        one circuit as schematic, netlist, spec and plot
@@ -317,7 +377,7 @@ baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 docs/            per-round analysis prose and the README images
-tests/           407 tests, no API calls
+tests/           440 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
@@ -345,6 +405,16 @@ python robustness_study.py --report-only
   from LTspice. Pin positions, and therefore connectivity, are exact.
 - ngspice accepts some malformed decks (a component with no value) and reports
   a clean run. That gap is the reason the spec layer exists.
+- **The benchmark is small and hand-written.** Fifteen textbook analog
+  circuits of 5-15 components (`benchmark.py`), chosen by the author. They
+  represent coursework and bench work, not an IC or a supply with real
+  compensation, and the selection is not independent of the tool. The headline
+  worth quoting is therefore not the absolute 62% but the *gap* between "100%
+  simulate" and "62% meet spec" — that gap is what survives the benchmark
+  being small.
+- A cross-simulator agreement is evidence that a measurement is a property of
+  the circuit rather than of ngspice. It is not evidence that either simulator
+  matches hardware; both share modelling assumptions the bench does not.
 
 ## Tests
 

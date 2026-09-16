@@ -769,10 +769,17 @@ def main_entry() -> int:
     r1_path = LOG_DIR / "run_log.json"
     if round2 and r1_path.exists():
         round1 = json.loads(r1_path.read_text(encoding="utf-8"))
-    (PROJECT_DIR / "REPORT.md").write_text(build_report(round1), encoding="utf-8")
+    # A run redirected with --out is a side experiment -- a repeat for error
+    # bars, a trial of a prompt change. It must not rewrite the report the
+    # committed logs/ evidence builds, or the headline numbers silently
+    # become whichever run happened to finish last.
+    wrote_report = "--out" not in sys.argv
+    if wrote_report:
+        (PROJECT_DIR / "REPORT.md").write_text(build_report(round1), encoding="utf-8")
 
     solved = sum(1 for r in run["results"] if r["success"])
-    print(f"\nDone: {solved}/{len(run['results'])} solved. Wrote {log_path.name} and REPORT.md.",
+    also = " and REPORT.md" if wrote_report else " (REPORT.md left alone: --out)"
+    print(f"\nDone: {solved}/{len(run['results'])} solved. Wrote {log_path.name}{also}.",
           file=sys.stderr)
     return 0
 

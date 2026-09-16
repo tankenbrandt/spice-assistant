@@ -16,3 +16,9 @@ tools/
 *.egg-info/
 build/
 dist/
+
+# Repeat benchmark runs: bulky per-attempt evidence kept for error bars.
+# One buck-converter deck alone printed 18 MB of ngspice output. The summary
+# that REPORT.md quotes is committed; the raw runs are not.
+logs/repeats/*.json
+!logs/repeats/summary.json
