@@ -724,7 +724,14 @@ def main_entry() -> int:
     SPEC_REPAIR = "--spec-repair" in sys.argv
     round2 = "--round2" in sys.argv
     circuits = CIRCUITS_ROUND2 if round2 else CIRCUITS
-    log_path = PROJECT_DIR / ("run_log_round2.json" if round2 else "run_log.json")
+    # The log belongs in logs/, which is where build_report and --report-only
+    # read it from; writing it to the project root left a fresh run invisible
+    # to the report. --out redirects it, so repeat runs can be collected
+    # without overwriting the evidence REPORT.md is built from.
+    log_path = LOG_DIR / ("run_log_round2.json" if round2 else "run_log.json")
+    if "--out" in sys.argv:
+        log_path = Path(sys.argv[sys.argv.index("--out") + 1]).resolve()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("ERROR: ANTHROPIC_API_KEY not set (and not found in .env).", file=sys.stderr)
