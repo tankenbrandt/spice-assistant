@@ -490,14 +490,20 @@ def _run_analysis(netlist: str, analysis: Analysis):
     return xs, dict(zip(analysis.vectors, cols, strict=False))
 
 
-def measure(spec: CircuitSpec, netlist: str) -> dict:
+def measure(spec: CircuitSpec, netlist: str, runner=None) -> dict:
     """Run every measurement in the spec against `netlist`.
 
     Each analysis runs once even if several measurements read from it.
     Returns {name: float}; raises SpecError if a measurement cannot be taken.
+
+    `runner` is the simulator: any callable with `_run_analysis`'s signature,
+    returning `(sweep axis, {vector: values})`. It defaults to ngspice;
+    `ltspice.run_analysis` measures the same spec in LTspice instead, which is
+    what the cross-simulator check in `crosscheck.py` is built on.
     """
+    runner = runner or _run_analysis
     needed = {m.analysis for m in spec.measurements if not m.derived}
-    captured = {n: _run_analysis(netlist, spec.analyses[n]) for n in sorted(needed)}
+    captured = {n: runner(netlist, spec.analyses[n]) for n in sorted(needed)}
 
     # Declared order is resolution order, so a measurement may reference any
     # measurement above it -- both in `expr` and inside an extractor.
