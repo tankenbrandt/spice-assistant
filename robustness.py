@@ -143,12 +143,20 @@ def _control_mask(lines: list[str]) -> list[bool]:
     return mask
 
 
-def extract_params(netlist: str, *, vary_temp: bool = True) -> tuple[list[str], list[Param]]:
+def extract_params(netlist: str, *, vary_temp: bool = True,
+                   passive_tol: dict | None = None) -> tuple[list[str], list[Param]]:
     """Find every perturbable parameter in a deck.
+
+    `passive_tol` overrides the default {"r":.., "c":.., "l":..} spreads --
+    `tolerances.profile("precision")` supplies one built from datasheet
+    figures. It is an argument rather than a module global because the
+    analyses fan out over worker processes, where a mutated global would
+    not travel with the call.
 
     Components whose value is not a plain SPICE number (expressions, PULSE/SIN
     sources, model references) are skipped rather than guessed at.
     """
+    tol_for_passive = PASSIVE_TOL if passive_tol is None else passive_tol
     lines = netlist.splitlines()
     in_control = _control_mask(lines)
     params: list[Param] = []
@@ -164,7 +172,7 @@ def extract_params(netlist: str, *, vary_temp: bool = True) -> tuple[list[str], 
         toks = ln.split()
         refdes = toks[0]
 
-        if letter in PASSIVE_TOL:
+        if letter in tol_for_passive:
             if len(toks) < 4:
                 continue
             try:
@@ -173,7 +181,7 @@ def extract_params(netlist: str, *, vary_temp: bool = True) -> tuple[list[str], 
                 continue
             if val == 0:
                 continue
-            params.append(Param(refdes, "passive", val, PASSIVE_TOL[letter], i, 3))
+            params.append(Param(refdes, "passive", val, tol_for_passive[letter], i, 3))
         elif letter == "v":
             # Supplies only: a source with a non-zero DC value. The AC stimulus
             # (Vin in 0 DC 0 AC 1) and PULSE/SIN sources fall out naturally.
@@ -488,35 +496,37 @@ def _map(fn, jobs: list, workers: int) -> list:
         return list(ex.map(fn, jobs))
 
 
-def nominal(circuit: str, netlist: str) -> dict:
+def nominal(circuit: str, netlist: str, *, passive_tol: dict | None = None) -> dict:
     metric_fn, _ = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=True)
+    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol)
     vals = {p.key: (TEMP_NOM if p.kind == "temp" else p.nominal) for p in params}
     return _evaluate(metric_fn, netlist, params, vals)
 
 
 def monte_carlo(circuit: str, netlist: str, n: int, *, seed: int = 0,
                 dist: str = "gaussian", vary_temp: bool = True,
-                workers: int = 8) -> dict:
+                workers: int = 8, passive_tol: dict | None = None) -> dict:
     metric_fn, specs = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=vary_temp)
+    _, params = extract_params(netlist, vary_temp=vary_temp, passive_tol=passive_tol)
     rng = random.Random(seed)
     draws = [{p.key: p.sample(rng, dist) for p in params} for _ in range(n)]
     samples = _map(lambda v: _evaluate(metric_fn, netlist, params, v), draws, workers)
     res = summarize(samples, specs)
-    res.update({"dist": dist, "seed": seed, "vary_temp": vary_temp,
+    res.update({"passive_tol": dict(passive_tol) if passive_tol else None,
+                "dist": dist, "seed": seed, "vary_temp": vary_temp,
                 "params": [p.label() for p in params], "samples": samples})
     return res
 
 
-def sensitivity(circuit: str, netlist: str, *, workers: int = 8) -> dict:
+def sensitivity(circuit: str, netlist: str, *, workers: int = 8,
+                passive_tol: dict | None = None) -> dict:
     """One-at-a-time normalized sensitivity for every parameter.
 
     S = (dMetric / Metric_nom) / (dParam / Param_nom)  -- "% per %".
     Temperature is reported as % of the metric per TEMP_SENS_STEP degrees.
     """
     metric_fn, specs = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=True)
+    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol)
     base = {p.key: (TEMP_NOM if p.kind == "temp" else p.nominal) for p in params}
     nom = _evaluate(metric_fn, netlist, params, base)
     if not nom["metrics"]:
@@ -561,7 +571,8 @@ def sensitivity(circuit: str, netlist: str, *, workers: int = 8) -> dict:
     return {"nominal": nom["metrics"], "rows": rows}
 
 
-def worst_case(circuit: str, netlist: str, metric: str, sens: dict) -> dict:
+def worst_case(circuit: str, netlist: str, metric: str, sens: dict, *,
+               passive_tol: dict | None = None) -> dict:
     """Sensitivity-directed worst-case corners (classic extreme-value analysis).
 
     Each parameter is pushed to the extreme that moves `metric` down (for the
@@ -570,7 +581,7 @@ def worst_case(circuit: str, netlist: str, metric: str, sens: dict) -> dict:
     parameter, which is why it is reported alongside Monte Carlo, not instead.
     """
     metric_fn, _ = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=True)
+    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol)
     sign = {r["param"]: r["metrics"].get(metric, {}).get("sign", 1)
             for r in sens["rows"]}
 
@@ -584,10 +595,11 @@ def worst_case(circuit: str, netlist: str, metric: str, sens: dict) -> dict:
     return corners
 
 
-def pvt_corners(circuit: str, netlist: str, *, workers: int = 8) -> list[dict]:
+def pvt_corners(circuit: str, netlist: str, *, workers: int = 8,
+                passive_tol: dict | None = None) -> list[dict]:
     """Deterministic temperature x supply x beta grid (passives at nominal)."""
     metric_fn, _ = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=True)
+    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol)
     supply_keys = {p.key for p in params if p.kind == "supply"}
     beta_keys = {p.key for p in params
                  if p.kind == "model" and p.pname.lower() == "bf"}
@@ -645,6 +657,10 @@ def _cli(argv=None) -> int:
     ap.add_argument("--all", action="store_true", help="every analysis")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--dist", choices=("gaussian", "uniform"), default="gaussian")
+    ap.add_argument("--parts", metavar="PROFILE",
+                    help="sourced component tolerances from tolerances.yaml "
+                         "(commodity, precision, legacy, worst_case); the "
+                         "default keeps this layer's original spreads")
     ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args(argv)
 
@@ -656,12 +672,24 @@ def _cli(argv=None) -> int:
     circuit = specfile.load(args.spec) if args.spec else args.circuit
     _, limits = resolve(circuit)
 
+    passive_tol = None
+    if args.parts:
+        import tolerances
+        try:
+            passive_tol = tolerances.profile(args.parts)
+        except KeyError as exc:
+            print(exc)
+            return 2
+
     print(f"{path}  [{circuit_name(circuit)}]")
-    params = extract_params(netlist)[1]
+    if args.parts:
+        import tolerances
+        print(f"  parts: {tolerances.describe(args.parts)}")
+    params = extract_params(netlist, passive_tol=passive_tol)[1]
     print(f"  {len(params)} perturbable parameters: "
           f"{', '.join(p.label() for p in params)}")
 
-    nom = nominal(circuit, netlist)
+    nom = nominal(circuit, netlist, passive_tol=passive_tol)
     if not nom.get("metrics"):
         print(f"  nominal measurement failed: {nom.get('error')}")
         return 1
@@ -676,7 +704,7 @@ def _cli(argv=None) -> int:
     if args.mc or args.all:
         n = args.mc or 200
         mc = monte_carlo(circuit, netlist, n, seed=args.seed, dist=args.dist,
-                         workers=args.workers)
+                         workers=args.workers, passive_tol=passive_tol)
         print(f"\n  monte carlo  ({n} samples, {args.dist}, seed {args.seed})")
         for m in mc["metrics"].values():
             print(f"    {m['label']:14s} mean {_show(m['mean']):>10s}  "
@@ -689,7 +717,7 @@ def _cli(argv=None) -> int:
             rc = 1
 
     if args.sens or args.all:
-        sens = sensitivity(circuit, netlist, workers=args.workers)
+        sens = sensitivity(circuit, netlist, workers=args.workers, passive_tol=passive_tol)
         print("\n  sensitivity  (% change in the spec per % change in the part)")
         for name in limits:
             rows = [(r["param"], r["metrics"][name]) for r in sens["rows"]
@@ -701,10 +729,10 @@ def _cli(argv=None) -> int:
                 print(f"      {pname:12s} S = {m['S']:+8.3f}   span {m['span_pct']:+7.2f}%")
 
     if args.worst or args.all:
-        sens = sensitivity(circuit, netlist, workers=args.workers)
+        sens = sensitivity(circuit, netlist, workers=args.workers, passive_tol=passive_tol)
         print("\n  worst case  (every parameter pushed the wrong way at once)")
         for name, spec in limits.items():
-            wc = worst_case(circuit, netlist, name, sens)
+            wc = worst_case(circuit, netlist, name, sens, passive_tol=passive_tol)
             lo = (wc.get("low") or {}).get("metrics", {}).get(name)
             hi = (wc.get("high") or {}).get("metrics", {}).get(name)
             inside = all(spec.ok(v) for v in (lo, hi) if v is not None)
@@ -715,7 +743,7 @@ def _cli(argv=None) -> int:
                 rc = 1
 
     if args.pvt or args.all:
-        corners = pvt_corners(circuit, netlist, workers=args.workers)
+        corners = pvt_corners(circuit, netlist, workers=args.workers, passive_tol=passive_tol)
         good = [c for c in corners if c.get("metrics")]
         print(f"\n  pvt corners  ({len(good)} of {len(corners)} measured)")
         for name, spec in limits.items():

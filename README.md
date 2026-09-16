@@ -371,12 +371,98 @@ silently:
   common-mode gain — reported as a perfectly plausible 3.7e-05. An option with
   no LTspice equivalent now raises rather than being skipped.
 
+## Deck to schematic (`ascgen.py`)
+
+`netlist.py` goes schematic -> deck; `ascgen.py` goes back the other way, so a
+generated deck can be opened and probed in the real LTspice GUI rather than
+only read as text.
+
+```powershell
+python ascgen.py repaired/ce_bjt_amp.cir -o ce_bjt_amp.asc
+python ascgen.py repaired/ce_bjt_amp.cir --check    # round-trip the result
+```
+
+<p align="center">
+  <img src="docs/generated-schematic.png" width="380" alt="A common-emitter amplifier schematic generated from an ngspice netlist">
+</p>
+
+The layout is mechanical -- a column per net, a row per device -- and it does
+not try to be draughtsmanship. What it guarantees is connectivity: `--check`
+re-extracts the drawing and compares it device by device, and the tests
+additionally round-trip it through **LTspice's own netlister**. Of the repo's
+22 decks, **19 round-trip exactly** and 3 are refused up front (controlled
+sources and subcircuit calls have no symbol to draw, so it says so rather than
+mis-drawing them). LTspice simulating the generated schematic above measures
+|gain| = 51.5265, against 51.5266 from the deck it was written from.
+
+Three bugs the round trip caught that a rendered picture would not have:
+routing a device's pins along one shared row shorted collector, base and
+emitter together; a 48-unit ground lead landed exactly on the voltage-
+controlled switch's neighbouring pin, quietly grounding its gate; and the
+title line was parsed as a component, so `RC Low-Pass Filter, fc=1kHz` became
+a resistor named `RC` -- which round-tripped happily, because both sides made
+the same mistake.
+
+## Where the tolerances come from (`tolerances.yaml`)
+
+The robustness layer used to perturb every resistor by 5% and every capacitor
+by 10%. Reasonable guesses, but guesses. `tolerances.yaml` replaces them with
+figures read off manufacturer datasheets, each carrying its citation and how
+far it was actually verified:
+
+```powershell
+python tolerances.py                      # the table
+python tolerances.py --profile precision
+python tolerances.py --gaps               # what could not be verified
+python robustness.py deck.cir --circuit ce_bjt_amp --mc 300 --parts precision
+```
+
+`--parts` selects a whole bill of materials -- `commodity` (5% thick film,
+10% X7R, 20% power inductor), `precision` (1% thin film, C0G), `worst_case`,
+or `legacy` (this layer's original guesses, kept so the numbers already in
+`ROBUSTNESS.md` stay reproducible).
+
+Three things the sourced numbers changed:
+
+- **Inductors were optimistic.** The layer assumed +-10%; commodity power
+  inductors are **+-20%** (Coilcraft's whole XAL7070 family). `legacy` keeps
+  the old value so published figures still regenerate.
+- **The BJT beta spread was right.** +-50% about a nominal 200 reproduces the
+  2N2222A's guaranteed 100..300 exactly. Worth knowing it was well founded
+  rather than assuming so -- though an *ungraded* BC847 spans 110..800, 7.3:1,
+  because A/B/C are the same die sorted into bins.
+- **One number is not sourced at all.** No BJT datasheet publishes Early
+  voltage; it exists only in third-party SPICE libraries. The layer perturbs
+  `VAF` by 25% anyway, and `--gaps` now says so out loud.
+
+A Class II ceramic's DC-bias loss is **deterministic, not random** -- Vishay
+measured a 0603 100nF/50V part losing ~80% of its capacitance at a 20 V/um
+field. Widening a random tolerance band to "cover" that is wrong twice: it
+misses the systematic shift and invents variance that is not there. The table
+records it as a separate C(V) term rather than folding it into a tolerance.
+
+Monte Carlo samples are **not** snapped to E-series values, which matches
+LTspice's own `mc()`, PSpice and every practitioner source found. The E-series
+constrains which *nominal* a designer may choose; it says nothing about how one
+manufactured part varies around it.
+
+### What better parts actually buy
+
+On the repaired common-emitter amp, going from commodity to precision passives
+tightens sigma by 23% (1.565 -> 1.21 V/V) and moves yield by **one point**,
+67% to 68%. That is the useful answer, and it is not the obvious one: the mean
+gain sits at 51.74 against an upper spec limit of 52.5, so Cpk is 0.162 and the
+design is limited by **centring, not spread**. Re-centring is worth more here
+than any amount of money spent on 1% resistors.
+
 ## Layout
 
 ```
 main.py  speccheck.py  specs.py  robustness.py      the layers
 plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
 ltspice.py  crosscheck.py                           the second simulator
+ascgen.py                                            deck -> .asc schematic
+tolerances.py  tolerances.yaml                       sourced part tolerances
 benchmark.py  robustness_study.py                   the study drivers
 repeat_summary.py                                    spread across repeat runs
 specs_lib/       declarative specs for the benchmark circuits
@@ -386,7 +472,7 @@ repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           440 tests, no API calls
+tests/           521 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

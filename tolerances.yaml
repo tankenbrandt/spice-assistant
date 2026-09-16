@@ -1,0 +1,557 @@
+# Component tolerances from manufacturer datasheets and standards.
+#
+# The robustness layer used to perturb every resistor by a flat 5% and every
+# capacitor by 10%. Those were reasonable guesses; these are sourced numbers,
+# and the differences matter -- an X7R ceramic's real behaviour is nothing
+# like a flat +-10%, and a carbon film resistor's tempco is not a constant.
+#
+# Every entry carries where it came from. `confidence: primary` means the
+# manufacturer datasheet was read directly; `secondary` means it is
+# corroborated across sources but the primary document was not parsed. Gaps
+# are recorded as gaps rather than filled in with plausible numbers -- see
+# `unverified` at the bottom.
+#
+# Two modelling notes that come from the literature, not from a datasheet,
+# and that shape how this file is meant to be used:
+#
+#  1. DO NOT snap Monte Carlo samples to E-series values. LTspice's own
+#     `mc()`, PSpice and SIMetrix all perturb continuously within the band,
+#     and so does every practitioner source found. The E-series constrains
+#     which *nominal* a designer may pick; it says nothing about how one
+#     manufactured part varies around that nominal. Snapping conflates
+#     design-time value selection with as-built variation.
+#  2. A Class II ceramic's DC-bias capacitance loss is DETERMINISTIC, not
+#     random. It is a repeatable function of applied voltage and case size.
+#     Widening a random tolerance band to "cover" it is wrong twice: it
+#     misses the systematic shift and invents variance that is not there.
+
+meta:
+  updated: 2026-09-16
+  default_distribution: uniform
+  distribution_note: >
+    Uniform across the band is LTspice's own default and the most defensible
+    choice absent measured data for a specific part. Whether real parts are
+    Gaussian, uniform or bimodal is genuinely unsettled -- see `binning`.
+
+# --------------------------------------------------------------- resistors
+
+resistors:
+  thick_film_chip:
+    label: Thick film chip (the default SMD resistor)
+    tolerance_pct: [5.0, 2.0, 1.0, 0.5]
+    typical_pct: 5.0
+    tempco_ppm_per_C: 100
+    tempco_range_ppm_per_C: [100, 400]
+    tempco_note: >
+      +-400 ppm/C applies only to low-value (<10 ohm) parts in 0402/0603.
+    load_life_1000h_pct: 3.0     # at the 5% grade; 1% at the 1% grade
+    confidence: primary
+    source: Yageo RC series datasheet
+    url: https://www.km-cs.com/datasheet/Yageo/RC.pdf
+
+  thin_film_chip:
+    label: Thin film chip (precision)
+    tolerance_pct: [1.0, 0.5, 0.1]
+    typical_pct: 0.1
+    tempco_ppm_per_C: 25
+    tempco_range_ppm_per_C: [10, 100]
+    tempco_note: >
+      The TNPW e3 catalogue lists +-25 and +-100 ppm/C; the older TNPW sheet
+      lists +-10/15/25/50. Unresolved which grade covers which resistance
+      range, so the span is given rather than one number.
+    confidence: primary
+    source: Vishay TNPW e3 (Doc 28758) and TNPW (Doc 31006)
+    url: https://www.vishay.com/docs/28758/tnpw_e3.pdf
+
+  metal_film_axial:
+    label: Metal film axial
+    tolerance_pct: [0.5, 1.0, 2.0, 5.0]
+    typical_pct: 1.0
+    tempco_ppm_per_C: 50
+    tempco_range_ppm_per_C: [50, 100]
+    confidence: primary
+    source: Yageo MFR datasheet V.4 (Apr 2024)
+    url: https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-MFR_DATASHEET.pdf
+
+  carbon_film_axial:
+    label: Carbon film axial (legacy, low cost)
+    tolerance_pct: [2.0, 5.0]
+    typical_pct: 5.0
+    tempco_ppm_per_C: 350
+    tempco_note: >
+      Asymmetric and strongly resistance-dependent, unlike the film types:
+      -350..+350 below 100k, -500..0 from 100k to 1M, -1500..0 above 1M. A
+      single symmetric constant misrepresents this part badly.
+    confidence: secondary
+    source: Yageo CFR datasheet
+    url: https://www.yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf
+
+  wirewound:
+    label: Wirewound (power)
+    tolerance_pct: [5.0, 10.0]
+    typical_pct: 5.0
+    tempco_ppm_per_C: 80
+    tempco_note: >
+      Sign depends on resistance: roughly -10..-80 ppm/C over the mid and
+      high range, but +100..+180 for low-ohmic values.
+    confidence: secondary
+    source: Vishay RW / RW-E / RW-Ni datasheet
+    url: https://www.vishay.com/docs/21005/rw.pdf
+
+  current_sense_shunt:
+    label: Current-sense shunt
+    tolerance_pct: [0.5, 1.0, 5.0]
+    typical_pct: 1.0
+    tempco_ppm_per_C: 75
+    tempco_range_ppm_per_C: [75, 400]
+    tempco_note: >
+      +-75 ppm/C from 7 mohm to 500 mohm, rising to +-400 below 1 mohm.
+    confidence: primary
+    source: Vishay WSL Power Metal Strip (Doc 30100, Rev 23-Nov-2023)
+    url: https://www.vishay.com/docs/30100/wsl.pdf
+
+# -------------------------------------------------------------- capacitors
+
+capacitors:
+  c0g_np0:
+    label: C0G/NP0 ceramic (Class I)
+    tolerance_pct: [0.5, 1.0, 2.0, 5.0]
+    typical_pct: 5.0
+    tempco_ppm_per_C: 30
+    dc_bias: none
+    aging_pct_per_decade_hour: 0.0
+    note: >
+      The best-behaved capacitor there is: no meaningful voltage
+      coefficient, no aging. Safe to model as a plain tolerance band.
+    confidence: secondary
+    source: EIA RS-198 Class I, as reproduced consistently across Murata,
+      Vishay and KEMET literature
+
+  x7r:
+    label: X7R ceramic (Class II)
+    tolerance_pct: [5.0, 10.0, 20.0]
+    typical_pct: 10.0
+    temp_variation_pct: 15.0        # over -55..+125 C, not a tolerance
+    aging_pct_per_decade_hour: 1.5  # 1-2%/decade, reversible above ~125 C
+    dc_bias: significant
+    dc_bias_note: >
+      DOMINANT and deterministic. Vishay measured a 0603 100nF/50V part
+      losing about 80% of its capacitance at a 20 V/um field. Loss depends
+      on case size and V/Vrated -- a small 0402/0603 part near rated voltage
+      can lose far more than a 1206. Model as a separate C(V) derating from
+      the specific part's curve, NOT as extra random tolerance.
+    dc_bias_aging_note: >
+      A further, separate time-dependent loss under sustained bias. In the
+      same Vishay study three competitor parts lost 20-30% more after 1000 h
+      at 40% of rated voltage, and needed 50-1000 h unbiased -- or 150 C for
+      an hour -- to recover. Usually ignored, and the most likely omission
+      in a naive Monte Carlo model.
+    confidence: primary
+    source: Vishay Vitramon, "Time-Dependent Capacitance Drift of X7R MLCCs
+      Under Exposure to a Constant DC Bias Voltage" (Doc 45263)
+    url: https://www.vishay.com/docs/45263/timedepcapdrix7rmlccexptoconstdcbiasvolt.pdf
+
+  x5r:
+    label: X5R ceramic (Class II)
+    tolerance_pct: [10.0, 20.0]
+    typical_pct: 10.0
+    temp_variation_pct: 15.0        # over -55..+85 C
+    dc_bias: significant
+    dc_bias_note: >
+      Generally worse than X7R at the same capacitance and case size. No
+      single primary comparison table was verified for this.
+    confidence: secondary
+
+  y5v:
+    label: Y5V ceramic (Class II high-K)
+    tolerance_pct: [20.0]
+    typical_pct: 20.0
+    temp_variation_pct_asymmetric: [22.0, -82.0]   # over -30..+85 C
+    dc_bias: severe
+    note: >
+      Do not model as a symmetric band. Many designers treat these as
+      guaranteed-minimum-capacitance parts only, fit for bulk decoupling and
+      nothing else. Some catalogues also apply a +80/-20% initial tolerance
+      code on top of the temperature swing above; no single datasheet was
+      found stating both together, so that combination is unverified.
+    confidence: secondary
+
+  aluminium_electrolytic:
+    label: Aluminium electrolytic
+    tolerance_pct: [20.0]
+    typical_pct: 20.0
+    end_of_life_capacitance_pct: -20.0
+    end_of_life_esr_multiplier: [2.0, 3.0]
+    note: >
+      The end-of-life numbers are the standard endurance criteria, not a
+      tolerance: capacitance within -20% and ESR at 2-3x initial after the
+      rated hours. Worth a deterministic aged-condition run separate from
+      the random initial tolerance.
+    confidence: primary
+    source: Panasonic SP-Cap GX/GX-L (a conductive-polymer part; a standard
+      wet electrolytic datasheet could not be parsed this session)
+    url: https://industrial.panasonic.com/cdbs/www-data/pdf/ABE0000/ABE0000C61.pdf
+
+  tantalum:
+    label: Tantalum (MnO2)
+    tolerance_pct: [10.0, 20.0]
+    typical_pct: 10.0
+    temp_variation_pct: 10.0     # +-10% at -55 and +85 C; +-20% at +125 C
+    note: >
+      Manufacturer derating rules (50% of rated voltage below 85 C, 33%
+      above) are hard design limits against field-crystallisation failure,
+      not statistical spread. Model them as limits, not as variables.
+    confidence: primary
+    source: KEMET T491 Industrial Grade MnO2 (T2005_T491)
+    url: https://content.kemet.com/datasheets/KEM_T2005_T491.pdf
+
+  film:
+    label: Film (PP / PET)
+    tolerance_pct: [1.0, 5.0]
+    typical_pct: 5.0
+    dc_bias: none
+    note: >
+      Not ferroelectric, so no DC-bias effect and no Class II aging -- the
+      practical reason to choose them. PP is commonly available to 1%, PET
+      to about 5%.
+    confidence: secondary
+    caveat: >
+      Both primary sources attempted (TDK and Vishay film technical info)
+      failed to parse. Tempco is commonly quoted near -200 ppm/C for PP but
+      was NOT verified, so no tempco is given here rather than a guess.
+
+# ---------------------------------------------------------------- profiles
+#
+# What a whole bill of materials looks like. These are what the robustness
+# layer selects with `--parts`.
+
+profiles:
+  commodity:
+    label: Commodity parts (5% thick film, 10% X7R, 20% power inductor)
+    resistor: thick_film_chip
+    resistor_tolerance_pct: 5.0
+    capacitor: x7r
+    capacitor_tolerance_pct: 10.0
+    inductor_tolerance_pct: 20.0
+    note: >
+      The cheapest sensible BOM. Matches the layer's old defaults for R and
+      C; the inductor is 20% rather than the 10% assumed before, because
+      that is what commodity power inductors actually are.
+
+  precision:
+    label: Precision parts (1% thin film, C0G)
+    resistor: thin_film_chip
+    resistor_tolerance_pct: 1.0
+    capacitor: c0g_np0
+    capacitor_tolerance_pct: 5.0
+    inductor_tolerance_pct: 10.0
+    note: >
+      What a design falls back on when Monte Carlo yield is poor. The point
+      of having profiles is to price that decision rather than guess at it.
+
+  legacy:
+    label: The layer's original guesses (5% R, 10% C, 10% L)
+    resistor: thick_film_chip
+    resistor_tolerance_pct: 5.0
+    capacitor: x7r
+    capacitor_tolerance_pct: 10.0
+    inductor_tolerance_pct: 10.0
+    note: >
+      Kept so the figures already published in ROBUSTNESS.md stay
+      reproducible. Its inductor number is optimistic -- see `commodity`.
+
+  worst_case:
+    label: Loosest parts commonly stocked
+    resistor: carbon_film_axial
+    resistor_tolerance_pct: 5.0
+    capacitor: y5v
+    capacitor_tolerance_pct: 20.0
+    inductor_tolerance_pct: 20.0
+    note: Y5V is asymmetric in reality; this uses its 20% initial band only.
+
+# --------------------------------------------------------------- inductors
+
+inductors:
+  standard:
+    label: Standard chip/power inductor
+    tolerance_pct: [20.0, 10.0, 5.0, 2.0]
+    typical_pct: 20.0
+    note: >
+      Inductance is current-dependent: the saturation current rating is
+      defined as the current at which inductance has already dropped by
+      20-30%. A fixed tolerance band does not capture that.
+    letter_codes: {J: 5.0, K: 10.0, M: 20.0}
+    confidence: primary
+    source: Coilcraft "An Introduction to Inductor Specifications" (doc1287);
+      the whole XAL7070 power-inductor family is +-20%
+    url: https://www.coilcraft.com/getmedia/1ba55433-bcc8-4838-9b21-382f497e12e0/xal7070.pdf
+
+# ----------------------------------------------------------- semiconductors
+#
+# Device-model spread. Unlike passives, the striking thing here is how
+# little a datasheet actually guarantees: a min/max is a contract, a "typ"
+# with no limits is not, and several parameters a SPICE model needs are
+# never published at all.
+
+semiconductors:
+  bjt_hfe:
+    label: BJT forward current gain (BF)
+    guaranteed: true
+    parts:
+      2N2222A: {min: 100, max: 300, at: "Ic=150mA VCE=10V", ratio: 3.0}
+      2N3904:  {min: 100, max: 300, at: "Ic=10mA VCE=1V", ratio: 3.0}
+      2N3906:  {min: 100, max: 300, at: "Ic=10mA VCE=1V", ratio: 3.0}
+      BC847:   {min: 110, max: 800, at: "Ic=2mA VCE=5V", ratio: 7.3}
+      BC847A:  {min: 110, max: 220, at: "Ic=2mA VCE=5V", ratio: 2.0}
+      BC847B:  {min: 200, max: 450, at: "Ic=2mA VCE=5V", ratio: 2.25}
+      BC847C:  {min: 420, max: 800, at: "Ic=2mA VCE=5V", ratio: 1.9}
+    parts_note: >
+      Ic=150mA is the only point where onsemi guarantees the 2N2222A both a
+      floor and a ceiling; every other point is min-only.
+    fractional_tol: 0.50
+    fractional_tol_note: >
+      +-50% about a nominal 200 reproduces the 2N2222A guaranteed band
+      (100..300) exactly, which is where this layer's existing BF spread
+      came from -- so that number turns out to be well founded. It is
+      optimistic for an ungraded part: BC847 spans 7.3:1.
+    distribution: uniform
+    distribution_note: >
+      Set by process binning rather than a controlled bell curve. BC847
+      A/B/C are the same die sorted into bins, so what is left in an
+      ungraded reel is whatever the sorting did not take.
+    confidence: primary
+    source: onsemi P2N2222A (Rev 7), 2N3904 (Rev 3), 2N3906 (Rev 4);
+      Nexperia BC847 series (Rev 13, Jul 2022)
+    url: https://assets.nexperia.com/documents/data-sheet/BC847X_SER.pdf
+
+  bjt_vbe:
+    label: BJT base-emitter voltage
+    guaranteed: true
+    min_v: 0.580
+    typical_v: 0.660
+    max_v: 0.700
+    at: Ic=2mA VCE=5V (BC847)
+    tempco_mv_per_C: -2.0
+    tempco_note: >
+      Nexperia footnotes "VBE decreases by approximately 2 mV/K". Guidance
+      rather than a guaranteed limit, and the only explicit BJT temperature
+      coefficient on any datasheet checked.
+    distribution: gaussian_truncated
+    distribution_note: >
+      A junction voltage follows the diode law and is well behaved, unlike
+      hFE, so a bell inside the guaranteed band is defensible.
+    confidence: primary
+    source: Nexperia BC847 series (Rev 13, Jul 2022)
+
+  mosfet_vth:
+    label: MOSFET gate threshold voltage
+    guaranteed: true
+    parts:
+      2N7002: {min: 1.0, typ: 2.0, max: 2.5}
+      BSS138: {min: 0.8, typ: 1.3, max: 1.5}
+      IRLZ44N: {min: 1.0, max: 2.0}
+    parts_note: >
+      IRLZ44N publishes no typ at all, only the guaranteed band -- a useful
+      reminder that there is not always a meaningful centre to perturb about.
+    fractional_tol: 0.375
+    fractional_tol_note: >
+      The 2N7002 band (1.0..2.5 V about a 2.0 V typ). The layer currently
+      uses 0.15 for VTO, which is noticeably tighter than any real part here.
+    tempco_mv_per_C: -2.0
+    tempco_note: >
+      BSS138 states -2 mV/C typical at 125 C referenced to 25 C. The other
+      two give it only as a graph.
+    distribution: uniform
+    distribution_note: Dominated by the process corner, which is what the
+      manufacturer guarantees as hard limits.
+    confidence: primary
+    source: Nexperia 2N7002 (Rev 7); onsemi BSS138; IR IRLZ44N
+
+  mosfet_rdson:
+    label: MOSFET on-resistance
+    guaranteed: true
+    parts:
+      2N7002: {typ: 2.8, max: 5.0, unit: ohm, at: "VGS=10V 500mA"}
+      BSS138: {typ: 0.7, max: 3.5, unit: ohm, at: "VGS=10V 220mA"}
+    distribution: lognormal
+    distribution_note: >
+      BSS138's max is five times its typ. A symmetric Gaussian would put a
+      lot of mass below typ, where no parts exist.
+    temperature_note: >
+      2N7002's max goes from 5 ohm at 25 C to 9.25 ohm at 150 C, over three
+      times the room-temperature typ. Relevant to a PVT corner run.
+    confidence: primary
+
+  diode_vf:
+    label: Diode forward voltage
+    guaranteed: partial
+    parts:
+      1N4148: {max: 1.0, at: "If=10mA"}
+      1N4001: {typ: 0.93, max: 1.1, at: "If=1A"}
+      1N5819: {max: 0.60, at: "If=1A"}
+    parts_note: Most of these are max-only, with no typ and no min.
+    tempco_mv_per_C: -2.0
+    tempco_confidence: estimated
+    tempco_note: >
+      Not published as a number by any diode datasheet checked. -2 mV/C is
+      read off the 1N4148 forward-voltage-vs-temperature graph and is the
+      usual textbook value; treat it as an assumption. Schottky looks
+      smaller, around -1 to -1.5 mV/C, also graph-read.
+    distribution: skewed_to_max
+    distribution_note: >
+      A maximum is a ceiling, not a mean. A Gaussian centred on it would
+      put half the population out of spec.
+    confidence: primary
+    source: Vishay 1N4148 (Rev 1.6, Nov 2024); onsemi 1N4001 (Rev 18, Jun
+      2024); Vishay 1N5817/18/19 (Rev Jul 2020)
+
+  opamp_vos:
+    label: Op-amp input offset voltage
+    guaranteed: true
+    parts:
+      LM358B: {typ: 0.0003, max: 0.003, unit: V}
+      TL072:  {typ: 0.003, max: 0.010, unit: V}
+      LM741:  {typ: 0.001, max: 0.005, unit: V}
+      OP07E:  {typ: 0.000030, max: 0.000075, unit: V}
+    distribution: gaussian_truncated
+    distribution_note: >
+      The one op-amp parameter with a consistently guaranteed maximum.
+      sigma = max/3 is the common convention but is an assumption, not
+      something any datasheet states.
+    confidence: primary
+    source: TI LM358 (SLOS068AB), TL072 (SLOS080W), LM741 (SNOSC25D);
+      ADI OP07 (Rev A)
+
+  opamp_gbw:
+    label: Op-amp gain-bandwidth product
+    guaranteed: false
+    do_not_model_randomly: true
+    parts:
+      LM358B: {typ: 1200000}
+      TL072:  {typ: 3000000}
+      OP07:   {min: 400000, typ: 600000, note: "guaranteed but not tested"}
+      LM741:  {note: "no bandwidth row exists at all"}
+    note: >
+      Typical-only, with no guaranteed limits, on LM358, TL072 and
+      LM741/741C. There is no published distribution, so treating typical
+      GBW as a Gaussian mean with a chosen sigma is inventing data. Perturb
+      it only on a spread the user supplies, and record where it came from.
+    confidence: primary
+
+  opamp_aol:
+    label: Op-amp open-loop gain
+    guaranteed: minimum_only
+    note: >
+      Every family checked guarantees a floor and never a ceiling -- LM358B
+      min 70 / typ 140 V/mV, TL072C min 25 / typ 200 V/mV. As far as the
+      datasheet is concerned a part may exceed typ without limit.
+    distribution: log_uniform_from_min
+    confidence: primary
+
+inductors_detail:
+  saturation_note: >
+    Isat is the current at which inductance has ALREADY fallen by a stated
+    fraction -- Coilcraft's XAL7070 uses the 30% convention and marks it
+    typ, not guaranteed. Inductance is therefore current-dependent, and a
+    fixed-L model holds only well below Isat. This is not a tolerance at
+    all; it wants an L(I) curve.
+  dcr_max_over_typ_pct: [10, 15]
+  dcr_note: >
+    XAL7070 publishes both typ and max DCR per part, running about +10 to
+    +15% max over typ. Not a universal constant -- look it up per part.
+  tempco_ppm_per_C: {ferrite_core: 700, air_or_ceramic_core: [25, 125]}
+  tempco_note: >
+    The tolerance grade is a room-temperature figure. Inductance drifts
+    outside it over temperature, so +-20% at 25 C is not +-20% across the
+    operating range.
+  confidence: primary
+  source: Coilcraft "An Introduction to Inductor Specifications" (doc1287)
+    and the XAL7070 datasheet (Doc 856)
+  url: https://www.coilcraft.com/getmedia/ac56eabb-8678-4ca2-9604-c609886d68c1/doc1287_inductor_specifications.pdf
+
+# ------------------------------------------------------------- methodology
+
+binning:
+  question: Are tolerance bands uniform, Gaussian, or hollowed out?
+  summary: >
+    Genuinely unsettled, and technology-dependent. The classic claim is that
+    manufacturers sort a batch and sell the tight parts at a premium,
+    leaving the loose grade with an empty centre. One measurement of 10%
+    resistors found exactly that bimodal shape. Two other measurements --
+    500 metal film at 1% and batches of 5% carbon film -- found ordinary
+    Gaussian distributions with no hollow. Modern precision parts are
+    laser-trimmed toward nominal rather than sorted, which would not produce
+    the artefact at all.
+  recommendation: >
+    Default to uniform, which is what LTspice does and what is defensible
+    without measured data. Offer Gaussian. Do not hard-code bimodality.
+  sources:
+    - http://dangerousprototypes.com/blog/2010/07/01/actual-values-of-10-tolerance-resistors/
+    - https://lambdafox.com/resistor-tolerances/
+
+e_series:
+  standard: IEC 60063
+  pairing: {E6: 20.0, E12: 10.0, E24: 5.0, E48: 2.0, E96: 1.0, E192: 0.5}
+  pairing_note: >
+    Each series is spaced so adjacent values' tolerance bands just meet.
+    E192's native pairing is 0.5%, not 0.1% -- 0.25% and 0.1% parts are
+    built on the E192 value grid but there is no finer IEC series, which is
+    a distinction often blurred.
+  do_not_snap: >
+    E-series membership is a design-time constraint on nominal values. It is
+    not a model of how a manufactured part varies, and Monte Carlo samples
+    should not be rounded onto the grid.
+  tolerance_letters:
+    B: 0.1
+    C: 0.25
+    D: 0.5
+    F: 1.0
+    G: 2.0
+    J: 5.0
+    K: 10.0
+    M: 20.0
+  tolerance_letters_note: >
+    IEC 60062. B/C/D are used as absolute tolerances (e.g. +-0.1 pF) on
+    capacitors of 10 pF and under. Codes beyond this set, including the
+    asymmetric ones, were not verified.
+
+yield_statistics:
+  cpk_to_ppm: {1.33: 63, 1.67: 0.57}
+  cpk_note: >
+    Assumes a centred process. Six Sigma's familiar 3.4 ppm already includes
+    Motorola's 1.5 sigma long-term mean-shift allowance.
+  monte_carlo_runs: >
+    For a pass/fail yield, each run is a Bernoulli trial and the estimate
+    needs a binomial confidence interval, not a bare percentage. A few
+    thousand runs is standard for yields in the 90-99.9% range. The often
+    quoted "50 runs is enough" holds only for a continuous output already
+    known to be normal.
+  methods_are_not_a_pipeline: >
+    Worst-case, RSS and Monte Carlo are independent tools chosen on whether
+    the transfer function is monotonic in each parameter -- not three stages
+    of refinement. (Hymowitz, EDN 2019, citing Aerospace TOR-2012(8960)-4.)
+  references:
+    - MIL-HDBK-338B, Electronic Reliability Design Handbook (1998)
+    - Aerospace TOR-2012(8960)-4 Rev A, Electrical Design Worst-Case Circuit
+      Analysis (2013), cited via Hymowitz 2019
+    - https://www.edn.com/monte-carlo-gone-wrong/
+
+# Recorded so nobody has to rediscover that these are open.
+unverified:
+  - IEC 60063 and EIA RS-198 primary texts (paywalled); class and series
+    definitions here are corroborated across manufacturer literature only.
+  - Standard wet aluminium electrolytic; the entry above is a polymer part.
+  - Film capacitor tempco; no primary source parsed, so none is given.
+  - Y5V initial tolerance combined with its temperature swing.
+  - Whether binning still produces bimodal distributions in modern
+    manufacturing. Measurements disagree.
+  - Why 8 of the 24 E24 values deviate from the geometric progression. Only
+    speculation was found, no primary rationale.
+  - BJT Early voltage (VAF). No datasheet checked publishes it at all -- it
+    lives only in third-party SPICE model libraries. The robustness layer
+    perturbs it by 25%, which is therefore not a sourced number.
+  - BJT hFE versus temperature. Graphical on every datasheet, never stated.
+  - Diode Vf temperature coefficient. The -2 mV/C everyone quotes is read
+    off a graph, not published as a spec.
+  - Op-amp gain-bandwidth spread. Genuinely unpublished for LM358, TL072
+    and LM741 -- typical-only, with no limits.
