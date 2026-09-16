@@ -16,9 +16,16 @@ Three layers, because "it ran" is not "it works":
 | `robustness.py` | how often does it meet it, across tolerance, supply and temperature? | free (ngspice only) |
 
 On the 8-circuit benchmark those three questions get three very different
-answers: **100% simulate cleanly, 62% meet spec**, and the worst offender had
-a **1% Monte Carlo yield** before repair. Sim-success overstates real
-capability by 38 points.
+answers: **100% simulate cleanly, 62-75% meet spec**, and the worst offender
+had a **1% Monte Carlo yield** before repair. Sim-success overstates real
+capability by 25-38 points.
+
+Those are four independent runs, not one. Generation is sampling, so a single
+run is an anecdote: across 4 runs (`python repeat_summary.py`) every circuit
+simulated cleanly **every time**, while the spec pass rate moved between 5 and
+6 of 8. `buck_converter` and `ce_bjt_amp` fail their spec in *all four*; the
+rectifiers are borderline and each fail once. The reproducible part is the
+gap, not the second decimal place.
 
 Every measurement is then cross-checked against a **second, independently
 written simulator**: the same spec is re-measured in LTspice, headlessly, and
@@ -371,11 +378,13 @@ main.py  speccheck.py  specs.py  robustness.py      the layers
 plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
 ltspice.py  crosscheck.py                           the second simulator
 benchmark.py  robustness_study.py                   the study drivers
+repeat_summary.py                                    spread across repeat runs
 specs_lib/       declarative specs for the benchmark circuits
 examples/        one circuit as schematic, netlist, spec and plot
 baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
+logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
 tests/           440 tests, no API calls
 ```

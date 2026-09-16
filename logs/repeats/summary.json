@@ -1,0 +1,90 @@
+{
+  "n_runs": 4,
+  "circuits": 8,
+  "simulated": "8",
+  "spec_passed": "5-6 (mean 5.2)",
+  "attempts": "8-11 (mean 9.2)",
+  "total_cost_usd": 0.5924,
+  "same_circuits_fail_each_run": false,
+  "spec_failure_sets": [
+    [
+      "bridge_rectifier",
+      "buck_converter",
+      "ce_bjt_amp"
+    ],
+    [
+      "buck_converter",
+      "ce_bjt_amp"
+    ],
+    [
+      "buck_converter",
+      "ce_bjt_amp",
+      "halfwave_rectifier"
+    ]
+  ],
+  "runs": [
+    {
+      "file": "run_log.json",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 5,
+      "attempts": 11,
+      "seconds": 151.3,
+      "api_calls": 11,
+      "cost_usd": 0.1867,
+      "spec_failures": [
+        "buck_converter",
+        "ce_bjt_amp",
+        "halfwave_rectifier"
+      ]
+    },
+    {
+      "file": "run_1.json",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 5,
+      "attempts": 8,
+      "seconds": 65.1,
+      "api_calls": 8,
+      "cost_usd": 0.0516,
+      "spec_failures": [
+        "bridge_rectifier",
+        "buck_converter",
+        "ce_bjt_amp"
+      ]
+    },
+    {
+      "file": "run_2.json",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 5,
+      "attempts": 10,
+      "seconds": 109.6,
+      "api_calls": 10,
+      "cost_usd": 0.2972,
+      "spec_failures": [
+        "bridge_rectifier",
+        "buck_converter",
+        "ce_bjt_amp"
+      ]
+    },
+    {
+      "file": "run_3.json",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 6,
+      "attempts": 8,
+      "seconds": 66.6,
+      "api_calls": 8,
+      "cost_usd": 0.0569,
+      "spec_failures": [
+        "buck_converter",
+        "ce_bjt_amp"
+      ]
+    }
+  ]
+}
