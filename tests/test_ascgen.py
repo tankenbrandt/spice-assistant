@@ -283,16 +283,132 @@ def test_devices_of_also_skips_the_title():
     assert list(ascgen._devices_of("Simple RC Circuit Test\nR1 a 0 1k\n.end\n")) == ["R1"]
 
 
-def test_controlled_source_is_refused_by_name():
-    """E/G/F/H have no symbol in the library, so there is nothing to draw.
-    Saying so beats 'unknown device prefix'."""
-    with pytest.raises(ascgen.UnsupportedDeck, match="controlled source"):
-        ascgen.parse_deck("t\nEamp out 0 in fb 1e6\n.end\n")
+def test_current_controlled_source_is_refused_by_name():
+    """F/H sense a named source's current; saying so beats 'unknown prefix'."""
+    with pytest.raises(ascgen.UnsupportedDeck, match="current-controlled"):
+        ascgen.parse_deck("t\nV1 a 0 1\nFamp out 0 V1 10\n.end\n")
 
 
-def test_subcircuit_call_is_refused_by_name():
-    with pytest.raises(ascgen.UnsupportedDeck, match="subcircuit"):
+# ------------------------------------------------------- op-amps, E and G
+
+OPAMP_SUB = """.subckt OP07 plus minus vcc vee out
+Rin plus minus 20meg
+Egain gain 0 plus minus 1meg
+Rout gain out 60
+.ends OP07
+"""
+
+NONINV = """non-inverting, gain 11
+Vin in 0 AC 1
+Vcc vcc 0 15
+Vee vee 0 -15
+Rf minus out 100k
+Rg minus 0 10k
+XU1 in minus vcc vee out OP07
+""" + OPAMP_SUB + ".end\n"
+
+
+def test_vcvs_op_amp_round_trips():
+    """The benchmark's op-amp decks model the amplifier as a bare VCVS."""
+    original, extracted = ascgen.roundtrip(
+        "t\nVin in 0 AC 1\nR1 fb 0 1k\nRf out fb 10k\nEopamp out 0 in fb 1e6\n.end\n")
+    assert extracted["EOPAMP"] == ["out", "0", "in", "fb"]
+    assert ascgen.compare(original, extracted) == []
+
+
+def test_vccs_round_trips():
+    """G has + at the bottom of its symbol, the opposite of E."""
+    original, extracted = ascgen.roundtrip(
+        "t\nVin in 0 1\nGm 0 out in 0 1m\nRl out 0 1k\n.end\n")
+    assert ascgen.compare(original, extracted) == []
+
+
+def test_poly_source_is_refused():
+    with pytest.raises(ascgen.UnsupportedDeck, match="POLY"):
+        ascgen.parse_deck("t\nE1 out 0 POLY(2) a 0 b 0 0 1 1\n.end\n")
+
+
+def test_subckt_body_is_one_directive_not_top_level_devices():
+    """Egain inside the macromodel must not be drawn on the sheet -- it
+    would be wired to top-level nets that happen to share its node names."""
+    deck = ascgen.parse_deck(NONINV)
+    assert [d.refdes for d in deck.devices] == ["Vin", "Vcc", "Vee", "Rf", "Rg", "XU1"]
+    (sub,) = [d for d in deck.directives if d.lower().startswith(".subckt")]
+    assert "Egain" in sub and sub.endswith(".ends OP07")
+
+
+def test_opamp_subcircuit_is_drawn_on_the_generic_opamp():
+    deck = ascgen.parse_deck(NONINV)
+    xu1 = deck.devices[-1]
+    assert xu1.symbol == ascgen.OPAMP_SYMBOL and xu1.value == "OP07"
+
+
+def test_opamp_subcircuit_round_trips_with_inputs_the_right_way_round():
+    """The built-in geometry lists In- first; SpiceOrder lists In+ first.
+    Zipping them positionally put the signal on the inverting input."""
+    original, extracted = ascgen.roundtrip(NONINV)
+    assert extracted["XU1"] == ["in", "minus", "vcc", "vee", "out", "op07"]
+    assert ascgen.compare(original, extracted) == []
+
+
+def test_opamp_round_trips_without_the_ltspice_library(monkeypatch):
+    """What CI sees: no .asy to read SpiceOrder from, so the built-in order
+    for opamp2 has to carry it."""
+    import ascview
+    monkeypatch.setattr(ascview, "USE_SYMBOL_LIBRARY", False)
+    ascview._lib_cache.clear()
+    assert ascgen.compare(*ascgen.roundtrip(NONINV)) == []
+
+
+def test_instname_leaves_the_x_to_ltspice():
+    """LTspice's netlister prefixes X itself; XU1 would come back XXU1."""
+    assert "SYMATTR InstName U1\n" in ascgen.generate(NONINV)
+
+
+def test_subcircuit_that_is_not_an_opamp_is_refused():
+    deck = NONINV.replace("plus minus vcc vee out", "a b c d e")
+    with pytest.raises(ascgen.UnsupportedDeck, match="do not read as an op-amp"):
+        ascgen.parse_deck(deck)
+
+
+def test_opamp_pins_in_another_order_are_refused():
+    """Five op-amp pins in a different order would draw a supply as an input."""
+    deck = NONINV.replace("plus minus vcc vee out", "plus minus out vcc vee")
+    with pytest.raises(ascgen.UnsupportedDeck, match="opamp2 order"):
+        ascgen.parse_deck(deck)
+
+
+def test_call_to_an_undefined_subcircuit_is_refused():
+    with pytest.raises(ascgen.UnsupportedDeck, match="not defined in the deck"):
         ascgen.parse_deck("t\nXU1 in m vcc vee out OP07\n.end\n")
+
+
+def test_only_one_analysis_stays_live():
+    """LTspice refuses a sheet with two analyses; ngspice decks often have
+    op + ac + tran. The first non-.op one stays, the rest become comments."""
+    deck = ascgen.parse_deck(
+        "t\nR1 a 0 1k\n.control\nop\nac dec 10 1 1k\ntran 1u 1m\n.endc\n.end\n")
+    live = [d for d in deck.directives if d.startswith((".op", ".ac", ".tran"))]
+    assert live == [".ac dec 10 1 1k"]
+    assert deck.notes == [".op", ".tran 1u 1m"]
+    asc = ascgen.generate(
+        "t\nR1 a 0 1k\n.control\nop\nac dec 10 1 1k\n.endc\n.end\n")
+    assert "!.ac dec 10 1 1k" in asc and ";.op" in asc
+
+
+def test_ltspice_netlists_the_generated_opamp_the_same_way(have_ltspice):
+    import re
+    import tempfile
+    from pathlib import Path
+
+    import symlib
+
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "generated.asc"
+        p.write_text(ascgen.generate(NONINV), encoding="utf-8")
+        theirs = symlib.netlist_with_ltspice(p)
+    theirs = ascgen._devices_of(re.sub(r"[§¶]", "", theirs))
+    assert ascgen.compare(ascgen._devices_of(NONINV), theirs) == []
 
 
 def test_analysis_from_a_control_block_lands_on_the_sheet():

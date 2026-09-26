@@ -43,11 +43,26 @@ SHUNT_DX = 64     # how far an upright device sits from its net's bus
 GROUND = {"0", "gnd", "gnd!", "vss!"}
 
 PREFIX_SYMBOL = {"R": "res", "C": "cap", "L": "ind",
-                 "V": "voltage", "I": "current", "D": "diode", "S": "sw"}
+                 "V": "voltage", "I": "current", "D": "diode", "S": "sw",
+                 "E": "e", "G": "g"}
 
 # Node count per prefix; everything after them is the value or model name.
 PREFIX_NODES = {"R": 2, "C": 2, "L": 2, "V": 2, "I": 2, "D": 2,
-                "Q": 3, "M": 4, "S": 4}
+                "Q": 3, "M": 4, "S": 4, "E": 4, "G": 4}
+
+# A subcircuit is drawn as LTspice's generic op-amp when -- and only when --
+# its pins read as an op-amp in that symbol's SpiceOrder: In+ In- V+ V- OUT.
+# The X line is positional, so any five-pin subcircuit would *connect*
+# correctly on this symbol; the check is so the picture does not show a
+# supply pin as an input. Names are matched whole, case-insensitively.
+OPAMP_SYMBOL = "OpAmps\\opamp2"
+OPAMP_PIN_ROLES = [
+    {"in+", "inp", "in_p", "plus", "p", "pos", "noninv", "non_inv", "vinp", "+in"},
+    {"in-", "inn", "in_n", "minus", "m", "neg", "inv", "vinn", "-in"},
+    {"v+", "vcc", "vdd", "vpos", "vs+", "vplus", "pwr+"},
+    {"v-", "vee", "vss", "vneg", "vs-", "vminus", "pwr-"},
+    {"out", "vout", "output", "o"},
+]
 
 
 class UnsupportedDeck(Exception):
@@ -68,6 +83,8 @@ class Deck:
     devices: list = field(default_factory=list)
     directives: list = field(default_factory=list)
     models: dict = field(default_factory=dict)      # name -> type, lowercased
+    subckts: dict = field(default_factory=dict)     # name -> [pins], lowercased
+    notes: list = field(default_factory=list)       # comments for the sheet
 
 
 # ------------------------------------------------------------------ parsing
@@ -117,6 +134,7 @@ def parse_deck(text: str) -> Deck:
             deck.models[m.group(1).lower()] = m.group(2).lower()
 
     deck.title, body = _strip_title(lines)
+    body = _lift_subckts(body, deck)
     for raw in body:
         line = raw.strip()
         if not line:
@@ -132,9 +150,43 @@ def parse_deck(text: str) -> Deck:
                 continue
             deck.directives.append(line)
             continue
-        deck.devices.append(_parse_device(line, deck.models))
+        deck.devices.append(_parse_device(line, deck.models, deck.subckts))
     deck.directives.extend(carried)
+    _one_analysis(deck)
     return deck
+
+
+def _lift_subckts(body: list, deck: Deck) -> list:
+    """Take each `.subckt ... .ends` block out of the body as one directive.
+
+    Its contents are the subcircuit's own devices -- an op-amp macromodel's
+    VCVS, say -- and drawing them on the top-level sheet would wire them to
+    top-level nets of the same name. LTspice holds a subcircuit exactly this
+    way: one multi-line `!` text (see examples/active_lowpass.asc).
+    """
+    rest, block = [], None
+    for raw in body:
+        low = raw.strip().lower()
+        if block is None and low.startswith(".subckt"):
+            parts = raw.split()
+            if len(parts) < 2:
+                raise UnsupportedDeck(f"a .subckt with no name: {raw.strip()!r}")
+            deck.subckts[parts[1].lower()] = [
+                t.lower() for t in parts[2:]
+                if "=" not in t and t.lower() != "params:"]
+            block = [raw.strip()]
+            continue
+        if block is not None:
+            if raw.strip():
+                block.append(raw.strip())
+            if low.startswith(".ends"):
+                deck.directives.append("\n".join(block))
+                block = None
+            continue
+        rest.append(raw)
+    if block is not None:
+        raise UnsupportedDeck(f"{block[0]!r} has no matching .ends")
+    return rest
 
 
 def _strip_title(lines: list) -> tuple:
@@ -152,10 +204,12 @@ def _strip_title(lines: list) -> tuple:
     return "", []
 
 
-def _parse_device(line: str, models: dict) -> Device:
+def _parse_device(line: str, models: dict, subckts: dict | None = None) -> Device:
     parts = line.split()
     refdes = parts[0]
     prefix = refdes[0].upper()
+    if prefix == "X":
+        return _parse_call(parts, subckts or {})
     if prefix not in PREFIX_NODES:
         raise UnsupportedDeck(f"{refdes}: {_why_unsupported(prefix)}")
     n = PREFIX_NODES[prefix]
@@ -173,28 +227,58 @@ def _parse_device(line: str, models: dict) -> Device:
         symbol = _device_symbol(rest, models, refdes, ("nmos", "pmos"),
                                 "NMOS from PMOS")
         nodes = nodes[:3]        # the 3-terminal symbol ties bulk to source
+    elif prefix in "EG" and any(t.lower().startswith("poly") for t in parts[3:5]):
+        # POLY(n) takes the control-node slots, so it is found among them.
+        raise UnsupportedDeck(
+            f"{refdes}: a POLY source has more control nodes than the "
+            "four-pin symbol can show")
     else:
         symbol = PREFIX_SYMBOL[prefix]
     return Device(refdes=refdes, symbol=symbol, nodes=nodes, value=" ".join(rest))
 
 
+def _parse_call(parts: list, subckts: dict) -> Device:
+    """An X line, drawn as an op-amp if its subcircuit is recognisably one."""
+    refdes = parts[0]
+    if any("=" in t for t in parts[1:]):
+        raise UnsupportedDeck(f"{refdes}: subcircuit parameters are not supported yet")
+    if len(parts) < 3:
+        raise UnsupportedDeck(f"{refdes}: a subcircuit call needs nodes and a name")
+    nodes, name = parts[1:-1], parts[-1]
+    pins = subckts.get(name.lower())
+    if pins is None:
+        raise UnsupportedDeck(
+            f"{refdes}: calls {name}, which is not defined in the deck. A "
+            "subcircuit from an external library has no pin names to read, "
+            "so there is no telling which symbol it belongs on.")
+    if len(pins) != len(nodes):
+        raise UnsupportedDeck(
+            f"{refdes}: passes {len(nodes)} nodes to {name}, which has "
+            f"{len(pins)} pins")
+    if not _is_opamp(pins):
+        raise UnsupportedDeck(
+            f"{refdes}: {name}'s pins ({' '.join(pins)}) do not read as an "
+            "op-amp in LTspice's opamp2 order (In+ In- V+ V- OUT), and a "
+            "subcircuit call needs the symbol its pins came from -- which "
+            "this writer will not guess.")
+    return Device(refdes=refdes, symbol=OPAMP_SYMBOL, nodes=nodes, value=name)
+
+
+def _is_opamp(pins: list) -> bool:
+    return (len(pins) == len(OPAMP_PIN_ROLES)
+            and all(p in roles for p, roles in zip(pins, OPAMP_PIN_ROLES, strict=True)))
+
+
 def _why_unsupported(prefix: str) -> str:
     """Say what the deck asked for and why it cannot be drawn.
 
-    These are the two that turn up in this project's own decks -- the op-amp
-    circuits use a VCVS, and the worked example calls a subcircuit -- so the
-    message is worth more than "unknown device prefix".
+    E and G are drawn; F and H are current-controlled, and name the source
+    whose current they sense rather than a pair of nodes.
     """
-    if prefix in "EGFH":
-        return ("a controlled source (E/G/F/H) has no symbol in the library, "
-                "so there is nothing to draw. Model the op-amp with a "
-                "subcircuit, or extend ascview.SYMBOLS and netlist.DEVICES "
-                "together -- both halves have to agree on pin order.")
-    if prefix == "X":
-        return ("a subcircuit call needs the symbol its pins came from. "
-                "symlib can read the .asy and its SpiceOrder, but choosing "
-                "which symbol a bare .subckt name refers to is a guess this "
-                "writer will not make.")
+    if prefix in "FH":
+        return ("a current-controlled source (F/H) is not supported yet: it "
+                "senses the current through a named voltage source, which "
+                "the f/h symbols carry in their value, not their wiring")
     return f"device prefix {prefix!r} is not supported"
 
 
@@ -213,6 +297,11 @@ def _device_symbol(rest, models, refdes, allowed, what) -> str:
 
 def _is_ground(node: str) -> bool:
     return node.lower() in GROUND
+
+
+def _node(node: str) -> str:
+    """A node name as the comparison sees it: lowercase, ground as 0."""
+    return "0" if _is_ground(node) else node.lower()
 
 
 def _orientation(dev: Device, columns: dict):
@@ -253,12 +342,14 @@ def build_schematic(deck: Deck) -> ascview.Schematic:
         rot, horizontal = _orientation(dev, columns)
         x, sy = _anchor(dev, columns, y, horizontal)
         sym = ascview.Symbol(dev.symbol, x, sy, rot)
-        sym.attrs["InstName"] = dev.refdes
+        # LTspice's netlister prefixes a subcircuit's InstName with X itself.
+        sym.attrs["InstName"] = (dev.refdes[1:] if dev.symbol == OPAMP_SYMBOL
+                                  else dev.refdes)
         if dev.value:
             sym.attrs["Value"] = dev.value
         sch.symbols.append(sym)
 
-        for pin, node in zip(ascview.sym_pins(sym), dev.nodes, strict=True):
+        for pin, node in zip(ascview.sym_pins(sym), _drawn_order(dev), strict=True):
             if _is_ground(node):
                 _ground(sch, pin)
             else:
@@ -269,6 +360,20 @@ def build_schematic(deck: Deck) -> ascview.Schematic:
     sch.texts.extend(_directive_texts(deck, len(deck.devices)))
     sch.sheet = _sheet(sch)
     return sch
+
+
+def _drawn_order(dev: Device) -> list:
+    """The device's nodes in the order its drawn geometry lists pins.
+
+    For everything but the op-amp that is SPICE order. The built-in op-amp
+    geometry lists In- In+ Out V+ V- (from a real OP07 placement), while the
+    X line is in opamp2's SpiceOrder, In+ In- V+ V- OUT -- zipping the two
+    positionally put the signal input on the inverting pin.
+    """
+    if dev.symbol != OPAMP_SYMBOL:
+        return dev.nodes
+    by_role = dict(zip(netlist_mod.BUILTIN_PINORDER["opamp2"], dev.nodes, strict=True))
+    return [by_role[r] for r in netlist_mod.OPAMP_ROLES]
 
 
 def _anchor(dev, columns, y, horizontal):
@@ -344,10 +449,32 @@ def _directive_texts(deck: Deck, nrows: int) -> list:
     """
     y = Y0 + nrows * ROW_H + 64
     out = []
-    for d in deck.directives:
-        out.append(ascview.TextItem(X0, y, "Left", 2, d, True))
-        y += 32
+    for text, active in ([(d, True) for d in deck.directives]
+                         + [(n, False) for n in deck.notes]):
+        out.append(ascview.TextItem(X0, y, "Left", 2, text, active))
+        y += 32 * (text.count("\n") + 1)      # a .subckt block is many lines
     return out
+
+
+def _one_analysis(deck: Deck) -> None:
+    """Leave exactly one analysis active; park the rest as comments.
+
+    LTspice runs one analysis per simulation and refuses a sheet with two
+    ("More than one analysis specified"), while an ngspice control block
+    routinely holds `op`, `ac` and `tran` together. The first analysis that
+    is not `.op` stays live -- AC and transient both solve the operating
+    point first anyway -- and the others go on the sheet as comments, one
+    right-click from being switched in.
+    """
+    analyses = [d for d in deck.directives
+                if d.split()[0].lower().lstrip(".") in _ANALYSES]
+    if len(analyses) < 2:
+        return
+    keep = next((a for a in analyses if a.split()[0].lower() != ".op"), analyses[0])
+    for a in analyses:
+        if a is not keep:
+            deck.directives.remove(a)
+            deck.notes.append(a)
 
 
 def _sheet(sch) -> tuple:
@@ -400,12 +527,23 @@ def _devices_of(text: str) -> dict:
     """{refdes: [nodes]} for comparison, ignoring values and directives."""
     out = {}
     _title, body = _strip_title(ltspice.strip_control(text).splitlines())
+    depth = 0                       # inside a .subckt: its devices, not ours
     for raw in body:
         line = raw.split(";")[0].strip()
-        if not line or line.startswith(("*", ".", "+")):
+        low = line.lower()
+        if low.startswith(".subckt"):
+            depth += 1
+        elif low.startswith(".ends"):
+            depth -= 1
+            continue
+        if depth or not line or line.startswith(("*", ".", "+")):
             continue
         parts = line.split()
         if len(parts) < 3:
+            continue
+        if parts[0][0].upper() == "X":
+            nodes, name = parts[1:-1], parts[-1]
+            out[parts[0].upper()] = ([_node(x) for x in nodes] + [name.lower()])
             continue
         n = PREFIX_NODES.get(parts[0][0].upper())
         if n is None:

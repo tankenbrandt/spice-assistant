@@ -521,11 +521,20 @@ python ascgen.py repaired/ce_bjt_amp.cir --check    # round-trip the result
 The layout is mechanical -- a column per net, a row per device -- and it does
 not try to be draughtsmanship. What it guarantees is connectivity: `--check`
 re-extracts the drawing and compares it device by device, and the tests
-additionally round-trip it through **LTspice's own netlister**. Of the repo's
-22 decks, **19 round-trip exactly** and 3 are refused up front (controlled
-sources and subcircuit calls have no symbol to draw, so it says so rather than
-mis-drawing them). LTspice simulating the generated schematic above measures
-|gain| = 51.5265, against 51.5266 from the deck it was written from.
+additionally round-trip it through **LTspice's own netlister**. **All 22 of
+the repo's decks round-trip exactly**, op-amps included: a VCVS macromodel is
+drawn with LTspice's `e` symbol, and a subcircuit call lands on the generic
+`opamp2` -- but only when the `.subckt`'s pin names read as In+ In- V+ V- OUT
+in that symbol's order, so a supply is never drawn as an input. Anything else
+(an undefined or non-op-amp subcircuit, F/H sources, POLY) is refused rather
+than guessed. LTspice simulating the generated schematic above measures
+|gain| = 51.5265, against 51.5266 from the deck it was written from; for the
+active low-pass op-amp example the two agree to every printed digit.
+
+LTspice runs one analysis per simulation, while an ngspice `.control` block
+often holds `op`, `ac` and `tran` together. The generated sheet keeps the
+first non-`.op` analysis live and parks the rest as comments, one right-click
+from being switched in.
 
 Three bugs the round trip caught that a rendered picture would not have:
 routing a device's pins along one shared row shorted collector, base and
@@ -607,7 +616,7 @@ repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           572 tests, no API calls
+tests/           586 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

@@ -44,7 +44,14 @@ DEVICES = {
     "nmos":    ("M", ["D", "G", "S"]),
     "pmos":    ("M", ["D", "G", "S"]),
     "sw":      ("S", ["n+", "n-", "nc+", "nc-"]),
+    "e":       ("E", ["n+", "n-", "nc+", "nc-"]),
+    "g":       ("G", ["n+", "n-", "nc+", "nc-"]),
 }
+
+# SpiceOrder of the generic op-amp symbol, from LTspice's opamp2.asy, for
+# when the library is not installed to read it from. Given in OPAMP_ROLES
+# terms, so it is a --pinorder mapping like any other.
+BUILTIN_PINORDER = {"opamp2": ["in+", "in-", "v+", "v-", "out"]}
 
 # Devices that need a model name, and a default if the schematic gives none.
 NEEDS_MODEL = {"diode": "D", "zener": "D", "schottky": "D",
@@ -289,6 +296,12 @@ def emit(sch, strict: bool = False, pinorder: dict | None = None) -> tuple[list,
         # A declared pin order makes a subcircuit emittable.
         roles = roles_for(kind, len(pins))
         wanted = pinorder.get(leaf)
+        name = leaf.upper()
+        if not wanted and leaf in BUILTIN_PINORDER:
+            wanted = BUILTIN_PINORDER[leaf]
+            # A generic symbol is a shape, not a part: the Value names the
+            # subcircuit it stands for, as it does in the library path.
+            name = (sym.attrs.get("Value") or "").strip() or name
         if wanted:
             index = {r: i for i, r in enumerate(roles)}
             missing = [r for r in wanted if r not in index]
@@ -301,7 +314,7 @@ def emit(sch, strict: bool = False, pinorder: dict | None = None) -> tuple[list,
                     f"{inst} ({sym.name}): --pinorder lists {len(wanted)} pins, "
                     f"the symbol has {len(pins)}")
             ordered = [nets[index[r]] for r in wanted]
-            lines.append(f"X{inst} {' '.join(ordered)} {leaf.upper()}")
+            lines.append(f"X{inst} {' '.join(ordered)} {name}")
             continue
 
         # Otherwise: the pins are known, the subcircuit's pin ORDER is not, so

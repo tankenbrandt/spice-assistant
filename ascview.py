@@ -205,6 +205,31 @@ SYMBOLS: dict[str, Sym] = {
         box=(-48, 16, 24, 96), verified=True),
 }
 
+
+# ---- Controlled sources, transcribed from LTspice's own e.asy / g.asy ----
+# Output pins on the right, control pins on the left. The two differ in
+# which output pin is on top: E has + at (0,16), G has + at (0,96) -- its
+# arrow shows current flowing out of the top, i.e. into the + node.
+def _controlled_body():
+    return [("line", -48, 32, -32, 32), ("line", -32, 32, -24, 36),
+            ("line", -48, 80, -32, 80), ("line", -32, 80, -24, 76),
+            ("line", 0, 16, 0, 24), ("line", 0, 96, 0, 88),
+            ("line", -48, 72, -40, 72),                             # control -
+            ("line", -48, 40, -40, 40), ("line", -44, 36, -44, 44),  # control +
+            ("circle", 0, 56, 32)]
+
+
+SYMBOLS["e"] = Sym(
+    pins=[(0, 16), (0, 96), (-48, 32), (-48, 80)],      # +, -, P, N
+    draw=_controlled_body() + [("line", -4, 72, 4, 72), ("line", -4, 40, 4, 40),
+                               ("line", 0, 36, 0, 44)],
+    box=(-48, 16, 32, 96), verified=True)
+SYMBOLS["g"] = Sym(
+    pins=[(0, 96), (0, 16), (-48, 32), (-48, 80)],      # +, -, NC+, NC-
+    draw=_controlled_body() + [("poly", [(4, 52), (0, 40), (-4, 52)], True),
+                               ("line", 0, 52, 0, 72)],
+    box=(-48, 16, 32, 96), verified=True)
+
 # Op-amp geometry derived from a real OpAmps\OP07 placement: pins sit at
 # In-(-32,48) In+(-32,80) Out(32,64) V+(0,32) V-(0,96) in local coordinates.
 OPAMP = Sym(
