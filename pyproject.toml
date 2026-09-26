@@ -26,13 +26,16 @@ spice-symlib     = "symlib:_cli"            # inspect LTspice's .asy library
 spice-crosscheck = "crosscheck:_cli"        # same spec, ngspice vs LTspice
 spice-ascgen     = "ascgen:_cli"            # deck -> .asc schematic
 spice-tolerances = "tolerances:_cli"        # sourced component tolerances
+spice-op         = "oppoint:_cli"           # every node voltage and branch current
+spice-report     = "report:_cli"            # one circuit, every layer, one report
 
 [tool.setuptools]
 # A flat layout of single-purpose CLIs, so the modules are listed rather than
 # discovered -- that keeps tests/ and the report scripts out of the wheel.
 py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
               "robustness_study", "ascview", "plot", "netlist", "symlib",
-              "ltspice", "crosscheck", "ascgen", "tolerances"]
+              "ltspice", "crosscheck", "ascgen", "tolerances", "oppoint",
+              "report"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]

@@ -7,7 +7,14 @@ ngspice netlist that simulates, then check whether it is actually *correct* --
 and whether it stays correct once the parts have tolerances, the supply sags
 and the board runs from -40 to +85 C.
 
-Three layers, because "it ran" is not "it works":
+`spice-report` runs all of it against one circuit and writes a report --
+schematic, operating point, spec verdict, Monte Carlo, second simulator:
+
+```powershell
+python report.py repaired/ce_bjt_amp.cir --spec specs_lib/ce_bjt_amp.yaml --out runs/amp
+```
+
+Underneath are three layers, because "it ran" is not "it works":
 
 | Layer | Question | Cost |
 |-------|----------|------|
@@ -83,6 +90,7 @@ That installs the CLIs on your `PATH`:
 
 | Command | Module | Does |
 |---------|--------|------|
+| `spice-report` | `report.py` | one circuit, every layer, one report |
 | `spice-assistant` | `main.py` | description -> netlist -> simulate -> self-heal |
 | `spice-speccheck` | `speccheck.py` | measure a deck and judge it against a spec |
 | `spice-robustness` | `robustness.py` | Monte Carlo, sensitivity, worst case, PVT |
@@ -90,6 +98,7 @@ That installs the CLIs on your `PATH`:
 | `spice-netlist` | `netlist.py` | `.asc` schematic -> ngspice deck |
 | `ascview` | `ascview.py` | render a `.asc` without LTspice |
 | `spice-symlib` | `symlib.py` | inspect LTspice's own `.asy` symbol library |
+| `spice-op` | `oppoint.py` | every node voltage and branch current in a deck |
 
 Every example below also works as `python <module>.py ...` straight from a
 clone, with no install. Only `spice-assistant` needs an API key; everything
@@ -153,6 +162,86 @@ successful simulation, `1` if all attempts failed.
   bad deck, success also requires that the output contains no error signatures.
 - `fix_netlist(netlist_text, error_output)` — sends the failing netlist plus the
   ngspice output back to the model and returns a corrected netlist.
+
+## The whole chain, one report (`report.py`)
+
+Every tool below answers one question and prints to a terminal. That is the
+right shape for a test and the wrong shape for handing someone a design.
+`report.py` runs the whole chain against a single circuit and writes a report
+you can read, attach to a lab notebook, or bring to a design review:
+
+```powershell
+# from a deck you already have -- ngspice and LTspice only, no API key
+python report.py repaired/ce_bjt_amp.cir --spec specs_lib/ce_bjt_amp.yaml --out runs/amp
+
+# or start from a description (this is the one layer that costs anything)
+python report.py --describe "a common-emitter amplifier with gain -50" `
+    --spec specs_lib/ce_bjt_amp.yaml --out runs/amp
+```
+
+```
+spice-report -> runsaseline
+  [1/6] netlist..................... `baseline/ce_bjt_amp.cir`
+  [2/6] schematic................... 12 devices -> ce_bjt_amp.svg
+  [3/6] operating point............. 7 nodes, 12 branches
+  [4/6] spec check.................. FAIL
+  [5/6] monte carlo................. yield 1% over 500 samples
+  [6/6] ltspice cross-check......... 4/4 agree within 1.0%
+```
+
+`runs/amp/report.md` carries all of it: the schematic as a rendered SVG and as
+an `.asc` that opens in LTspice, every node voltage and branch current, the
+spec verdict with each measurement against its limits, the Monte Carlo
+distribution and yield, and the second simulator's answer to the same spec.
+
+A layer that cannot run is recorded rather than fatal -- LTspice missing, a
+deck too exotic to draw -- because the circuit you most want a report on is
+the one that is going wrong. Without `--spec` it still runs, and stops after
+the operating point.
+
+`--out` must not be the project root: `report.md` and the committed
+`REPORT.md` are the same file on a case-insensitive filesystem.
+
+### Where is this circuit sitting? (`oppoint.py`)
+
+A spec is deliberately narrow -- it names the handful of vectors it cares
+about, and `speccheck` dumps exactly those. But the first question in front of
+a circuit is usually not "does it pass", it is "where is it sitting", and a
+bias point that looks wrong explains a gain that measures wrong.
+
+```powershell
+python oppoint.py repaired/ce_bjt_amp.cir
+```
+
+```
+7 nodes, 12 branches
+
+  node voltages
+    base       1.62V
+    coll       4.44V
+    emit        979mV
+    vcc          12V
+
+  device currents
+    q1    Ic 1.01mA, Ib 4.92uA, Ie -1.01mA
+    rc    I 1.01mA
+    r1    I 153uA
+```
+
+No spec had to anticipate any of it: `op` + `print all` gives every node, and
+one `show` gives every device's currents. Two things in that output are traps
+worth knowing about, and both are tested:
+
+- **`ic` is not always a current.** It is collector current on a BJT and the
+  *initial condition* on a capacitor or inductor, where ngspice answers with a
+  perfectly plausible `0` instead of refusing. Each device type is read only
+  for the currents it actually has. A MOSFET's `ib` is bulk leakage, not a
+  base current, for the same reason.
+- **A deck with no nodes still prints eleven of them.** With nothing in the
+  operating-point plot, `print all` quietly falls back to ngspice's
+  *constants* plot -- `pi`, `boltz`, `echarge`, `kelvin`. Those are filtered on
+  value as well as name, so a real node that happens to be called `c` survives
+  and one sitting at 3e8 volts does not.
 
 ## Specs for your own circuits (`specs_lib/`, `specs.py`)
 
@@ -462,6 +551,8 @@ main.py  speccheck.py  specs.py  robustness.py      the layers
 plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
 ltspice.py  crosscheck.py                           the second simulator
 ascgen.py                                            deck -> .asc schematic
+oppoint.py                                           whole-deck operating point
+report.py                                            the end-to-end driver
 tolerances.py  tolerances.yaml                       sourced part tolerances
 benchmark.py  robustness_study.py                   the study drivers
 repeat_summary.py                                    spread across repeat runs
@@ -472,7 +563,7 @@ repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           521 tests, no API calls
+tests/           561 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

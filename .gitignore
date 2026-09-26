@@ -22,3 +22,9 @@ dist/
 # that REPORT.md quotes is committed; the raw runs are not.
 logs/repeats/*.json
 !logs/repeats/summary.json
+
+# spice-report output: generated per circuit, on demand.
+runs/
+
+# Resumes live here for convenience; they are not part of the project.
+*.pdf
