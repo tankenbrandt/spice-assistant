@@ -2,19 +2,208 @@
 
 [![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
 
-**Natural language to a verified analog circuit.** Describe a circuit, get an
-ngspice netlist that simulates, then check whether it is actually *correct* --
-and whether it stays correct once the parts have tolerances, the supply sags
-and the board runs from -40 to +85 C.
+Describe an analog circuit in plain English and get back a simulation you can
+trust. That means one that has been checked against what you actually asked
+for, with real part tolerances, and in two different simulators.
 
-`spice-report` runs all of it against one circuit and writes a report --
-schematic, operating point, spec verdict, Monte Carlo, second simulator:
+## What it does
+
+- **Writes the circuit.** You describe it ("a common-emitter amplifier with a
+  gain of -50") and Claude writes an ngspice netlist.
+- **Makes sure it runs.** If ngspice rejects the netlist, the error goes back
+  to the model to fix.
+- **Checks it does what you asked.** A short spec file says what "working"
+  means (gain = 50 ±5%, output = 5 V ±3%). The tool measures the circuit
+  against it, and if it misses, sends the measured numbers back for a
+  redesign.
+- **Shows the bias point.** Every node voltage and every current, the same
+  DC analysis you do by hand in class.
+- **Tests it like a real build.** It simulates the circuit a few hundred
+  times with resistors off by their real tolerance, a transistor with a
+  different beta, the supply a little low and the room hot or cold. Then it
+  tells you what share of real builds would still meet spec.
+- **Gets a second opinion.** The same measurement is re-run in LTspice, a
+  completely separate simulator, to make sure the answer isn't an ngspice
+  quirk.
+- **Draws it.** You get a schematic image and an LTspice `.asc` file you can
+  open, probe and edit.
+- **Puts it all in one report** with a single command.
+
+Only the first step (writing the circuit) uses the AI and costs money. If you
+already have a netlist, everything else is free and runs on your machine.
+Setup is in [Install](#install).
+
+## Worked example: the common-emitter amplifier
+
+This is the circuit from every electronics lab: one NPN transistor, a bias
+divider, coupling capacitors and a target gain. The assignment is a
+common-emitter amplifier with a 2N2222-style transistor, a 12 V supply and a
+voltage gain of about -50.
+
+### 1. Describe it
+
+```powershell
+python main.py "a common-emitter BJT amplifier using an NPN transistor (2N2222-style model) with a small-signal voltage gain of approximately -50, powered from a 12V supply ..."
+```
+
+The model wrote [`baseline/ce_bjt_amp.cir`](baseline/ce_bjt_amp.cir). It looks
+like the textbook version: a 220k/16k bias divider, a 5k collector resistor,
+and a 100 Ω emitter resistor with a 100 µF capacitor across it.
+
+### 2. Does it run?
+
+Yes. ngspice runs it with no errors and prints a gain. This is where most
+checking stops, including mine in lab most of the time. The circuit ran, so it
+must be right.
+
+### 3. Does it do what I asked?
+
+No. The spec says gain = 50 ±5%. The measured gain is **107**, more than
+double.
+
+<p align="center">
+  <img src="docs/spec-fail.png" width="760" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
+</p>
+
+The reason is the 100 µF capacitor. At signal frequencies it shorts out the
+whole emitter resistor. The gain of a common-emitter stage is roughly
+R<sub>C</sub> divided by whatever sits in the emitter. With the resistor
+bypassed, all that is left is the transistor's own r<sub>e</sub> of about
+26 Ω. So the gain is set by the transistor rather than by anything you
+chose, and it came out wherever it came out.
+
+### 4. Look at the bias point
+
+```powershell
+python oppoint.py baseline/ce_bjt_amp.cir
+```
+
+| Node | Voltage |   | Device | Current |
+|---|---|---|---|---|
+| base | 0.744 V | | Q1 collector | 0.99 mA |
+| emitter | 0.0996 V | | Q1 base | 4.7 µA |
+| collector | 7.04 V | | | |
+
+These are the numbers you would compute by hand in a DC analysis. The
+transistor is in the active region (V<sub>CE</sub> ≈ 6.9 V), so the bias
+itself works. But **only 0.1 V across the emitter resistor** is a red flag.
+The usual rule of thumb is around 1 V. With so little there, the collector
+current depends heavily on the transistor's beta and on temperature, which
+matters in step 6.
+
+### 5. Fix it
+
+```powershell
+python design.py --deck baseline/ce_bjt_amp.cir --spec specs_lib/ce_bjt_amp.yaml -o fixed.cir
+```
+
+The model gets the measured gain back ("107, target 50") and redesigns. The
+fix it chose ([`repaired/ce_bjt_amp.cir`](repaired/ce_bjt_amp.cir)) is the one
+the textbook teaches. It splits the emitter resistor into 56 Ω left
+unbypassed plus 910 Ω bypassed, so the gain is set by R<sub>C</sub> / (r<sub>e</sub> + 56 Ω).
+It also re-biases the divider (68k/11k) so the emitter sits near 1 V.
+(That deck came from the benchmark's repair run. The model's answer varies
+from run to run, but the check it has to pass doesn't.)
+
+<p align="center">
+  <img src="docs/spec-pass.png" width="760" alt="Gain of 51.5 V/V inside the acceptance band">
+</p>
+
+Measured gain: **51.5**. Pass.
+
+### 6. Will it work when I actually build it?
+
+A simulation uses perfect parts. A real board doesn't. The robustness check
+builds the circuit 500 times in simulation. Each build uses resistors
+anywhere within their 5% tolerance, a transistor beta anywhere within ±50% of
+nominal, a supply within 5%, and a temperature between -40 and 85 °C.
+
+| Design | Nominal gain | Gain across builds | Builds in spec |
+|---|---|---|---|
+| First try (step 1) | 107 | 42 to 163 | **1%** |
+| Fixed (step 5) | 51.5 | 47 to 56 | **69%** |
+| Fixed, Re1 = 59 Ω | 49.7 | 45.5 to 54 | **92%** |
+
+The first design isn't just wrong, it's unpredictable. Its gain swings by a
+factor of almost four depending on which transistor you get, which is the
+0.1 V emitter problem from step 4.
+
+The fixed design is steady, but one build in three still misses. The tool can
+also say *why*: switching to 1% resistors moves the yield by about one
+point. Spread isn't the problem. The problem is that 51.5 sits near the top
+of the 47.5 to 52.5 window. Trying the standard values either side of 56 Ω
+turns up 59 Ω, which puts the gain at 49.7 and **92%** of builds in spec. That
+is one resistor, not an order for precision parts.
+([`examples/ce_bjt_amp_recentred.cir`](examples/ce_bjt_amp_recentred.cir))
+
+### 7. Second opinion
+
+The same measurement run in LTspice, which shares no code with ngspice, gives
+51.5265 against ngspice's 51.5266.
+
+### 8. Open it in LTspice
+
+The report includes an `.asc` file, so the circuit opens in LTspice for
+probing like any schematic you drew yourself.
+
+<p align="center">
+  <img src="docs/generated-schematic.png" width="380" alt="The amplifier's schematic, generated from the netlist">
+</p>
+
+### All of it in one command
 
 ```powershell
 python report.py repaired/ce_bjt_amp.cir --spec specs_lib/ce_bjt_amp.yaml --out runs/amp
 ```
 
-Underneath are three layers, because "it ran" is not "it works":
+```
+  [1/6] netlist..................... `repaired/ce_bjt_amp.cir`
+  [2/6] schematic................... 12 devices -> ce_bjt_amp.svg
+  [3/6] operating point............. 7 nodes, 12 branches
+  [4/6] spec check.................. PASS
+  [5/6] monte carlo................. yield 66% over 200 samples
+  [6/6] ltspice cross-check......... 4/4 agree within 1.0%
+```
+
+This writes `runs/amp/report.md` with the schematic, bias point, spec
+verdict, build-to-build spread and the LTspice comparison on one page. (The
+yield reads 66% here and 69% above because this run uses 200 samples rather
+than 500.)
+
+### Why this is useful to me
+
+As an EE student, I usually check a circuit like this in three steps: hand
+calculations, one simulation, then the bench. This tool fills the gaps between
+them.
+
+- **It catches "it simulated, so it's right."** The amplifier above ran
+  perfectly and was wrong by a factor of two. I would have found that at the
+  bench, after building it.
+- **It explains the failure in terms I already know**, like the bias point, the
+  emitter voltage and r<sub>e</sub>, instead of just saying "fail".
+- **It answers a question hand analysis can't**: will this still work with the
+  parts in the lab kit? It also says whether better parts would help (here
+  they wouldn't) or whether one value should change (here it should).
+- **It gives me an LTspice file**, which is what my classes use, so I can keep
+  working on the design myself.
+- **Checking my own circuits is free.** The AI is only needed to write a
+  circuit from a description. Give it a netlist I wrote and everything else
+  runs locally.
+
+---
+
+# Under the hood
+
+Everything below is the detail: how well the AI does on its own, how each
+layer works, and what was verified.
+
+## How good is the AI at this, really?
+
+The worked example isn't a one-off. On an 8-circuit benchmark, "does it run?",
+"does it meet spec?" and "does it keep meeting spec across real parts?" get
+three very different answers: **100% simulate cleanly, 62-75% meet spec**,
+and the worst offender had a **1% Monte Carlo yield** before repair. Judged
+by "it ran", the AI looks 25 to 38 points better than it really is.
 
 | Layer | Question | Cost |
 |-------|----------|------|
@@ -22,39 +211,21 @@ Underneath are three layers, because "it ran" is not "it works":
 | `speccheck.py` + `specs.py` | does it meet its electrical spec? | free (ngspice only) |
 | `robustness.py` | how often does it meet it, across tolerance, supply and temperature? | free (ngspice only) |
 
-On the 8-circuit benchmark those three questions get three very different
-answers: **100% simulate cleanly, 62-75% meet spec**, and the worst offender
-had a **1% Monte Carlo yield** before repair. Sim-success overstates real
-capability by 25-38 points.
-
 Those are four independent runs, not one. Generation is sampling, so a single
-run is an anecdote: across 4 runs (`python repeat_summary.py`) every circuit
+run is an anecdote. Across 4 runs (`python repeat_summary.py`) every circuit
 simulated cleanly **every time**, while the spec pass rate moved between 5 and
-6 of 8. `buck_converter` and `ce_bjt_amp` fail their spec in *all four*; the
-rectifiers are borderline and each fail once. The reproducible part is the
+6 of 8. `buck_converter` and `ce_bjt_amp` fail their spec in *all four*, and
+the rectifiers are borderline and each fail once. The reproducible part is the
 gap, not the second decimal place.
 
 Every measurement is then cross-checked against a **second, independently
-written simulator**: the same spec is re-measured in LTspice, headlessly, and
-**9 of 10 circuits agree within 1%** — most to six significant figures. See
+written simulator**. The same spec is re-measured in LTspice, headlessly, and
+**9 of 10 circuits agree within 1%**, most to six significant figures. See
 [Two simulators, one spec](#two-simulators-one-spec-crosscheckpy-ltspicepy).
 
 <p align="center">
   <img src="docs/schematic.png" width="420" alt="An op-amp active low-pass rendered from an LTspice .asc file">
 </p>
-
-<p align="center">
-  <img src="docs/spec-fail.png" width="760" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
-</p>
-
-*The failure a "did it run?" check cannot see: this deck simulates perfectly
-and has more than twice its specified gain.*
-
-<p align="center">
-  <img src="docs/spec-pass.png" width="760" alt="Gain of 51.5 V/V inside the acceptance band">
-</p>
-
-*After spec-in-the-loop repair, the same measurement inside the band.*
 
 ## The generate-and-repair CLI
 
@@ -376,9 +547,9 @@ pin on its way down to `Rg`, shorting the two op-amp inputs. `--check` cannot
 see that; extracting the netlist named both inputs the same net and made it
 obvious.
 
-## A worked example (`examples/`)
+## The op-amp example (`examples/`)
 
-`examples/` holds one circuit in all four forms: schematic, netlist, spec, and
+`examples/` holds an active low-pass filter in all four forms: schematic, netlist, spec, and
 the plot above. The schematic is self-contained -- supplies and the op-amp
 macromodel included -- so the deck extracted from it measures **identically**
 to the hand-written one, which the test suite asserts.
@@ -610,7 +781,7 @@ tolerances.py  tolerances.yaml                       sourced part tolerances
 benchmark.py  robustness_study.py                   the study drivers
 repeat_summary.py                                    spread across repeat runs
 specs_lib/       declarative specs for the benchmark circuits
-examples/        one circuit as schematic, netlist, spec and plot
+examples/        an op-amp filter in every form, plus the re-centred CE amp
 baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
