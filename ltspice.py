@@ -298,11 +298,18 @@ def vector(raw: Raw, name: str) -> list:
     # An unmatched optional *group* is None, not "" -- a plain `v(out)` has no
     # accessor and would otherwise crash here rather than read as magnitude.
     kind, accessor, node = m.group(1).lower(), (m.group(2) or "").lower(), m.group(3)
-    idx = raw.index_of(f"{kind.upper()}({node})")
-    if idx is None:
-        raise KeyError(f"{name}: LTspice has no {kind.upper()}({node}) "
-                       f"(it has: {', '.join(raw.variables)})")
-    col = [_as_complex(v) for v in raw.column(idx)]
+    col = None
+    for part in node.split(","):
+        # ngspice's `v(a,b)` is the voltage of a with respect to b -- a
+        # floating load, like a bridge rectifier's. LTspice only stores
+        # node voltages, so the difference is taken here.
+        part = part.strip()
+        idx = raw.index_of(f"{kind.upper()}({part})")
+        if idx is None:
+            raise KeyError(f"{name}: LTspice has no {kind.upper()}({part}) "
+                           f"(it has: {', '.join(raw.variables)})")
+        this = [_as_complex(v) for v in raw.column(idx)]
+        col = this if col is None else [a - b for a, b in zip(col, this, strict=True)]
 
     if accessor in ("", "r") and not raw.complex_data:
         return [c.real for c in col]

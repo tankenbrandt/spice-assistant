@@ -70,7 +70,8 @@ def compare(spec, netlist: str, exe=None) -> list:
 def find_deck(name: str):
     """The deck a spec applies to: the repaired one if there is one."""
     for p in (f"repaired/{name}.cir", f"repaired/round2/{name}.cir",
-              f"baseline/{name}.cir", f"baseline/round2/{name}.cir"):
+              f"baseline/{name}.cir", f"baseline/round2/{name}.cir",
+              f"reference/{name}.cir"):
         if os.path.exists(p):
             return Path(p)
     return None

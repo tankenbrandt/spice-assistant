@@ -1,0 +1,38 @@
+circuit: lab_clamper
+description: >
+  EE 346 Exp. 4, Figure 2. Diode clamper: 10 Vpp, 1 kHz square wave, 0.1 uF
+  in series, 68k to ground, diode anode to ground. In steady state the
+  capacitor holds about 5 V, so the output's negative peak sits one diode
+  drop below zero and the positive peak near +9.5 V. RC = 6.8 ms against a
+  1 ms period keeps the droop small.
+
+analyses:
+  tran:
+    command: tran 5u 50m
+    vectors: [v(out)]
+
+measurements:
+  - name: vlow
+    label: clamped low level
+    units: V
+    extract: {kind: min, of: v(out), window: last 10%}
+    min: -1.0
+    max: -0.2
+
+  - name: vhigh
+    label: high level
+    units: V
+    extract: {kind: max, of: v(out), window: last 10%}
+    min: 8.5
+    max: 10.0
+
+  # The peaks alone cannot tell a clamp from a failed one: with RC much
+  # shorter than the period (the lab's R = 2.2k case) the output is a train
+  # of decaying spikes that still reach -Vd and +9.7 V. A working clamp is
+  # a square wave shifted up by ~5 V, so its average sits near +4.5 V.
+  - name: vavg
+    label: average level
+    units: V
+    extract: {kind: mean, of: v(out), window: last 10%}
+    min: 3.8
+    max: 5.2

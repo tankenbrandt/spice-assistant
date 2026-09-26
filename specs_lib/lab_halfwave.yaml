@@ -1,0 +1,26 @@
+circuit: lab_halfwave
+description: >
+  EE 346 Exp. 4, Figure 3. Half-wave rectifier, 10 V peak at 60 Hz into
+  2.2k. The lab's check is Vdc ~ Vp/pi = 3.18 V, which assumes an ideal
+  diode. A real one takes Vd off the top AND conducts for less of the cycle:
+  Vdc = (Vp cos(t0) - Vd (pi/2 - t0)) / pi with t0 = asin(Vd/Vp), which is
+  2.87 V for Vd = 0.65 V -- about 10% under Vp/pi.
+
+analyses:
+  tran:
+    command: tran 10u 100m
+    vectors: [v(out)]
+
+measurements:
+  - name: vdc
+    label: Vdc
+    units: V
+    extract: {kind: mean, of: v(out), window: last 50%}   # exactly 3 cycles
+    target: 2.87
+    tol: 5%
+
+  - name: vmin
+    label: min V(out)
+    units: V
+    extract: {kind: min, of: v(out)}
+    min: -0.05

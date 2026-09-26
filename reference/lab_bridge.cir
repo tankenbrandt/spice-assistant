@@ -1,0 +1,14 @@
+Bridge rectifier -- EE 346 Exp. 4, Figure 4
+* vi = 10 sin(120 pi t), four 1N4001s, 2.2k load across the bridge.
+* The load floats: vo = v(outp) - v(outn), Vdc = 2 (Vp - 2 Vd) / pi, about 5.5 V.
+.model D1N4001 D(IS=14.11n N=1.984 RS=33.89m IKF=94.81 XTI=3 EG=1.11 CJO=25.89p M=.44 VJ=.3245 FC=.5 BV=75 IBV=10u TT=5.7u)
+Vi in 0 SIN(0 10 60)
+D1 in outp D1N4001
+D2 0 outp D1N4001
+D3 outn in D1N4001
+D4 outn 0 D1N4001
+RL outp outn 2.2k
+.control
+tran 10u 100m
+.endc
+.end

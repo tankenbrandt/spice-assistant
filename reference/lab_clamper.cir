@@ -1,0 +1,13 @@
+Diode clamper -- EE 346 Exp. 4, Figure 2
+* vi = 10 Vpp 1 kHz square wave, C = 0.1u in series, R = 68k to ground,
+* diode cathode on vo, anode on ground: vo's negative peak is held near
+* -Vd and the whole waveform shifts up by about 5 V.
+.model D1N4001 D(IS=14.11n N=1.984 RS=33.89m IKF=94.81 XTI=3 EG=1.11 CJO=25.89p M=.44 VJ=.3245 FC=.5 BV=75 IBV=10u TT=5.7u)
+Vi in 0 PULSE(-5 5 0 1u 1u 0.5m 1m)
+C1 in out 0.1u
+R1 out 0 68k
+D1 0 out D1N4001
+.control
+tran 5u 50m
+.endc
+.end

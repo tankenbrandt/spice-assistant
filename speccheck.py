@@ -489,6 +489,12 @@ def check(circuit_id: str, netlist: str) -> dict:
     """Run the spec check for one circuit; never raises."""
     fn = CHECKS.get(circuit_id)
     if fn is None:
+        # Circuits added after the hand-written checks are declared in
+        # specs_lib/ instead; the benchmark reads either the same way.
+        spec_path = Path(__file__).resolve().parent / "specs_lib" / f"{circuit_id}.yaml"
+        if spec_path.exists():
+            import specs as specfile
+            return specfile.verdict(specfile.load(spec_path), netlist)
         return {"pass": None, "target": None, "measured": None,
                 "error": f"no spec defined for {circuit_id!r}"}
     try:

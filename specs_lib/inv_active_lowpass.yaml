@@ -1,0 +1,37 @@
+circuit: inv_active_lowpass
+description: >
+  Inverting active low-pass: passband gain -10 (20 dB) set by Rf/Rin, and a
+  1 kHz corner set by Rf and the capacitor across it. Rf moves both.
+
+analyses:
+  ac:
+    options: [set units=degrees]
+    command: ac dec 50 1 1meg
+    vectors: [vdb(out), vp(out)]
+
+measurements:
+  - name: gain
+    label: passband gain
+    units: dB
+    extract: {kind: value_at, of: vdb(out), at: 10}
+    target: 20
+    abs_tol: 0.5
+
+  - name: fc
+    label: f(-3dB)
+    units: Hz
+    extract: {kind: crossing, of: vdb(out), level: first - 3, direction: falling}
+    target: 1000
+    tol: 5%
+
+  - name: phase
+    units: deg
+    extract: {kind: value_at, of: vp(out), at: 10}
+    informational: true
+
+  - name: inversion
+    label: "|phase| at 10 Hz"
+    units: deg
+    expr: abs(phase)
+    min: 150
+    max: 210

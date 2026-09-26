@@ -408,8 +408,20 @@ def e_min(xs, ys, cfg, ctx):
 
 
 def e_mean(xs, ys, cfg, ctx):
-    w = _window(xs, ys, cfg)[1]
-    return sum(w) / len(w)
+    """Time-weighted average: the area under the curve over its span.
+
+    A plain average of the samples is only right on a uniform grid, and
+    neither simulator writes one. ngspice crowds points around every diode
+    turn-on and LTspice compresses flat stretches, so the same clamper
+    averaged 4.44 V in one and 4.26 V in the other. Weighting each sample by
+    the time it stands for makes the answer a property of the waveform.
+    """
+    xs, ys = _window(xs, ys, cfg)
+    span = xs[-1] - xs[0]
+    if len(ys) < 2 or span <= 0:
+        return sum(ys) / len(ys)
+    area = sum((xs[i + 1] - xs[i]) * (ys[i] + ys[i + 1]) / 2 for i in range(len(xs) - 1))
+    return area / span
 
 
 def e_ptp(xs, ys, cfg, ctx):

@@ -1,0 +1,22 @@
+Inverting active low-pass filter, gain -10, fc = 1 kHz
+* Gain = -Rf/Rin = -10 (20 dB); fc = 1 / (2 pi Rf Cf) = 1.00 kHz.
+* 741-style op-amp as a subcircuit: 200k open-loop gain, 1 MHz GBW.
+Vin in 0 DC 0 AC 1
+Vcc vcc 0 DC 15
+Vee vee 0 DC -15
+Rin in minus 10k
+Rf minus out 100k
+Cf minus out 1.5915n
+XU1 0 minus vcc vee out UA741
+.subckt UA741 plus minus vcc vee out
+Rin plus minus 2meg
+Egain gain 0 plus minus 200k
+Rp gain pole 1k
+Cp pole 0 31.83u
+Eout outi 0 pole 0 1
+Rout outi out 75
+.ends UA741
+.control
+ac dec 50 1 1meg
+.endc
+.end

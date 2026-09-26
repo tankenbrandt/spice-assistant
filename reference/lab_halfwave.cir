@@ -1,0 +1,11 @@
+Half-wave rectifier -- EE 346 Exp. 4, Figure 3
+* vi = 10 sin(120 pi t) (60 Hz), 1N4001 into a 2.2k load.
+* Vdc = (Vp - Vd) / pi, about 3.0 V.
+.model D1N4001 D(IS=14.11n N=1.984 RS=33.89m IKF=94.81 XTI=3 EG=1.11 CJO=25.89p M=.44 VJ=.3245 FC=.5 BV=75 IBV=10u TT=5.7u)
+Vi in 0 SIN(0 10 60)
+D1 in out D1N4001
+RL out 0 2.2k
+.control
+tran 10u 100m
+.endc
+.end

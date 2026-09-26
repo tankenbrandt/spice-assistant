@@ -205,6 +205,73 @@ CIRCUITS_ROUND2 = [
     },
 ]
 
+# Lab round: circuits from a real course handout (Cal Poly EE 346, Exp. 4,
+# "Diode Circuits"), described the way the handout states them, plus one
+# op-amp filter. Unlike rounds 1 and 2 the circuits were not chosen by the
+# author of this tool. Their specs live in specs_lib/, with a hand-built
+# deck that meets each one in reference/.
+_1N4001 = "Use 1N4001 diodes with a realistic .model card (not an ideal diode). "
+CIRCUITS_LAB = [
+    {
+        "id": "lab_halfwave",
+        "tier": "easy",
+        "description": (
+            "a half-wave rectifier: a source vi(t) = 10 sin(120*pi*t) V drives a single diode in "
+            "series with a 2.2 kOhm load resistor to ground. " + _1N4001 +
+            "Show several 60 Hz cycles in a transient analysis. "
+            "Harness requirements: name the output node (top of the load) 'out'."
+        ),
+    },
+    {
+        "id": "lab_clipper",
+        "tier": "medium",
+        "description": (
+            "a double diode clipping circuit: vi(t) = 5 sin(6280 t) V drives the output node "
+            "through a 15 kOhm series resistor. From the output to ground there are two "
+            "diode-plus-battery branches: one clips the positive half-cycle using a 1.5 V source "
+            "(V1), the other clips the negative half-cycle using a second 1.5 V source (V2). " +
+            _1N4001 + "Show a few cycles in a transient analysis. "
+            "Harness requirements: name the input node 'in' and the output node 'out'."
+        ),
+    },
+    {
+        "id": "lab_clamper",
+        "tier": "medium",
+        "description": (
+            "a diode clamping circuit: a 10 V peak-to-peak, 1000 Hz square wave with zero DC offset "
+            "drives a 0.1 uF series capacitor to the output node; a 68 kOhm resistor and a diode "
+            "go from the output node to ground. The diode is oriented so the output is clamped "
+            "positive (the output waveform is shifted up so it sits almost entirely above 0 V). " +
+            _1N4001 + "Run the transient long enough to reach steady state. "
+            "Harness requirements: name the output node 'out'."
+        ),
+    },
+    {
+        "id": "lab_bridge",
+        "tier": "medium",
+        "description": (
+            "a full-wave bridge rectifier: a ground-referenced source vi(t) = 10 sin(120*pi*t) V "
+            "drives a bridge of four diodes, and a 2.2 kOhm load resistor is connected across the "
+            "bridge output (the load floats; neither end is ground). " + _1N4001 +
+            "Show several 60 Hz cycles in a transient analysis. "
+            "Harness requirements: name the load's positive terminal node 'outp' and its "
+            "negative terminal node 'outn'."
+        ),
+    },
+    {
+        "id": "inv_active_lowpass",
+        "tier": "medium",
+        "description": (
+            "an inverting active low-pass filter with a passband gain of -10 (20 dB) and a -3 dB "
+            "cutoff frequency of 1 kHz (within 5%), built around a 741-style op-amp modelled as a "
+            "subcircuit with finite open-loop gain and bandwidth (not an ideal source), powered "
+            "from +/-15 V; include an AC analysis. "
+            "Harness requirements: name the input node 'in' and the output node 'out'; "
+            "input source with AC magnitude 1."
+        ),
+    },
+]
+
 # Categorization of failure signatures, matched against actual ngspice output
 # of failed attempts. A single output can hit multiple categories.
 FAILURE_PATTERNS = {
@@ -723,12 +790,14 @@ def main_entry() -> int:
         return rebuild_report_only()
     SPEC_REPAIR = "--spec-repair" in sys.argv
     round2 = "--round2" in sys.argv
-    circuits = CIRCUITS_ROUND2 if round2 else CIRCUITS
+    lab = "--lab" in sys.argv
+    circuits = CIRCUITS_LAB if lab else CIRCUITS_ROUND2 if round2 else CIRCUITS
     # The log belongs in logs/, which is where build_report and --report-only
     # read it from; writing it to the project root left a fresh run invisible
     # to the report. --out redirects it, so repeat runs can be collected
     # without overwriting the evidence REPORT.md is built from.
-    log_path = LOG_DIR / ("run_log_round2.json" if round2 else "run_log.json")
+    log_path = LOG_DIR / ("run_log_lab.json" if lab else
+                          "run_log_round2.json" if round2 else "run_log.json")
     if "--out" in sys.argv:
         log_path = Path(sys.argv[sys.argv.index("--out") + 1]).resolve()
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -738,7 +807,7 @@ def main_entry() -> int:
         return 2
 
     run = {
-        "round": 2 if round2 else 1,
+        "round": "lab" if lab else 2 if round2 else 1,
         "spec_repair_enabled": SPEC_REPAIR,
         "started_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "model": main.MODEL,
@@ -773,12 +842,15 @@ def main_entry() -> int:
     # bars, a trial of a prompt change. It must not rewrite the report the
     # committed logs/ evidence builds, or the headline numbers silently
     # become whichever run happened to finish last.
-    wrote_report = "--out" not in sys.argv
+    # The lab round is reported on its own for now, not folded into REPORT.md.
+    wrote_report = "--out" not in sys.argv and not lab
     if wrote_report:
         (PROJECT_DIR / "REPORT.md").write_text(build_report(round1), encoding="utf-8")
 
     solved = sum(1 for r in run["results"] if r["success"])
-    also = " and REPORT.md" if wrote_report else " (REPORT.md left alone: --out)"
+    also = (" and REPORT.md" if wrote_report
+            else " (REPORT.md left alone: --lab)" if lab
+            else " (REPORT.md left alone: --out)")
     print(f"\nDone: {solved}/{len(run['results'])} solved. Wrote {log_path.name}{also}.",
           file=sys.stderr)
     return 0

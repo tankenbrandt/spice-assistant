@@ -1,0 +1,27 @@
+circuit: lab_clipper
+description: >
+  EE 346 Exp. 4, Figure 1. Double diode clipper: 5 V, 1 kHz sine through
+  15k, clipped at +(V1 + Vd) and -(V2 + Vd) with V1 = V2 = 1.5 V. A 1N4001
+  at the ~0.2 mA this circuit allows drops about 0.5 V, so the output should
+  top out near +/-2.0 V -- not +/-1.5 V (ideal diodes) and not +/-5 V (not
+  clipping at all).
+
+analyses:
+  tran:
+    command: tran 5u 5m
+    vectors: [v(out)]
+
+measurements:
+  - name: vmax
+    label: positive clip
+    units: V
+    extract: {kind: max, of: v(out), window: last 50%}
+    min: 1.9
+    max: 2.3
+
+  - name: vmin
+    label: negative clip
+    units: V
+    extract: {kind: min, of: v(out), window: last 50%}
+    min: -2.3
+    max: -1.9

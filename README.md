@@ -227,6 +227,48 @@ written simulator**. The same spec is re-measured in LTspice, headlessly, and
   <img src="docs/schematic.png" width="420" alt="An op-amp active low-pass rendered from an LTspice .asc file">
 </p>
 
+## Circuits from a real lab handout (`--lab`)
+
+The benchmark's weak point is that I picked its circuits. The lab round
+takes them from a course handout instead: Cal Poly EE 346, Experiment 4
+(diode circuits). It covers the clipper, clamper, half-wave and bridge
+rectifier with the handout's own part values and 1N4001 diodes, plus one
+inverting active low-pass filter. Each has a spec in `specs_lib/` and a
+hand-built deck in `reference/` that meets it:
+
+| Circuit | What the spec checks | Reference deck |
+|---|---|---|
+| `lab_clipper` | clips at ±(1.5 V + V<sub>d</sub>), 1.9-2.3 V | ±1.99 V |
+| `lab_clamper` | low level near -V<sub>d</sub>, high near 9.5 V, **average near 4.5 V** | -0.67 / 9.67 / 4.47 V |
+| `lab_halfwave` | V<sub>dc</sub> = 2.87 V ±5%, never negative | 2.88 V |
+| `lab_bridge` | V<sub>dc</sub> = 5.12 V ±5% across the floating load | 5.19 V |
+| `inv_active_lowpass` | 20 dB ±0.5, f<sub>c</sub> = 1 kHz ±5%, inverting | 20.0 dB, 988 Hz |
+
+Writing the specs caught two things worth knowing for the lab itself.
+
+- **The handout's V<sub>p</sub>/π check is about 10% high.** A real diode
+  takes V<sub>d</sub> off the peak and also conducts for less of the cycle.
+  The exact average is (V<sub>p</sub> cos θ₀ − V<sub>d</sub>(π/2 − θ₀))/π with
+  θ₀ = asin(V<sub>d</sub>/V<sub>p</sub>): 2.87 V, not 3.18 V. The simulation
+  lands at 2.88 V.
+- **Peaks alone can't tell a working clamper from a broken one.** With the
+  handout's R = 2.2k (RC = 0.22 ms against a 1 ms period) the output is a
+  train of decaying spikes that still hit -0.7 V and +9.9 V. The average
+  level is what separates them: 4.47 V clamped versus 1.97 V not.
+
+Every spec is also tested against a broken version of its deck (a reversed
+diode, missing batteries, a capacitor 10x off, the op-amp wired
+non-inverting), and all 8 are rejected. In LTspice, every DC level and gain
+agrees within 0.1%. The strict cross-check counts 11 of 15 circuits within
+1%. The new misses are "never negative" readings, where both simulators
+report roughly zero (a few µV against about 1 mV), and the clamper's edge
+spike at 1.008%.
+
+```powershell
+python benchmark.py --lab          # generate all five from their descriptions (API)
+python speccheck.py reference/lab_clamper.cir --spec specs_lib/lab_clamper.yaml
+```
+
 ## The generate-and-repair CLI
 
 A tiny CLI that turns a plain-English circuit description into a working
@@ -784,10 +826,11 @@ specs_lib/       declarative specs for the benchmark circuits
 examples/        an op-amp filter in every form, plus the re-centred CE amp
 baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
+reference/       hand-built decks for the lab round, one per spec
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           586 tests, no API calls
+tests/           608 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

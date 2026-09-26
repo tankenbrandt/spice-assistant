@@ -199,7 +199,7 @@ def test_max_min_mean_ptp():
     c = _ctx()
     assert specs.e_max(XS, YS, {}, c) == 30.0
     assert specs.e_min(XS, YS, {}, c) == 10.0
-    assert specs.e_mean(XS, YS, {}, c) == pytest.approx(18.0)
+    assert specs.e_mean(XS, YS, {}, c) == pytest.approx(20.0)   # area 80 over span 4
     assert specs.e_ptp(XS, YS, {}, c) == 20.0
 
 
@@ -212,6 +212,16 @@ def test_window_restricts_to_the_tail():
     ys = [0.0] * 6 + [100.0] * 5
     assert specs.e_mean(xs, ys, {"window": "last 20%"}, _ctx()) == 100.0
     assert specs.e_mean(xs, ys, {}, _ctx()) < 100.0
+
+
+def test_mean_weights_samples_by_the_time_they_cover():
+    """A simulator crowds samples where the waveform moves. Ten samples on a
+    1 ms spike and one on a 9 ms flat stretch must still average near the
+    flat value, not near the spike."""
+    xs = [i * 0.1 for i in range(11)] + [10.0]
+    ys = [10.0] * 11 + [0.0]
+    # 1 ms at 10, then a 9 ms ramp from 10 down to 0: area 10 + 45 = 55
+    assert specs.e_mean(xs, ys, {}, _ctx()) == pytest.approx(5.5)
 
 
 def test_bad_window_is_rejected():
