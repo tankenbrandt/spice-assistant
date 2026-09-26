@@ -9,20 +9,34 @@ description: >
 analyses:
   tran:
     command: tran 5u 50m
-    vectors: [v(out)]
+    vectors: [v(in), v(out)]
 
 measurements:
+  # The stimulus is part of the spec. A repair once passed by slowing the
+  # input's edges; another rectifier "repair" cut the source to 9.5 V. The
+  # handout fixes the input, so the spec does too.
+  - name: vin_pp
+    label: input p-p
+    units: V
+    extract: {kind: peak_to_peak, of: v(in), window: last 10%}
+    target: 10
+    tol: 2%
+
+  # Levels are where the trace sits (5th / 95th percentile of time), not a
+  # min/max: each edge carries a brief diode-switching spike whose depth
+  # depends on the input's rise time, and a min read that spike as the
+  # clamp level -- failing a circuit identical to the reference.
   - name: vlow
     label: clamped low level
     units: V
-    extract: {kind: min, of: v(out), window: last 10%}
+    extract: {kind: percentile, p: 5, of: v(out), window: last 10%}
     min: -1.0
     max: -0.2
 
   - name: vhigh
     label: high level
     units: V
-    extract: {kind: max, of: v(out), window: last 10%}
+    extract: {kind: percentile, p: 95, of: v(out), window: last 10%}
     min: 8.5
     max: 10.0
 

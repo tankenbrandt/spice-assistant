@@ -9,9 +9,16 @@ description: >
 analyses:
   tran:
     command: tran 10u 100m
-    vectors: [v(out)]
+    vectors: [v(in), v(out)]
 
 measurements:
+  - name: vin_peak
+    label: input peak
+    units: V
+    extract: {kind: max, of: v(in)}
+    target: 10
+    tol: 2%
+
   - name: vdc
     label: Vdc
     units: V

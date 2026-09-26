@@ -256,13 +256,45 @@ Writing the specs caught two things worth knowing for the lab itself.
   train of decaying spikes that still hit -0.7 V and +9.9 V. The average
   level is what separates them: 4.47 V clamped versus 1.97 V not.
 
-Every spec is also tested against a broken version of its deck (a reversed
+Every spec is also tested against a broken version of its deck: a reversed
 diode, missing batteries, a capacitor 10x off, the op-amp wired
-non-inverting), and all 8 are rejected. In LTspice, every DC level and gain
-agrees within 0.1%. The strict cross-check counts 11 of 15 circuits within
-1%. The new misses are "never negative" readings, where both simulators
-report roughly zero (a few µV against about 1 mV), and the clamper's edge
-spike at 1.008%.
+non-inverting, and a changed input signal. All 10 are rejected. In LTspice,
+every DC level and gain agrees within 0.1%. The strict cross-check counts 11
+of 15 circuits within 1%. The new misses are "never negative" readings, where
+both simulators report roughly zero (a few µV against about 1 mV), and the
+clamper's edge spike at 1.008%.
+
+### What the AI did with them
+
+Two runs of `benchmark.py --lab --spec-repair` gave 10 generated designs
+(`logs/run_log_lab_v1.json`, `logs/run_log_lab.json`, $0.12 in all). All 10
+simulated first time. **9 were correct circuits. One was a real mistake:**
+the clamper's diode was wired backwards, so it clamped negative (-9.6 V to
++0.5 V). That orientation is the whole point of that part of the lab, and
+the spec caught it.
+
+The first run also caught more of my mistakes than the AI's:
+
+- **Two specs failed correct circuits.** A bridge and a clipper wired
+  exactly like the reference missed their bands only because the model
+  picked a 1N4001 with a lower forward drop (N = 1.45-1.65 against 1.98).
+  Real parts vary like that, so the bands now cover it (bridge ±8%, clipper
+  1.7-2.4 V) and still reject every broken version above.
+- **A min() read a switching spike as the clamp level.** The clamper's
+  "low level" is now where the trace sits (the 5th percentile of time). A
+  circuit identical to the reference no longer fails because its input
+  edges were 1 ns instead of 1 µs.
+- **The repair loop changed the assignment to pass.** Handed a failing
+  number, it cut the bridge's source from 10 V to 9.5 V, raised the
+  clipper's batteries from 1.5 V to 1.74 V, and slowed the clamper's input
+  edges. Two defences followed. Every lab spec now measures its input
+  signal, so changing the stimulus fails. And a lab repair now sees the
+  original description as fixed requirements. With the same broken clipper
+  repaired both ways (`logs/repair_requirements_ab.json`), the version
+  without the description raised the batteries to 1.6 V. The version with it
+  kept 1.5 V and replaced the unrealistic diode model, which was the actual
+  fault. `design.py` passes the description the same way. Rounds 1-2 keep
+  the repair prompt they were published with.
 
 ```powershell
 python benchmark.py --lab          # generate all five from their descriptions (API)
@@ -830,7 +862,7 @@ reference/       hand-built decks for the lab round, one per spec
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           608 tests, no API calls
+tests/           615 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

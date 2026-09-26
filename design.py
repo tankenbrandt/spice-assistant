@@ -109,7 +109,8 @@ def simulate_clean(netlist: str, log=print) -> tuple[str, int]:
 
 
 def repair_to_spec(netlist: str, spec: specfile.CircuitSpec,
-                   rounds: int = REPAIR_ROUNDS, log=print) -> Result:
+                   rounds: int = REPAIR_ROUNDS, log=print,
+                   requirements: str | None = None) -> Result:
     """Measure `netlist` against `spec`; repair it until it passes or `rounds` run out."""
     netlist, attempts = simulate_clean(netlist, log)
     result = Result(netlist=netlist, passed=False)
@@ -124,7 +125,8 @@ def repair_to_spec(netlist: str, spec: specfile.CircuitSpec,
         log(f"  spec repair {k + 1}/{rounds}")
         netlist = main.fix_netlist_spec(
             netlist, spec_brief(spec), measured,
-            operating_point=_op_summary(netlist) if bias_matters(spec) else None)
+            operating_point=_op_summary(netlist) if bias_matters(spec) else None,
+            requirements=requirements)
         netlist, attempts = simulate_clean(netlist, log)
     return result
 
@@ -134,7 +136,7 @@ def design(description: str, spec: specfile.CircuitSpec,
     """Description + spec -> a deck that meets the spec, or the closest attempt."""
     log("  generating")
     netlist = main.generate_netlist(f"{description}\n\n{spec_brief(spec)}")
-    return repair_to_spec(netlist, spec, rounds, log)
+    return repair_to_spec(netlist, spec, rounds, log, requirements=description)
 
 
 # ------------------------------------------------------------------------ CLI

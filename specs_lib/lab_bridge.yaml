@@ -9,18 +9,31 @@ description: >
 analyses:
   tran:
     command: tran 10u 100m
-    vectors: ["v(outp,outn)"]    # vo across the floating load (quoted: YAML splits on the comma)
+    vectors: [v(in), "v(outp,outn)"]   # vo across the floating load (quoted: YAML splits on the comma)
 
 measurements:
+  # The stimulus is part of the spec: a repair once hit the Vdc target by
+  # cutting the source from the handout's 10 V to 9.5 V.
+  - name: vin_peak
+    label: input peak
+    units: V
+    extract: {kind: max, of: v(in)}
+    target: 10
+    tol: 2%
+
+  # +/-8%, not 5%: real 1N4001 models (and parts) put 2Vd anywhere from about
+  # 1.1 to 1.5 V at this current, which is 4.9 to 5.3 V by the exact average
+  # -- and a correct bridge with a lower-drop model measured 5.38 V. The
+  # tolerance has to cover the part, or the spec fails correct circuits.
   - name: vdc
     label: Vdc
     units: V
-    extract: {kind: mean, window: last 50%}
+    extract: {kind: mean, of: "v(outp,outn)", window: last 50%}
     target: 5.12
-    tol: 5%
+    tol: 8%
 
   - name: vmin
     label: min vo
     units: V
-    extract: {kind: min}
+    extract: {kind: min, of: "v(outp,outn)"}
     min: -0.05

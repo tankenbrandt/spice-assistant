@@ -1,0 +1,8 @@
+{
+  "what": "One broken clipper (diode model IS=1u N=1.0: clips at +/-1.64 V, below the 1.7 V floor) repaired twice by main.fix_netlist_spec, with and without the original lab description passed as requirements.",
+  "model": "claude-sonnet-5",
+  "date": "2026-09-26",
+  "without_requirements": {"verdict": "PASS", "clip_V": 1.739, "batteries_V": 1.6, "diode_model": "unchanged (IS=1u N=1.0)", "note": "passed by changing the handout's 1.5 V batteries"},
+  "with_requirements": {"verdict": "PASS", "clip_V": 1.958, "batteries_V": 1.5, "diode_model": "replaced with a realistic 1N4001 (IS=14.1n N=1.85)", "note": "kept the given values, fixed the actual fault"},
+  "api": {"calls": 2, "input_tokens": 1823, "output_tokens": 1114, "cost_usd": 0.0148}
+}

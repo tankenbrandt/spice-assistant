@@ -455,6 +455,38 @@ def e_crossing(xs, ys, cfg, ctx):
     return hit
 
 
+def e_percentile(xs, ys, cfg, ctx):
+    """The level a waveform spends `p` percent of its *time* below.
+
+    What a scope or a person means by "the low level" of a clamped square
+    wave: where the trace sits, not the deepest point of a nanosecond spike
+    at each edge. A plain min read a diode's switching transient as the
+    clamp level, and it moved with the input's rise time. The curve is
+    resampled onto a uniform time grid first, so a burst of simulator
+    samples around an edge counts for the time it lasts, not its sample
+    count.
+    """
+    if "p" not in cfg:
+        raise SpecError("percentile needs 'p', e.g. p: 5")
+    p = float(cfg["p"])
+    if not 0 <= p <= 100:
+        raise SpecError(f"percentile p must be 0..100, got {p}")
+    xs, ys = _window(xs, ys, cfg)
+    if len(xs) < 2 or xs[-1] <= xs[0]:
+        return ys[0]
+    n = 4000
+    grid, j = [], 0
+    for k in range(n):
+        x = xs[0] + (xs[-1] - xs[0]) * k / (n - 1)
+        while j < len(xs) - 2 and xs[j + 1] < x:
+            j += 1
+        span = xs[j + 1] - xs[j]
+        f = (x - xs[j]) / span if span else 0.0
+        grid.append(ys[j] + f * (ys[j + 1] - ys[j]))
+    grid.sort()
+    return grid[min(n - 1, int(round(p / 100 * (n - 1))))]
+
+
 def e_value_at(xs, ys, cfg, ctx):
     """Linearly interpolated value of the curve at a given sweep point."""
     if "at" not in cfg:
@@ -481,6 +513,7 @@ EXTRACTORS = {
     "crossing": e_crossing,
     "value_at": e_value_at,
     "at_peak": x_at_peak,
+    "percentile": e_percentile,
 }
 
 

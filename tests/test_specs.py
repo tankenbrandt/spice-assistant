@@ -224,6 +224,22 @@ def test_mean_weights_samples_by_the_time_they_cover():
     assert specs.e_mean(xs, ys, {}, _ctx()) == pytest.approx(5.5)
 
 
+def test_percentile_is_by_time_not_by_sample_count():
+    """Fifty samples crowded into a 1 us spike must not drag the 5th
+    percentile of a 1 ms flat wave down to the spike."""
+    xs = [0.0] + [1e-6 * i / 50 for i in range(1, 51)] + [1.02e-6, 1e-3]
+    ys = [0.0] + [-1.0] * 50 + [0.0, 0.0]
+    assert specs.e_min(xs, ys, {}, _ctx()) == -1.0
+    assert specs.e_percentile(xs, ys, {"p": 5}, _ctx()) == pytest.approx(0.0, abs=1e-3)
+
+
+def test_percentile_needs_p_in_range():
+    with pytest.raises(specs.SpecError, match="percentile"):
+        specs.e_percentile(XS, YS, {}, _ctx())
+    with pytest.raises(specs.SpecError, match="0..100"):
+        specs.e_percentile(XS, YS, {"p": 150}, _ctx())
+
+
 def test_bad_window_is_rejected():
     with pytest.raises(specs.SpecError, match="window"):
         specs.e_mean(XS, YS, {"window": "most of it"}, _ctx())

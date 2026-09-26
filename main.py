@@ -115,7 +115,8 @@ def fix_netlist(netlist_text: str, error_output: str) -> str:
 
 
 def fix_netlist_spec(netlist_text: str, spec_target: str, measured: str,
-                     operating_point: str | None = None) -> str:
+                     operating_point: str | None = None,
+                     requirements: str | None = None) -> str:
     """Ask the model to redesign a netlist that simulates cleanly but misses
     its electrical spec, using the actual measured value as feedback.
 
@@ -127,12 +128,20 @@ def fix_netlist_spec(netlist_text: str, spec_target: str, measured: str,
     opt-in --spec-repair flag, and without an operating point, so its
     published numbers stay comparable.
     """
+    # Without the original assignment the model cannot know which values
+    # were given: in the lab round it "repaired" a clipper by changing the
+    # handout's 1.5 V batteries, and a bridge by cutting its 10 V source.
+    req_section = (
+        "=== ORIGINAL REQUIREMENTS (fixed: do not change any value or source "
+        "these state; change only what they leave to the designer) ===\n"
+        f"{requirements}\n" if requirements else "")
     op_section = (
         "=== DC OPERATING POINT (from actual simulation) ===\n"
         f"{operating_point}\n" if operating_point else "")
     prompt = (
         "The following ngspice netlist simulates cleanly, but FAILS its "
         "electrical specification.\n\n"
+        f"{req_section}"
         "=== NETLIST ===\n"
         f"{netlist_text}\n"
         "=== SPEC TARGET ===\n"

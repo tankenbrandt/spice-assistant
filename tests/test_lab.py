@@ -57,6 +57,10 @@ BROKEN = [
     ("lab_clamper", "R = 2.2k: RC too short to clamp", [("R1 out 0 68k", "R1 out 0 2.2k")]),
     ("lab_halfwave", "diode reversed", [("D1 in out", "D1 out in")]),
     ("lab_bridge", "one diode missing: half-wave", [("D3 outn in D1N4001\n", "")]),
+    # Both of these are "repairs" the model actually made in the first lab
+    # run: change the stimulus the handout fixes until the number fits.
+    ("lab_bridge", "source cut to 9.5 V to hit Vdc", [("SIN(0 10 60)", "SIN(0 9.5 60)")]),
+    ("lab_clamper", "input amplitude changed", [("PULSE(-5 5", "PULSE(-4 4")]),
     ("inv_active_lowpass", "capacitor 10x too big",
      [("Cf minus out 1.5915n", "Cf minus out 15.915n")]),
     ("inv_active_lowpass", "wired non-inverting",
@@ -86,6 +90,20 @@ def test_rectifier_targets_are_the_exact_average_not_vp_over_pi():
     exact = (vp * math.cos(t0) - vd * (math.pi / 2 - t0)) / math.pi
     assert _spec("lab_halfwave").measurement("vdc").limits.ok(exact)
     assert not _spec("lab_halfwave").measurement("vdc").limits.ok(vp / math.pi)
+
+
+@needs_ngspice
+def test_clamp_level_ignores_the_switching_spike_at_each_edge():
+    """With 1 ns input edges the diode's switching transient dips to about
+    -1.0 V for a moment. A min() read that as the clamp level and failed a
+    deck identical to the reference; the time-percentile level does not
+    move with rise time."""
+    fast = _deck("lab_clamper").replace("PULSE(-5 5 0 1u 1u", "PULSE(-5 5 0 1n 1n")
+    spec = _spec("lab_clamper")
+    v_fast = specs.verdict(spec, fast)
+    v_slow = specs.verdict(spec, _deck("lab_clamper"))
+    assert v_fast["values"]["vlow"] == pytest.approx(v_slow["values"]["vlow"], abs=0.02)
+    assert v_fast["pass"]
 
 
 def test_ltspice_reads_a_differential_vector():

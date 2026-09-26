@@ -118,7 +118,7 @@ than a manual step.
   python benchmark.py --report-only        regenerates REPORT.md from logs/
   python crosscheck.py --all               every spec, both simulators
   python ascview.py examples/active_lowpass.asc --png --open
-  pytest                                   608 tests, no API calls
+  pytest                                   615 tests, no API calls
 """.rstrip())
     return 0
 

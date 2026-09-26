@@ -35,9 +35,11 @@ class FakeModel:
         self.prompts.append(description)
         return self._generated
 
-    def fix_spec(self, netlist, target, measured, operating_point=None):
+    def fix_spec(self, netlist, target, measured, operating_point=None,
+                 requirements=None):
         self.repair_calls.append(dict(target=target, measured=measured,
-                                      operating_point=operating_point))
+                                      operating_point=operating_point,
+                                      requirements=requirements))
         return self._repairs.pop(0) if self._repairs else netlist
 
     def fix_sim(self, netlist, output):     # pragma: no cover - should not happen
@@ -143,3 +145,23 @@ def test_the_bias_point_is_withheld_where_it_would_mislead():
     buck = specs.load(ROOT / "specs_lib" / "buck_converter.yaml")
     assert design.bias_matters(AMP_SPEC)
     assert not design.bias_matters(buck)
+
+
+@needs_ngspice
+def test_a_repair_is_reminded_what_the_assignment_fixed(monkeypatch):
+    """Without it, lab-round repairs changed the handout's own source and
+    battery values to make the number fit."""
+    model = FakeModel(monkeypatch)
+    design.design("a CE amp from a 12 V supply", AMP_SPEC, log=_quiet)
+    assert model.repair_calls[0]["requirements"] == "a CE amp from a 12 V supply"
+
+
+def test_requirements_reach_the_repair_prompt(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(main, "_message_text",
+                        lambda msgs, **_: seen.setdefault("p", msgs[0]["content"]))
+    main.fix_netlist_spec("deck", "target", "measured", requirements="V1 = 1.5 V")
+    assert "ORIGINAL REQUIREMENTS" in seen["p"] and "V1 = 1.5 V" in seen["p"]
+    seen.clear()
+    main.fix_netlist_spec("deck", "target", "measured")
+    assert "ORIGINAL REQUIREMENTS" not in seen["p"]

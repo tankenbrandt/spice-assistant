@@ -215,16 +215,19 @@ CIRCUITS_LAB = [
     {
         "id": "lab_halfwave",
         "tier": "easy",
+        "fixed_values": True,
         "description": (
             "a half-wave rectifier: a source vi(t) = 10 sin(120*pi*t) V drives a single diode in "
             "series with a 2.2 kOhm load resistor to ground. " + _1N4001 +
             "Show several 60 Hz cycles in a transient analysis. "
-            "Harness requirements: name the output node (top of the load) 'out'."
+            "Harness requirements: name the source's output node 'in' and the output node "
+            "(top of the load) 'out'."
         ),
     },
     {
         "id": "lab_clipper",
         "tier": "medium",
+        "fixed_values": True,
         "description": (
             "a double diode clipping circuit: vi(t) = 5 sin(6280 t) V drives the output node "
             "through a 15 kOhm series resistor. From the output to ground there are two "
@@ -237,30 +240,33 @@ CIRCUITS_LAB = [
     {
         "id": "lab_clamper",
         "tier": "medium",
+        "fixed_values": True,
         "description": (
             "a diode clamping circuit: a 10 V peak-to-peak, 1000 Hz square wave with zero DC offset "
             "drives a 0.1 uF series capacitor to the output node; a 68 kOhm resistor and a diode "
             "go from the output node to ground. The diode is oriented so the output is clamped "
             "positive (the output waveform is shifted up so it sits almost entirely above 0 V). " +
             _1N4001 + "Run the transient long enough to reach steady state. "
-            "Harness requirements: name the output node 'out'."
+            "Harness requirements: name the source's output node 'in' and the output node 'out'."
         ),
     },
     {
         "id": "lab_bridge",
         "tier": "medium",
+        "fixed_values": True,
         "description": (
             "a full-wave bridge rectifier: a ground-referenced source vi(t) = 10 sin(120*pi*t) V "
             "drives a bridge of four diodes, and a 2.2 kOhm load resistor is connected across the "
             "bridge output (the load floats; neither end is ground). " + _1N4001 +
             "Show several 60 Hz cycles in a transient analysis. "
-            "Harness requirements: name the load's positive terminal node 'outp' and its "
-            "negative terminal node 'outn'."
+            "Harness requirements: name the source's output node 'in', the load's positive "
+            "terminal node 'outp' and its negative terminal node 'outn'."
         ),
     },
     {
         "id": "inv_active_lowpass",
         "tier": "medium",
+        "fixed_values": True,
         "description": (
             "an inverting active low-pass filter with a passband gain of -10 (20 dB) and a -3 dB "
             "cutoff frequency of 1 kHz (within 5%), built around a 741-style op-amp modelled as a "
@@ -365,6 +371,10 @@ def run_circuit(circuit: dict) -> dict:
                         repaired_netlist,
                         sc.get("target") or "",
                         sc.get("measured") or sc.get("error") or "",
+                        # Lab circuits fix their values; rounds 1-2 keep the
+                        # prompt they were published with.
+                        requirements=(circuit["description"]
+                                      if circuit.get("fixed_values") else None),
                     )
                     sim_ok, sim_out = main.run_ngspice(repaired_netlist)
                     sc = (
