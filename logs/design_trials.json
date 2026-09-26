@@ -1,0 +1,50 @@
+[
+ {
+  "circuit": "ce_bjt_amp",
+  "trial": 1,
+  "passed": true,
+  "repairs": 0,
+  "first": "|gain|: 48.15 V/V (-3.7%); |phase|: 180 deg",
+  "final": "|gain|: 48.15 V/V (-3.7%); |phase|: 180 deg",
+  "calls": 1,
+  "tin": 595,
+  "tout": 2817,
+  "seconds": 31.5
+ },
+ {
+  "circuit": "ce_bjt_amp",
+  "trial": 2,
+  "passed": true,
+  "repairs": 1,
+  "first": "|gain|: 43.67 V/V (-12.7%); |phase|: 180 deg",
+  "final": "|gain|: 48.37 V/V (-3.3%); |phase|: 180 deg",
+  "calls": 2,
+  "tin": 1890,
+  "tout": 3733,
+  "seconds": 40.3
+ },
+ {
+  "circuit": "buck_converter",
+  "trial": 1,
+  "passed": true,
+  "repairs": 1,
+  "first": "V(out) avg: 4.508 V (-9.8%); ripple: 0.005419 Vpp",
+  "final": "V(out) avg: 5.086 V (+1.7%); ripple: 0.005943 Vpp",
+  "calls": 2,
+  "tin": 1489,
+  "tout": 1622,
+  "seconds": 21.7
+ },
+ {
+  "circuit": "buck_converter",
+  "trial": 2,
+  "passed": true,
+  "repairs": 1,
+  "first": "V(out) avg: 4.521 V (-9.6%); ripple: 0.005716 Vpp",
+  "final": "V(out) avg: 5.074 V (+1.5%); ripple: 0.005766 Vpp",
+  "calls": 2,
+  "tin": 1446,
+  "tout": 2541,
+  "seconds": 28.6
+ }
+]

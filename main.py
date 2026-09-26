@@ -114,13 +114,22 @@ def fix_netlist(netlist_text: str, error_output: str) -> str:
     return strip_fences(raw)
 
 
-def fix_netlist_spec(netlist_text: str, spec_target: str, measured: str) -> str:
+def fix_netlist_spec(netlist_text: str, spec_target: str, measured: str,
+                     operating_point: str | None = None) -> str:
     """Ask the model to redesign a netlist that simulates cleanly but misses
     its electrical spec, using the actual measured value as feedback.
 
+    `operating_point`, when given, is the deck's DC bias point as text: it
+    shows *why* a measurement is off (a bypassed emitter, a saturated device)
+    where the measured value alone only shows that it is.
+
     NOTE: this is an API call (billed). The benchmark only uses it behind the
-    opt-in --spec-repair flag.
+    opt-in --spec-repair flag, and without an operating point, so its
+    published numbers stay comparable.
     """
+    op_section = (
+        "=== DC OPERATING POINT (from actual simulation) ===\n"
+        f"{operating_point}\n" if operating_point else "")
     prompt = (
         "The following ngspice netlist simulates cleanly, but FAILS its "
         "electrical specification.\n\n"
@@ -130,6 +139,7 @@ def fix_netlist_spec(netlist_text: str, spec_target: str, measured: str) -> str:
         f"{spec_target}\n"
         "=== MEASURED VALUE (from actual simulation) ===\n"
         f"{measured}\n"
+        f"{op_section}"
         "=== END ===\n\n"
         "Adjust the design (component values, bias, duty cycle, model "
         "parameters, topology if necessary) so the circuit MEETS the spec. "

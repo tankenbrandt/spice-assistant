@@ -76,11 +76,22 @@ def announce(step: Step, index: int, total: int) -> Step:
 
 # ------------------------------------------------------------------- the layers
 
-def generate(description: str) -> tuple[str, str]:
-    """Description -> a deck that simulates, repairing simulation errors."""
+def generate(description: str, spec=None) -> tuple[str, str]:
+    """Description -> a deck that simulates, repairing simulation errors.
+
+    With a spec, "simulates" is not the finish line: the deck is designed to
+    the spec and repaired until it meets it (see `design.py`).
+    """
     import main
 
     main.load_dotenv()
+    if spec is not None:
+        import design
+
+        result = design.design(description, spec,
+                               log=lambda m: print(m, file=sys.stderr, flush=True))
+        state = "meets spec" if result.passed else "still misses spec"
+        return result.netlist, f"{state} after {result.repairs} spec repair(s)"
     netlist = main.generate_netlist(description)
     for attempt in range(1, main.MAX_ATTEMPTS + 1):
         ok, output = main.run_ngspice(netlist)
@@ -274,7 +285,7 @@ def _cli(argv=None) -> int:
     step = steps["netlist"]
     if args.describe:
         try:
-            netlist, note = generate(args.describe)
+            netlist, note = generate(args.describe, spec)
             step.ok(netlist, note)
         except Exception as exc:            # noqa: BLE001 - reported, not raised
             announce(step.failed(exc), 1, total)

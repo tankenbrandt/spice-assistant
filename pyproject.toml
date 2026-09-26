@@ -28,6 +28,7 @@ spice-ascgen     = "ascgen:_cli"            # deck -> .asc schematic
 spice-tolerances = "tolerances:_cli"        # sourced component tolerances
 spice-op         = "oppoint:_cli"           # every node voltage and branch current
 spice-report     = "report:_cli"            # one circuit, every layer, one report
+spice-design     = "design:_cli"            # generate/repair until the spec passes
 
 [tool.setuptools]
 # A flat layout of single-purpose CLIs, so the modules are listed rather than
@@ -35,7 +36,7 @@ spice-report     = "report:_cli"            # one circuit, every layer, one repo
 py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
               "robustness_study", "ascview", "plot", "netlist", "symlib",
               "ltspice", "crosscheck", "ascgen", "tolerances", "oppoint",
-              "report"]
+              "report", "design"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]

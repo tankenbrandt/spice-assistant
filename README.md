@@ -163,6 +163,49 @@ successful simulation, `1` if all attempts failed.
 - `fix_netlist(netlist_text, error_output)` — sends the failing netlist plus the
   ngspice output back to the model and returns a corrected netlist.
 
+## Designing to a spec (`design.py`)
+
+`main.py` stops at "it simulates". The benchmark is the case against stopping
+there: every deck ran, and `ce_bjt_amp` and `buck_converter` missed their spec
+in all four runs. `design.py` keeps going until the spec passes, for any spec
+in `specs_lib/`:
+
+```powershell
+python design.py "a common-emitter amplifier, gain -50" `
+    --spec specs_lib/ce_bjt_amp.yaml -o amp.cir
+python design.py --deck my_buck.cir --spec specs_lib/buck_converter.yaml -o fixed.cir
+```
+
+It generates, repairs simulation errors, measures the spec, and while it fails
+sends the model the measured values back -- up to `--rounds` times (default 3).
+It differs from the benchmark's repair loop in two ways:
+
+- **The spec goes in before the design does.** The model sees the acceptance
+  limits and which vectors the harness will read, so it designs to a number
+  rather than to a paragraph.
+- **A repair sees the bias point.** For a small-signal or DC spec, the prompt
+  carries the `oppoint.py` table as well as the measurement: "gain is 107"
+  says the design is wrong, `emit = 99.6 mV` with a 1 mA emitter current says
+  which resistor to change. For a transient-only spec (converters,
+  rectifiers) it is left out -- the DC point of a buck converter is its switch
+  open and 0 V out, which is true and misleading.
+
+`report.py --describe ... --spec ...` uses the same loop, so a generated
+report is of a deck that meets its spec, or says that it does not.
+
+Against the two circuits that always failed, two trials each
+(`logs/design_trials.json`, 7 API calls, about $0.12):
+
+| Circuit | Benchmark, first try | `design.py`, first try | After repair |
+|---|---|---|---|
+| `ce_bjt_amp` | \|gain\| 107, failed 4 of 4 | 48.2 pass, 43.7 fail | 48.4, 1 round |
+| `buck_converter` | 4.52 V, failed 4 of 4 | 4.51 V, 4.52 V: both fail | 5.09 V, 5.07 V, 1 round each |
+
+All four end inside their spec. Stating the spec up front fixed the amplifier's
+*design* -- from twice the gain to within 13% -- and did nothing for the buck,
+which still forgets the freewheeling diode's drop on every first try; one
+round of measured feedback fixes that. Two trials is a direction, not a rate.
+
 ## The whole chain, one report (`report.py`)
 
 Every tool below answers one question and prints to a terminal. That is the
@@ -552,6 +595,7 @@ plot.py  ascview.py    netlist.py    symlib.py      viewing and extraction
 ltspice.py  crosscheck.py                           the second simulator
 ascgen.py                                            deck -> .asc schematic
 oppoint.py                                           whole-deck operating point
+design.py                                            generate/repair until the spec passes
 report.py                                            the end-to-end driver
 tolerances.py  tolerances.yaml                       sourced part tolerances
 benchmark.py  robustness_study.py                   the study drivers
@@ -563,7 +607,7 @@ repaired/        the same decks after spec-in-the-loop repair
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           561 tests, no API calls
+tests/           572 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
