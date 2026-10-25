@@ -238,7 +238,7 @@ hand-built deck in `reference/` that meets it:
 
 | Circuit | What the spec checks | Reference deck |
 |---|---|---|
-| `lab_clipper` | clips at ±(1.5 V + V<sub>d</sub>), 1.9-2.3 V | ±1.99 V |
+| `lab_clipper` | clips at ±(1.5 V + V<sub>d</sub>), 1.7-2.4 V | ±1.99 V |
 | `lab_clamper` | low level near -V<sub>d</sub>, high near 9.5 V, **average near 4.5 V** | -0.67 / 9.67 / 4.47 V |
 | `lab_halfwave` | V<sub>dc</sub> = 2.87 V ±5%, never negative | 2.88 V |
 | `lab_bridge` | V<sub>dc</sub> = 5.12 V ±5% across the floating load | 5.19 V |

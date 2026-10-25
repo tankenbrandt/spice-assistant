@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-lab check demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Public+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#F3EFE6; --grid:rgba(27,36,48,.06); --ink:#1B2430; --soft:#46505C; --muted:#6B7480;
+  --amber:#B4571B; --pass:#2F7D4F; --fail:#B3362B; --pen:#22305A; --slate:#8493A3;
+  --term:#14181D; --term-t:#D8DEE4; --term-m:#8C97A3;
+  --disp:'Montserrat',system-ui,sans-serif; --body:'Public Sans',system-ui,sans-serif; --mono:'Geist Mono',ui-monospace,monospace;
+}
+html,body{height:100%}
+body{background:#0e1114;font-family:var(--body);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#fit{width:1280px;height:720px;transform-origin:center center;flex:none}
+#stage{position:relative;width:1280px;height:720px;overflow:hidden;background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px}
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden}
+.cap{position:absolute;left:64px;top:56px;width:500px}
+.cap .k{font:500 15px/1 var(--mono);letter-spacing:.14em;color:var(--amber);text-transform:uppercase;margin-bottom:16px}
+.cap h2{font:800 38px/1.12 var(--disp);letter-spacing:-.01em;margin-bottom:16px}
+.cap p{font:400 20px/1.5 var(--body);color:var(--soft)}
+.cap p b{color:var(--ink);font-weight:600}
+.card{position:absolute;background:#FBF9F3;border:1px solid rgba(27,36,48,.16);border-radius:6px;box-shadow:0 18px 40px -22px rgba(27,36,48,.5)}
+.tag{position:absolute;font:500 14px/1 var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.hud{position:absolute;right:40px;top:22px;font:500 14px/1 var(--mono);color:var(--muted);letter-spacing:.1em;z-index:5}
+.brand{position:absolute;left:64px;bottom:22px;font:500 14px/1 var(--mono);color:var(--muted);letter-spacing:.08em;z-index:5}
+
+/* schematic */
+svg text{font-family:var(--mono)}
+.w{fill:none;stroke:var(--ink);stroke-width:3;stroke-linejoin:round}
+.sl{font-size:17px;fill:var(--ink)} .ss{font-size:14px;fill:var(--muted)}
+.fillink{fill:var(--ink)}
+
+/* terminal */
+.term{position:absolute;background:var(--term);border-radius:8px;overflow:hidden;box-shadow:0 22px 44px -20px rgba(0,0,0,.6)}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;background:#0d1013;font:500 13px var(--mono);color:var(--term-m)}
+.term-bar i{width:10px;height:10px;border-radius:50%;background:#303842}
+.term-bar span{margin-left:8px}
+.term-body{padding:16px 18px;font:400 16px/1.5 var(--mono);color:var(--term-t);white-space:pre-wrap;word-break:break-word}
+.term-body .pr{color:#6FB38A}
+.term-body .ln{opacity:0}
+.ok{color:#6FD39A;font-weight:500} .bad{color:#F0877C;font-weight:500} .dim{color:var(--term-m)}
+
+/* handwriting */
+.hand{font:600 34px/1.35 'Caveat',cursive;color:var(--pen)}
+.hand .l{display:block;white-space:nowrap;overflow:hidden;clip-path:inset(0 100% 0 0)}
+
+.callout{position:absolute;font:500 20px/1.4 var(--body);padding:14px 18px;border-radius:6px;background:var(--ink);color:#fff}
+.callout b{font-family:var(--mono);font-weight:500;color:#F3C9A6}
+.big{font:500 54px/1 var(--mono);letter-spacing:-.02em}
+.lbl{font:500 15px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* end card */
+.cols{position:absolute;left:64px;right:64px;top:196px;display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.col h3{font:800 22px/1.2 var(--disp);margin-bottom:14px}
+.col li{list-style:none;font:400 20px/1.4 var(--body);color:var(--soft);padding:10px 0 10px 28px;border-top:1px solid rgba(27,36,48,.14);position:relative}
+.col li::before{content:"";position:absolute;left:0;top:19px;width:12px;height:12px;border-radius:50%}
+.col.yes li::before{background:var(--pass)} .col.no li::before{background:transparent;border:2px solid var(--fail)}
+.strip{position:absolute;left:64px;right:64px;bottom:64px;padding:18px 22px;background:var(--ink);color:#fff;border-radius:6px;font:400 19px/1.5 var(--body)}
+.strip b{font-family:var(--mono);font-weight:500;color:#F3C9A6}
+
+/* player chrome (hidden when recording) */
+#ctl{width:1280px;display:flex;align-items:center;gap:14px;padding:10px 0;color:#9aa4ae;font:500 13px var(--mono)}
+#ctl button{background:#222a33;border:0;color:#fff;border-radius:4px;padding:8px 14px;font:500 13px var(--mono);cursor:pointer}
+#ctl input{flex:1}
+html.rec #ctl{display:none}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div class="hud" id="hud">01 / 08</div>
+  <div class="brand">spice-assistant · github.com/tankenbrandt/spice-assistant</div>
+
+  <!-- 1 handout -->
+  <section class="scene" id="s1">
+    <div class="cap"><div class="k">01 · The handout</div><h2>You're handed the schematic.</h2>
+      <p>EE 346, Experiment 4. The circuit is fixed. The work is picking values, then explaining what you measure.</p></div>
+    <div class="card" style="left:600px;top:56px;width:616px;height:608px">
+      <div class="tag" style="left:22px;top:20px">Figure 1 · double diode clipper</div>
+      <svg id="schem" viewBox="0 0 560 600" style="position:absolute;left:20px;top:28px;width:576px;height:560px">
+        <path class="w d" d="M80 266V150H130"/>
+        <circle class="w d" cx="80" cy="300" r="34"/>
+        <path class="w d" d="M80 334V560H440"/>
+        <path class="w d" d="M130 150H142L150 134L166 166L182 134L198 166L214 134L222 150H230H520"/>
+        <path class="w d" d="M340 150V200M340 230V330M340 346V560"/>
+        <path class="w d" d="M324 230H356"/>
+        <path class="w d" d="M322 330H358M332 346H348"/>
+        <path class="w d" d="M440 150V200M440 230V330M440 346V560"/>
+        <path class="w d" d="M424 200H456"/>
+        <path class="w d" d="M432 330H448M418 346H462"/>
+        <path class="w d" d="M260 560V580M240 580H280M248 590H272M255 600H265"/>
+        <circle class="w d" cx="520" cy="150" r="6" style="fill:var(--paper)"/>
+        <path class="fillink f" d="M324 200H356L340 230Z"/>
+        <path class="fillink f" d="M424 230H456L440 200Z"/>
+        <circle class="fillink f" cx="340" cy="150" r="5"/><circle class="fillink f" cx="440" cy="150" r="5"/>
+        <g class="f">
+          <text class="sl" x="72" y="305" text-anchor="middle">~</text>
+          <text class="sl" x="128" y="292">Vi</text><text class="ss" x="128" y="316">5 sin(2π·1k·t)</text>
+          <text class="sl" x="160" y="118">R1</text><text class="ss" x="152" y="196">15 kΩ</text>
+          <text class="sl" x="372" y="222">D1</text><text class="ss" x="372" y="242">1N4001</text>
+          <text class="sl" x="306" y="342" text-anchor="end">V1 1.5 V</text>
+          <text class="sl" x="472" y="222">D2</text><text class="ss" x="472" y="242">1N4001</text>
+          <text class="sl" x="472" y="342">V2 1.5 V</text>
+          <text class="sl" x="478" y="128">v_out</text>
+          <text class="ss" x="346" y="326">+</text><text class="ss" x="420" y="342">+</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 2 prelab -->
+  <section class="scene" id="s2">
+    <div class="cap"><div class="k">02 · Prelab</div><h2>Hand analysis says ±1.5&nbsp;V.</h2>
+      <p>Ideal diodes clip at the battery voltage. That's the number that goes in the prelab.</p></div>
+    <div class="card" style="left:600px;top:96px;width:616px;height:520px;background:#FBF9F3 repeating-linear-gradient(180deg,transparent 0 45px,rgba(60,90,150,.16) 45px 46px)">
+      <div class="tag" style="left:28px;top:22px">Prelab · question 2</div>
+      <div class="hand" style="position:absolute;left:36px;top:70px;width:560px">
+        <span class="l" id="h1">D1 on when v_out &gt; V1</span>
+        <span class="l" id="h2">D2 on when v_out &lt; −V2</span>
+        <span class="l" id="h3">so clip at V1 = +1.5 V</span>
+        <span class="l" id="h4">and −V2 = −1.5 V</span>
+      </div>
+      <svg viewBox="0 0 500 90" style="position:absolute;left:60px;top:370px;width:500px;height:90px">
+        <text id="pred" x="20" y="60" style="font:600 52px 'Caveat',cursive;fill:#22305A;opacity:0">v_out = ±1.5 V</text>
+        <ellipse id="circ" cx="190" cy="46" rx="178" ry="40" fill="none" stroke="#B3362B" stroke-width="3" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 3 run it -->
+  <section class="scene" id="s3">
+    <div class="cap"><div class="k">03 · Run it</div><h2>The simulator says ±1.99&nbsp;V.</h2>
+      <p>Same circuit with a real 1N4001 model. The extra <b>0.49&nbsp;V</b> is the diode's own forward drop. Better to find that out now than at the bench.</p></div>
+    <div class="term" style="left:64px;top:352px;width:512px;height:312px">
+      <div class="term-bar"><i></i><i></i><i></i><span>PowerShell</span></div>
+      <div class="term-body"><span class="pr">&gt; </span><span id="cmd3"></span>
+<div class="ln" id="o3a"><span class="ok">reference\lab_clipper.cir: PASS</span></div><div class="ln" id="o3b" style="color:var(--term-t)">  measured input peak: 5 V (-0.0%); positive clip: 1.991 V; negative clip: -1.991 V</div></div>
+    </div>
+    <div class="card" id="scope3" style="left:600px;top:56px;width:616px;height:608px"></div>
+  </section>
+
+  <!-- 4 miswire -->
+  <section class="scene" id="s4">
+    <div class="cap"><div class="k">04 · Check the wiring</div><h2>Miswire it, and it says so.</h2>
+      <p>Batteries left out: the output clips at <b>±0.51&nbsp;V</b> and misses the spec's 1.7 to 2.4 V band. A one-second check before you re-patch the breadboard.</p></div>
+    <div class="term" style="left:64px;top:352px;width:512px;height:312px">
+      <div class="term-bar"><i></i><i></i><i></i><span>PowerShell</span></div>
+      <div class="term-body"><span class="pr">&gt; </span><span id="cmd4"></span>
+<div class="ln" id="o4a"><span class="bad">clipper_no_batteries.cir: FAIL</span></div><div class="ln" id="o4b">  measured input peak: 5 V (-0.0%); positive clip: 0.5113 V; negative clip: -0.5113 V</div></div>
+    </div>
+    <div class="card" id="scope4" style="left:600px;top:56px;width:616px;height:608px"></div>
+  </section>
+
+  <!-- 5 knob -->
+  <section class="scene" id="s5">
+    <div class="cap"><div class="k">05 · Which knob</div><h2>Clip level = V1 + 0.49&nbsp;V.</h2>
+      <p>Sweeping V1 shows the rule, so you start from a calculated value instead of trial and error. Want a <b>2.5&nbsp;V</b> clip? Start at V1 = 2.0 V.</p></div>
+    <div class="callout" id="co5" style="left:64px;top:430px;width:500px">V1 = <b>2.0 V</b> → clip = <b>2.48 V</b><br><span style="font-size:17px;color:#cfd6dd">simulated, not typed in</span></div>
+    <div class="card" id="chart5" style="left:600px;top:56px;width:616px;height:608px"></div>
+  </section>
+
+  <!-- 6 real parts -->
+  <section class="scene" id="s6">
+    <div class="cap"><div class="k">06 · Real parts</div><h2>Your reading won't be 1.99&nbsp;V.</h2>
+      <p>200 simulated builds, with tolerance on the batteries, resistor, diode and temperature. The clip lands from <b>1.80 to 2.17&nbsp;V</b>. All 200 meet spec.</p></div>
+    <div id="sens6" style="position:absolute;left:64px;top:372px;width:500px"></div>
+    <div class="card" id="hist6" style="left:600px;top:56px;width:616px;height:608px"></div>
+  </section>
+
+  <!-- 7 second sim -->
+  <section class="scene" id="s7">
+    <div class="cap"><div class="k">07 · Second opinion</div><h2>Two simulators agree.</h2>
+      <p>The same spec re-measured in LTspice, which shares no code with ngspice.</p></div>
+    <div class="card" style="left:600px;top:96px;width:616px;height:200px"><div class="lbl" style="position:absolute;left:28px;top:26px">ngspice · positive clip</div><div class="big" id="n7a" style="position:absolute;left:28px;top:86px">0.00000 V</div></div>
+    <div class="card" style="left:600px;top:320px;width:616px;height:200px"><div class="lbl" style="position:absolute;left:28px;top:26px">LTspice · positive clip</div><div class="big" id="n7b" style="position:absolute;left:28px;top:86px">0.00000 V</div></div>
+    <div class="callout" id="co7" style="left:600px;top:550px;width:616px;font-size:24px">0.004% apart</div>
+  </section>
+
+  <!-- 8 end -->
+  <section class="scene" id="s8">
+    <div class="cap" style="width:1000px"><div class="k">08 · What this is</div><h2>A pre-lab check, not a replacement for the bench.</h2></div>
+    <div class="cols">
+      <div class="col yes"><h3>It helps you</h3><ul>
+        <li>Predict what the bench will show</li><li>Explain theory vs. measurement in the report</li>
+        <li>Catch wiring mistakes before you build</li><li>Pick a starting value, not a guess</li></ul></div>
+      <div class="col no"><h3>It doesn't</h3><ul>
+        <li>Replace measuring the real circuit</li><li>Make an AI-written circuit right. It only catches the wrong ones</li>
+        <li>Know your actual parts</li></ul></div>
+    </div>
+    <div class="strip">I also tested the AI with it. Benchmark of 8 circuits: <b>100%</b> simulate, <b>62–75%</b> meet spec. Lab round: <b>9 of 10</b> correct; the miss was a backwards clamper diode, caught by the spec.</div>
+  </section>
+</div></div>
+<div id="ctl"><button id="pp">Pause</button><input id="sc" type="range" min="0" max="1000" value="0"><span id="tm">0:00</span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="assets/data.js"></script>
+<script>
+(function(){
+const REC = /[?&]rec/.test(location.search);
+if (REC) document.documentElement.classList.add('rec');
+const D = window.DATA, $ = (s) => document.querySelector(s), NS = 'http://www.w3.org/2000/svg';
+
+/* ---------- fit stage to window ---------- */
+const fit = $('#fit');
+function resize(){ if (REC) { fit.style.transform = 'none'; return; }
+  const s = Math.min(innerWidth / 1280, (innerHeight - 60) / 720); fit.style.transform = 'scale(' + s + ')'; fit.style.margin = (-(720 - 720 * s) / 2) + 'px ' + (-(1280 - 1280 * s) / 2) + 'px'; }
+addEventListener('resize', resize); resize();
+
+/* ---------- plots from real data ---------- */
+const f2 = (v, n = 2) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(n);
+function svgEl(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function txt(p, x, y, s, o){ const t = svgEl('text', Object.assign({ x, y, 'font-size': 14, fill: '#6B7480' }, o || {}), p); t.textContent = s; return t; }
+function mk(host, w, h){ const s = svgEl('svg', { viewBox: '0 0 ' + w + ' ' + h, width: w, height: h }); s.style.cssText = 'position:absolute;left:0;top:0'; host.appendChild(s); return s; }
+function path(pts){ return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(''); }
+function drawable(el){ el.setAttribute('pathLength', 1); el.style.strokeDasharray = '1 1'; el.style.strokeDashoffset = 1; }
+
+// Scope: v(in) and v(out) over 5 ms, with the spec band and the hand prediction.
+const SC = { x0: 56, y0: 70, w: 410, h: 440 }; // plot box; +-5 V over h
+const sx = (t) => SC.x0 + t / 0.005 * SC.w, sy = (v) => SC.y0 + SC.h / 2 - v / 5 * SC.h / 2;
+function buildScope(host, key, pass){
+  const s = mk(host, 616, 608);
+  txt(s, 22, 38, 'v(in), v(out) · 5 ms · 1 kHz', { 'font-size': 14, 'letter-spacing': '.08em' });
+  [-4, -2, 0, 2, 4].forEach((v) => { svgEl('line', { x1: SC.x0, x2: SC.x0 + SC.w, y1: sy(v), y2: sy(v), stroke: v ? 'rgba(27,36,48,.12)' : 'rgba(27,36,48,.35)' }, s); txt(s, SC.x0 - 10, sy(v) + 5, f2(v, 0), { 'text-anchor': 'end' }); });
+  const band = [];
+  [[1.7, 2.4], [-2.4, -1.7]].forEach((b) => band.push(svgEl('rect', { x: SC.x0, y: sy(b[1]), width: SC.w, height: sy(b[0]) - sy(b[1]), fill: 'rgba(47,125,79,.2)' }, s)));
+  txt(s, SC.x0 + SC.w + 12, sy(-2.4) + 14, 'spec band', { fill: '#2F7D4F', 'font-size': 14 });
+  txt(s, SC.x0 + SC.w + 12, sy(-2.4) + 31, '1.7–2.4 V', { fill: '#2F7D4F', 'font-size': 14 });
+  const tr = D[key].trace;
+  const pin = svgEl('path', { d: path(tr.t.map((t, i) => [sx(t), sy(tr.vin[i])])), fill: 'none', stroke: '#8493A3', 'stroke-width': 2 }, s); drawable(pin);
+  const pout = svgEl('path', { d: path(tr.t.map((t, i) => [sx(t), sy(tr.vout[i])])), fill: 'none', stroke: '#B4571B', 'stroke-width': 3.5 }, s); drawable(pout);
+  txt(s, SC.x0 + SC.w + 12, sy(5) + 24, 'v(in) 5 V', { fill: '#8493A3', 'font-size': 14 });
+  const extra = [];
+  if (key === 'good') {
+    [1.5, -1.5].forEach((v) => { extra.push(svgEl('line', { x1: SC.x0, x2: SC.x0 + SC.w, y1: sy(v), y2: sy(v), stroke: '#22305A', 'stroke-width': 2, 'stroke-dasharray': '6 5' }, s)); });
+    extra.push(txt(s, SC.x0 + SC.w + 12, sy(1.5) + 22, 'hand calc 1.5', { fill: '#22305A', 'font-size': 14 }));
+    extra.push(txt(s, SC.x0 + SC.w + 12, sy(2) - 10, 'sim ' + D.measures.good.vmax.toFixed(2), { fill: '#B4571B', 'font-size': 15, 'font-weight': 500 }));
+  } else {
+    extra.push(txt(s, SC.x0 + SC.w + 12, sy(0.51) + 20, 'sim ' + D.measures.miswired.vmax.toFixed(2), { fill: '#B3362B', 'font-size': 15, 'font-weight': 500 }));
+    pout.setAttribute('stroke', '#B3362B');
+  }
+  return { pin, pout, extra, band };
+}
+const sc3 = buildScope($('#scope3'), 'good'), sc4 = buildScope($('#scope4'), 'miswired');
+(function(){ const c = document.createElement('div'); c.className = 'callout'; c.id = 'co3'; c.style.cssText = 'left:22px;right:22px;top:536px;font-size:19px'; c.innerHTML = '<b>1.99</b> − <b>1.50</b> = <b>0.49 V</b>: one 1N4001 forward drop'; $('#scope3').appendChild(c);
+  const d = document.createElement('div'); d.className = 'callout'; d.id = 'co4'; d.style.cssText = 'left:22px;right:22px;top:536px;font-size:19px;background:#B3362B'; d.innerHTML = '<b style="color:#fff">0.51 V</b> is outside 1.7 to 2.4 V. <b style="color:#fff">FAIL</b>'; $('#scope4').appendChild(d); })();
+
+// Sweep: clip level vs V1, against the ideal-diode line.
+(function(){
+  const host = $('#chart5'), s = mk(host, 616, 608), X0 = 80, Y0 = 70, W = 470, H = 440, xm = 3.5, ym = 4.2;
+  const X = (v) => X0 + v / xm * W, Y = (v) => Y0 + H - v / ym * H;
+  txt(s, 22, 38, 'clip level vs. battery voltage V1', { 'letter-spacing': '.08em' });
+  for (let v = 0; v <= 4; v++) { svgEl('line', { x1: X0, x2: X0 + W, y1: Y(v), y2: Y(v), stroke: 'rgba(27,36,48,.12)' }, s); txt(s, X0 - 10, Y(v) + 5, v + '', { 'text-anchor': 'end' }); }
+  for (let v = 0; v <= 3; v++) txt(s, X(v), Y0 + H + 24, v + '', { 'text-anchor': 'middle' });
+  txt(s, X0 + W / 2, Y0 + H + 50, 'V1 (V)', { 'text-anchor': 'middle' });
+  const ideal = svgEl('path', { d: path([[X(0), Y(0)], [X(3.5), Y(3.5)]]), fill: 'none', stroke: '#22305A', 'stroke-width': 2, 'stroke-dasharray': '6 5' }, s);
+  txt(s, X(1.2), Y(0.55), 'ideal diode: clip = V1', { fill: '#22305A', 'font-size': 14 });
+  const line = svgEl('path', { d: path(D.sweep.map((p) => [X(p.v1), Y(p.vmax)])), fill: 'none', stroke: '#B4571B', 'stroke-width': 3.5 }, s); drawable(line);
+  const dots = D.sweep.map((p) => svgEl('circle', { cx: X(p.v1), cy: Y(p.vmax), r: 5, fill: '#B4571B', opacity: 0 }, s));
+  txt(s, X(0.5), Y(2.0), 'simulated', { fill: '#B4571B', 'font-size': 15, 'font-weight': 500 });
+  const p2 = D.sweep.find((p) => p.v1 === 2.0);
+  const hi = svgEl('circle', { cx: X(2), cy: Y(p2.vmax), r: 12, fill: 'none', stroke: '#1B2430', 'stroke-width': 3, opacity: 0 }, s);
+  const gap = svgEl('line', { x1: X(2.5), x2: X(2.5), y1: Y(2.5), y2: Y(D.sweep.find((p) => p.v1 === 2.5).vmax), stroke: '#B3362B', 'stroke-width': 3, opacity: 0 }, s);
+  const gt = txt(s, X(2.5) + 8, Y(2.5) + 28, '0.49 V', { fill: '#B3362B', 'font-size': 16, 'font-weight': 500, opacity: 0 });
+  window.__c5 = { line, dots, hi, gap, gt };
+})();
+
+// Histogram of 200 simulated builds.
+(function(){
+  const host = $('#hist6'), s = mk(host, 616, 608), X0 = 50, Y0 = 70, W = 520, H = 400, lo = 1.6, hi = 2.5, bw = 0.025;
+  const X = (v) => X0 + (v - lo) / (hi - lo) * W;
+  const nb = Math.round((hi - lo) / bw), cnt = new Array(nb).fill(0);
+  D.mc.vmax.forEach((v) => { const i = Math.min(nb - 1, Math.max(0, Math.floor((v - lo) / bw))); cnt[i]++; });
+  const mx = Math.max.apply(null, cnt);
+  txt(s, 22, 38, 'positive clip, 200 simulated builds', { 'letter-spacing': '.08em' });
+  svgEl('rect', { x: X(1.7), y: Y0, width: X(2.4) - X(1.7), height: H, fill: 'rgba(47,125,79,.14)' }, s);
+  svgEl('line', { x1: X0, x2: X0 + W, y1: Y0 + H, y2: Y0 + H, stroke: 'rgba(27,36,48,.4)' }, s);
+  [1.7, 1.8, 2.0, 2.2, 2.4].forEach((v) => txt(s, X(v), Y0 + H + 24, v.toFixed(1), { 'text-anchor': 'middle' }));
+  txt(s, X0 + W / 2, Y0 + H + 50, 'positive clip level (V)', { 'text-anchor': 'middle' });
+  txt(s, X(1.7), Y0 - 10, 'spec min', { fill: '#2F7D4F', 'text-anchor': 'middle' });
+  txt(s, X(2.4), Y0 - 10, 'spec max', { fill: '#2F7D4F', 'text-anchor': 'middle' });
+  const bars = cnt.map((c, i) => { const h = c / mx * (H - 20); const r = svgEl('rect', { x: X(lo + i * bw) + 1, y: Y0 + H - h, width: W / nb - 2, height: h, fill: '#B4571B' }, s); r.style.transformOrigin = '0 ' + (Y0 + H) + 'px'; return c ? r : null; }).filter(Boolean);
+  const r = D.mc.vmax, mn = Math.min.apply(null, r), mxv = Math.max.apply(null, r);
+  const cl = svgEl('g', { opacity: 0 }, s);
+  svgEl('line', { x1: X(mn), x2: X(mxv), y1: Y0 + H + 70, y2: Y0 + H + 70, stroke: '#1B2430', 'stroke-width': 3 }, cl);
+  txt(s, X((mn + mxv) / 2), Y0 + H + 94, mn.toFixed(2) + ' to ' + mxv.toFixed(2) + ' V · 200 of 200 in spec', { 'text-anchor': 'middle', fill: '#1B2430', 'font-size': 16, 'font-weight': 500 }, cl);
+  window.__h6 = { bars, cl };
+})();
+
+// Sensitivity bars.
+(function(){
+  const names = { V1: 'battery V1 (±5%)', 'D1N4001.IS': 'diode saturation current', 'D1N4001.N': 'diode ideality', TEMP: 'temperature', R1: 'resistor R1' };
+  const rows = D.sens_vmax.filter((r) => names[r.param]).sort((a, b) => Math.abs(b.span_pct) - Math.abs(a.span_pct));
+  const m = Math.abs(rows[0].span_pct), host = $('#sens6');
+  host.innerHTML = '<div class="lbl" style="margin-bottom:12px">What moves the clip level (% swing)</div>' + rows.map((r) =>
+    '<div class="sr" style="display:grid;grid-template-columns:200px 1fr 54px;align-items:center;gap:10px;margin:7px 0;opacity:0"><span style="font:400 16px var(--body);color:var(--soft)">' + names[r.param] + '</span><span style="height:14px;background:rgba(27,36,48,.08);border-radius:3px"><i class="sb" style="display:block;height:14px;width:' + (Math.abs(r.span_pct) / m * 100) + '%;background:#B4571B;border-radius:3px;transform-origin:0 0"></i></span><span style="font:500 15px var(--mono)">' + Math.abs(r.span_pct).toFixed(1) + '</span></div>').join('');
+})();
+
+/* ---------- timeline ---------- */
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.out' } });
+const hud = $('#hud');
+function scene(id, a, b, n){ const el = '#' + id; tl.set(el, { autoAlpha: 0 }, 0);
+  tl.to(el, { autoAlpha: 1, duration: .5 }, a); if (b < 999) tl.to(el, { autoAlpha: 0, duration: .45 }, b - .45);
+  tl.call(() => { hud.textContent = '0' + n + ' / 08'; }, null, a + .05);
+  tl.from(el + ' .cap > *', { y: 14, autoAlpha: 0, duration: .5, stagger: .12 }, a + .15); }
+function typeTo(el, s, a, d){ const o = { n: 0 }; tl.to(o, { n: s.length, duration: d, ease: 'none', onUpdate: () => { el.textContent = s.slice(0, Math.round(o.n)); } }, a); }
+function count(el, to, a, d, fmt){ const o = { v: 0 }; tl.to(o, { v: to, duration: d, ease: 'power1.out', onUpdate: () => { el.textContent = fmt(o.v); } }, a); }
+const draw = (els, a, d, st) => tl.to(els, { strokeDashoffset: 0, duration: d, stagger: st || 0, ease: 'power1.inOut' }, a);
+
+// timings
+const T = { s1: [0, 11], s2: [11, 23], s3: [23, 41], s4: [41, 53], s5: [53, 67], s6: [67, 83], s7: [83, 93], s8: [93, 1000] };
+const END = 108;
+scene('s1', T.s1[0], T.s1[1], 1); scene('s2', T.s2[0], T.s2[1], 2); scene('s3', T.s3[0], T.s3[1], 3); scene('s4', T.s4[0], T.s4[1], 4);
+scene('s5', T.s5[0], T.s5[1], 5); scene('s6', T.s6[0], T.s6[1], 6); scene('s7', T.s7[0], T.s7[1], 7); scene('s8', T.s8[0], T.s8[1], 8);
+
+// 1: schematic draws, labels and parts fade in
+(function(){ const a = .8; const ds = document.querySelectorAll('#schem .d'); ds.forEach(drawable);
+  tl.set('#schem .d', { autoAlpha: 1 }, 0);
+  draw(ds, a, 1.4, .3);
+  tl.from('#schem .f', { autoAlpha: 0, duration: .6, stagger: .15 }, a + 3.4); })();
+
+// 2: handwritten analysis, then the circled prediction
+(function(){ const a = T.s2[0];
+  ['#h1', '#h2', '#h3', '#h4'].forEach((id, i) => tl.to(id, { clipPath: 'inset(0 0% 0 0)', duration: 1.2, ease: 'none' }, a + 1 + i * 1.5));
+  tl.to('#pred', { opacity: 1, duration: .6 }, a + 7.4);
+  draw('#circ', a + 8, .9); })();
+
+// 3: run, plot draws, gap callout
+(function(){ const a = T.s3[0];
+  typeTo($('#cmd3'), 'python speccheck.py --spec specs_lib/lab_clipper.yaml reference/lab_clipper.cir', a + 1, 2.4);
+  tl.to('#o3a', { opacity: 1, duration: .3 }, a + 4.2); tl.to('#o3b', { opacity: 1, duration: .3 }, a + 4.7);
+  draw(sc3.pin, a + 4.2, 1.6); draw(sc3.pout, a + 5, 1.8);
+  tl.from(sc3.band, { opacity: 0, duration: .5 }, a + 4);
+  tl.from(sc3.extra, { opacity: 0, duration: .5, stagger: .4 }, a + 7.3);
+  tl.from('#co3', { y: 20, autoAlpha: 0, duration: .5 }, a + 10); })();
+
+// 4: miswire
+(function(){ const a = T.s4[0];
+  typeTo($('#cmd4'), 'python speccheck.py --spec specs_lib/lab_clipper.yaml clipper_no_batteries.cir', a + 1, 2.4);
+  tl.to('#o4a', { opacity: 1, duration: .3 }, a + 4.2); tl.to('#o4b', { opacity: 1, duration: .3 }, a + 4.7);
+  draw(sc4.pin, a + 4.2, 1.4); draw(sc4.pout, a + 4.8, 1.6);
+  tl.from(sc4.band, { opacity: 0, duration: .5 }, a + 4);
+  tl.from(sc4.extra, { opacity: 0, duration: .5 }, a + 7);
+  tl.from('#co4', { y: 20, autoAlpha: 0, duration: .5 }, a + 8); })();
+
+// 5: sweep
+(function(){ const a = T.s5[0], c = window.__c5;
+  draw(c.line, a + 1, 2.4);
+  tl.to(c.dots, { opacity: 1, duration: .3, stagger: .2 }, a + 1.2);
+  tl.to(c.gap, { opacity: 1, duration: .4 }, a + 4.2); tl.to(c.gt, { opacity: 1, duration: .4 }, a + 4.4);
+  tl.to(c.hi, { opacity: 1, duration: .4 }, a + 7.4);
+  tl.from('#co5', { y: 20, autoAlpha: 0, duration: .5 }, a + 7.6); })();
+
+// 6: spread and sensitivity
+(function(){ const a = T.s6[0], h = window.__h6;
+  tl.from(h.bars, { scaleY: 0, duration: .6, stagger: { each: .05, from: 'center' }, ease: 'power2.out', transformOrigin: 'bottom' }, a + 1);
+  tl.to(h.cl, { opacity: 1, duration: .5 }, a + 5.5);
+  tl.to('#sens6 .sr', { opacity: 1, duration: .4, stagger: .35 }, a + 6.5);
+  tl.from('#sens6 .sb', { scaleX: 0, duration: .6, stagger: .35 }, a + 6.5); })();
+
+// 7: second simulator
+(function(){ const a = T.s7[0];
+  count($('#n7a'), D.crosscheck.vmax.ngspice, a + 1, 1.5, (v) => v.toFixed(5) + ' V');
+  count($('#n7b'), D.crosscheck.vmax.ltspice, a + 2.2, 1.5, (v) => v.toFixed(5) + ' V');
+  tl.from('#co7', { y: 20, autoAlpha: 0, duration: .5 }, a + 4.4); })();
+
+// 8: honest end card
+(function(){ const a = T.s8[0];
+  tl.from('.col h3', { y: 12, autoAlpha: 0, duration: .5, stagger: .2 }, a + 1);
+  tl.from('.col li', { y: 12, autoAlpha: 0, duration: .45, stagger: .3 }, a + 1.6);
+  tl.from('.strip', { y: 20, autoAlpha: 0, duration: .6 }, a + 5.5);
+  tl.to({}, { duration: .1 }, END); })();
+
+/* ---------- controls / record hook ---------- */
+const sc = $('#sc'), tm = $('#tm'), pp = $('#pp');
+tl.eventCallback('onUpdate', () => { sc.value = Math.round(tl.time() / END * 1000); const s = Math.floor(tl.time()); tm.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); });
+pp.onclick = () => { if (tl.paused() || tl.progress() === 1) { if (tl.progress() === 1) tl.restart(); else tl.play(); pp.textContent = 'Pause'; } else { tl.pause(); pp.textContent = 'Play'; } };
+sc.oninput = () => { tl.pause(); pp.textContent = 'Play'; tl.time(sc.value / 1000 * END); };
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); pp.click(); } });
+window.__demo = { duration: END, seek: (t) => { tl.pause(); tl.time(t, false); } };
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => { window.__ready = true; if (!REC) tl.play(); });
+})();
+</script>
+</body>
+</html>

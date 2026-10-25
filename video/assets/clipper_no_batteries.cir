@@ -1,0 +1,14 @@
+Double diode clipper -- EE 346 Exp. 4, Figure 1
+* vi = 5 sin(6280 t), R = 15k, V1 = V2 = 1.5 V, 1N4001 diodes.
+* D1 conducts above V1 + Vd, D2 below -(V2 + Vd): vo is clipped both ways.
+.model D1N4001 D(IS=14.11n N=1.984 RS=33.89m IKF=94.81 XTI=3 EG=1.11 CJO=25.89p M=.44 VJ=.3245 FC=.5 BV=75 IBV=10u TT=5.7u)
+Vi in 0 SIN(0 5 1k)
+R1 in out 15k
+D1 out n1 D1N4001
+V1 n1 0 DC 0
+D2 n2 out D1N4001
+V2 0 n2 DC 0
+.control
+tran 5u 5m
+.endc
+.end
