@@ -177,9 +177,10 @@ def figures(spec, ideal_deck: str, kit_deck: str | None, out: Path, stem: str) -
     for aname, (xs, vecs) in ideal.items():
         if (spec.analyses[aname].command.split()[0].lower() == "tran"
                 and len(vecs) >= TIMING_MIN_VECTORS):
+            logic = bool(re.search(r"(?i)\b(pwl|pulse)\s*\(", ideal_deck))
             made.append((aname, _timing(plt, EngFormatter, xs, vecs,
                                         built[aname] if built else None,
-                                        out / f"{stem}_{aname}.png")))
+                                        out / f"{stem}_{aname}.png", logic=logic)))
             continue
         groups: dict = {}
         for vname in vecs:
@@ -213,7 +214,18 @@ def figures(spec, ideal_deck: str, kit_deck: str | None, out: Path, stem: str) -
     return made
 
 
-def _timing(plt, EngFormatter, xs, vecs, built, path: Path) -> Path:
+def _strip_label(vec: str) -> str:
+    """v(out) -> OUT; v(out,e) -> OUT − E (a difference between two nodes)."""
+    m = re.match(r"(?i)^\s*v\(([^,)]+)(?:,\s*([^)]+))?\)\s*$", vec)
+    if not m:
+        return vec
+    a, b = m.group(1).upper(), m.group(2)
+    return f"{a} − {b.upper()}" if b else a
+
+
+def _timing(plt, EngFormatter, xs, vecs, built, path: Path, logic: bool = True) -> Path:
+    """Stacked strips on one time axis. Logic waveforms get the handout look
+    (0 and the rail only); analog ones keep a real voltage scale per strip."""
     names = list(vecs)
     fig, axes = plt.subplots(len(names), 1, figsize=(6.5, 0.85 * len(names) + 0.6),
                              sharex=True, squeeze=False)
@@ -227,15 +239,26 @@ def _timing(plt, EngFormatter, xs, vecs, built, path: Path) -> Path:
             ax.plot(xs, vecs[n], color=ink, lw=0.9, ls="--", alpha=0.6)
         else:
             ax.plot(xs, vecs[n], color=accent if n == names[-1] else ink, lw=1.3)
-        ax.set_ylim(-0.1 * top, 1.15 * top)
-        ax.set_yticks([0, rail])
-        ax.yaxis.set_major_formatter(EngFormatter(unit="V", places=0))
+        if logic:
+            ax.set_ylim(-0.1 * top, 1.15 * top)
+            ax.set_yticks([0, rail])
+            ax.yaxis.set_major_formatter(EngFormatter(unit="V", places=0))
+        else:
+            from matplotlib.ticker import MaxNLocator
+            ax.yaxis.set_major_locator(MaxNLocator(3))
+            ax.yaxis.set_major_formatter(EngFormatter(unit="V"))
+            ax.grid(True, axis="y", color="#e1e0d9", lw=0.6)
         ax.tick_params(labelsize=7)
-        ax.set_ylabel(n.upper().removeprefix("V(").removesuffix(")"), rotation=0,
-                      ha="right", va="center", fontsize=9)
+        ax.set_ylabel(_strip_label(n), rotation=0, ha="right", va="center", fontsize=9)
         ax.grid(True, axis="x", color="#e1e0d9", lw=0.6)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
+    if built:
+        from matplotlib.lines import Line2D
+        axes[0, 0].legend([Line2D([], [], color=accent, lw=1.4),
+                           Line2D([], [], color=ink, lw=0.9, ls="--", alpha=0.6)],
+                          ["kit build", "starting design"], fontsize=7, frameon=False,
+                          loc="upper right", ncol=2, bbox_to_anchor=(1, 1.35))
     last = axes[-1, 0]
     last.set_xlabel("time")
     last.xaxis.set_major_formatter(EngFormatter(unit="s"))
@@ -384,6 +407,8 @@ class LabResult:
     figures: list
     supplies: list
     test_set: Path | None = None      # the block-diagram PNG (ten-step method, step 6)
+    study: dict | None = None         # corners: hand vs kit design, Q-points, power
+    mc_corners: dict = field(default_factory=dict)   # corner label -> MC yield
 
 
 def _percentile(xs: list, q: float) -> float:
@@ -412,6 +437,76 @@ def _nodes(netlist: str):
     return {n: v for n, v in op.nodes.items() if not INTERNAL_NODE.search(n)}
 
 
+# Standard resistor power ratings (EE 346 Exp. 8 lists these).
+POWER_RATINGS = [1 / 8, 1 / 4, 1 / 2, 1, 2, 5, 10]
+POWER_DERATING = 2.0      # pick a rating at least twice the dissipation
+
+_BJT_RE = re.compile(r"(?i)^\s*(q\S*)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)")
+
+
+def qpoints(deck: str, op) -> list:
+    """(refdes, VBE, VCE, IC) for each top-level BJT at an operating point."""
+    lines = deck.splitlines()
+    inside = kitmod._subckt_mask(lines)
+    v = lambda n: 0.0 if n == "0" else op.nodes.get(n.lower(), 0.0)  # noqa: E731
+    ic = {d.refdes.lower(): d.currents.get("ic") for d in op.devices}
+    out = []
+    for ln, sub in zip(lines, inside, strict=True):
+        m = _BJT_RE.match(ln)
+        if m and not sub:
+            q, c, b, e, _ = m.groups()
+            out.append((q, v(b) - v(e), v(c) - v(e), ic.get(q.lower())))
+    return out
+
+
+def dissipation(deck: str, op) -> dict:
+    """Quiescent power in each top-level resistor: refdes -> watts."""
+    lines = deck.splitlines()
+    v = lambda n: 0.0 if n == "0" else op.nodes.get(n.lower(), 0.0)  # noqa: E731
+    out = {}
+    for prm in kitmod.kit_params(deck):
+        if prm.key[0].lower() != "r":
+            continue
+        toks = lines[prm.line].split()
+        out[prm.key] = (v(toks[1]) - v(toks[2])) ** 2 / prm.nominal
+    return out
+
+
+def rating_for(watts: float) -> float:
+    need = watts * POWER_DERATING
+    return next((r for r in POWER_RATINGS if r >= need), POWER_RATINGS[-1])
+
+
+def watts_text(w: float) -> str:
+    from fractions import Fraction
+    f = Fraction(w).limit_denominator(8)
+    return f"{f.numerator}/{f.denominator} W" if f.denominator > 1 else f"{f.numerator} W"
+
+
+def _corner_study(spec, netlist: str, kit_deck: str) -> dict:
+    """Hand design and kit build at every corner: spec values, Q-points, power."""
+    study = {"rows": [], "qpoints": [], "power": {}}
+    for c in spec.corners:
+        row = {"label": c["label"], "corner": c}
+        for which, deck in (("hand", netlist), ("kit", kit_deck)):
+            try:
+                row[which] = specfile.measure(spec, specfile.corner_deck(deck, c))
+            except Exception:              # noqa: BLE001 - a failing design is a result
+                row[which] = None
+        try:
+            op = oppoint.operating_point(specfile.corner_deck(kit_deck, c))
+            beta = next((v for k, v in c["model"].items() if k.upper().endswith(".BF")), "")
+            for q, vbe, vce, ic in qpoints(kit_deck, op):
+                study["qpoints"].append((c["label"], q, beta, vbe, vce, ic,
+                                         (row["kit"] or {}).get("gain")))
+            for r, w in dissipation(kit_deck, op).items():
+                study["power"][r] = max(w, study["power"].get(r, 0.0))
+        except Exception:                  # noqa: BLE001
+            pass
+        study["rows"].append(row)
+    return study
+
+
 def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
             singles_only=False, mc_n: int = 200, seed: int = 0,
             workers: int = 8, make_figures: bool = True) -> LabResult:
@@ -421,9 +516,15 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
                     workers=workers)
     kit_deck = p.deck() if p.params else netlist
     mc = None
+    mc_corners = {}
     if mc_n:
         mc = robustness.monte_carlo(spec, kit_deck, mc_n, seed=seed, vary_temp=False,
                                     workers=workers, passive_tol=kit.passive_tol())
+        for c in spec.corners:
+            mc_corners[c["label"]] = robustness.monte_carlo(
+                spec, specfile.corner_deck(kit_deck, c), mc_n, seed=seed, vary_temp=False,
+                workers=workers, passive_tol=kit.passive_tol())["yield"]
+    study = _corner_study(spec, netlist, kit_deck) if spec.corners else None
     figs, test_set = [], None
     if make_figures:
         figs = figures(spec, netlist, kit_deck if p.params else None, out, spec.name)
@@ -437,7 +538,8 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
     return LabResult(spec=spec, title=title, pick=p, kit_deck=kit_deck, mc=mc,
                      op_ideal=None if stepped else _nodes(netlist),
                      op_kit=None if stepped else _nodes(kit_deck),
-                     figures=figs, supplies=supplies, test_set=test_set)
+                     figures=figs, supplies=supplies, test_set=test_set,
+                     study=study, mc_corners=mc_corners)
 
 
 # ---------------------------------------------------------------- the report
@@ -449,6 +551,71 @@ def _range(br, units: str) -> str:
     if lo == hi:
         return lo
     return f"{lo.removesuffix(' ' + units) if units else lo} to {hi}"
+
+
+def _verdict_cell(vals: dict | None, m) -> str:
+    if not vals or m.name not in vals:
+        return "—"
+    v = vals[m.name]
+    return f"{num(v, m.units)} {'✓' if m.limits.ok(v) else '✗'}"
+
+
+def _design_blocks(r: LabResult, h: str) -> list:
+    """Design mode: the hand design, the kit build, and both at every corner."""
+    spec, p, B = r.spec, r.pick, Block
+    hand = ", ".join(f"{prm.key} = {value(prm.nominal, prm.key[0])}" for prm in p.params)
+    changed = [prm.key for prm in p.params
+               if abs(p.best.choices[prm.key].value - prm.nominal) > 1e-9 * prm.nominal]
+    blocks = [B(h, "From hand design to kit parts"),
+              B("p", f"The hand design ({hand}) is the starting point. Every combination "
+                     f"of parts from {p.kit.name} within a factor of 4 of each value "
+                     f"that the kit actually holds (quantities respected, given parts "
+                     f"included) was simulated at every corner: {p.sims} buildable "
+                     f"combinations, of which {p.passing} meet every requirement at "
+                     f"every corner. The pick is the one with the most headroom at its "
+                     f"worst corner; a part only moves off the hand design if that "
+                     f"buys real margin."),
+              B("table", header=["Component", "Hand design", "Kit build", ""],
+                rows=[(prm.key, value(prm.nominal, prm.key[0]),
+                       part_text(p.best.choices[prm.key], prm.key[0]),
+                       "changed" if prm.key in changed else "")
+                      for prm in p.params])]
+    if r.study:
+        labels = [row["label"] for row in r.study["rows"]]
+        header = (["Requirement", "Limit"] + [f"Hand, {lb}" for lb in labels]
+                  + [f"Kit, {lb}" for lb in labels])
+        rows = []
+        for m in spec.specs:
+            rows.append([m.title, theory(m)]
+                        + [_verdict_cell(row.get("hand"), m) for row in r.study["rows"]]
+                        + [_verdict_cell(row.get("kit"), m) for row in r.study["rows"]])
+        blocks += [B(h, "Both designs at the extremes"), B("table", header=header, rows=rows)]
+        if r.study["qpoints"]:
+            blocks += [B(h, "Q-point at the extremes (kit build)"),
+                       B("table", header=["Corner", "Transistor", "β", "V_BE", "V_CE",
+                                          "I_C", "Gain"],
+                         rows=[(lb, q.upper(), str(beta), num(vbe, "V", 3), num(vce, "V", 3),
+                                "—" if ic is None else f"{ic * 1e3:.3g} mA",
+                                num(g, "", 3))
+                               for lb, q, beta, vbe, vce, ic, g in r.study["qpoints"]])]
+        if r.study["power"]:
+            fam = p.kit.family("r")
+            prow = []
+            for ref, w in r.study["power"].items():
+                val = p.best.choices[ref].value if ref in p.best.choices else next(
+                    (prm.nominal for prm in kitmod.kit_params(r.kit_deck) if prm.key == ref), None)
+                need = rating_for(w)
+                have = fam.rating(val) if val is not None else None
+                ok = "—" if have is None else ("yes" if have >= need else "NO")
+                prow.append((ref, value(val, "r") if val else "—", f"{w * 1e3:.3g} mW",
+                             watts_text(need), watts_text(have) if have else "—", ok))
+            blocks += [B(h, "Resistor power ratings"),
+                       B("p", f"Quiescent dissipation at the worst corner; the rating "
+                              f"needed is the smallest standard size at least "
+                              f"{POWER_DERATING:g}× that."),
+                       B("table", header=["Resistor", "Value", "Dissipation", "Rating needed",
+                                          "Kit part", "OK"], rows=prow)]
+    return blocks
 
 
 def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
@@ -496,6 +663,8 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         blocks.append(B("p", "No resistor, capacitor or inductor values need choosing: "
                              "every part is fixed by the handout (transistors, ICs, "
                              "sources). The table above is the predicted performance."))
+    elif spec.objective == "margin":
+        blocks += _design_blocks(r, h)
     else:
         blocks += [B(h, "Component selection"),
                    B("p", f"Parts come from: {p.kit.name}. Rather than rounding "
@@ -557,7 +726,11 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         blocks += [B(h, "Tolerance analysis"),
                    B("p", f"{r.mc['n']} Monte Carlo builds varied "
                           f"{', '.join(varied[:-1])} and {varied[-1]}. "
-                          f"{r.mc['yield']:.0%} of builds met every requirement."),
+                          f"{r.mc['yield']:.0%} of builds met every requirement"
+                          + ("" if not r.mc_corners else
+                             " as written; at the corners: " + "; ".join(
+                                 f"{lb} {y:.0%}" for lb, y in r.mc_corners.items()))
+                          + "."),
                    B("table", header=["Measurement", "Mean", "90% of builds",
                                       "Builds in spec"], rows=mrows)]
 
@@ -691,6 +864,7 @@ class Lab:
     title: str
     parts: list               # [{title, deck, spec, fix}]
     notes: list = field(default_factory=list)
+    kit: Path | None = None   # the lab's own kit file, relative to the lab file
 
 
 def load_lab(path) -> Lab:
@@ -706,7 +880,8 @@ def load_lab(path) -> Lab:
     if not parts:
         raise ValueError(f"{path}: a lab file needs at least one entry under 'parts'")
     return Lab(title=data.get("title", path.stem), parts=parts,
-               notes=[" ".join(str(n).split()) for n in data.get("notes", [])])
+               notes=[" ".join(str(n).split()) for n in data.get("notes", [])],
+               kit=(path.parent / data["kit"]).resolve() if data.get("kit") else None)
 
 
 def compose_lab(lab: Lab, results: list) -> list:
@@ -735,6 +910,8 @@ def write_lab(lab: Lab, results: list, out: Path, docx: bool = True) -> dict:
 def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
             workers: int = 8) -> tuple:
     lab = load_lab(path)
+    if kit is None and lab.kit:
+        kit = kitmod.load_kit(lab.kit)
     results = [analyse(specfile.load(part["spec"]),
                        part["deck"].read_text(encoding="utf-8"),
                        title=part["title"], out=out, kit=kit, fixed=part["fix"],
@@ -765,16 +942,21 @@ def _cli(argv=None) -> int:
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    kit = kitmod.load_kit(a.kit)
+    # A lab file may name its own kit; --kit overrides it.
+    kit = kitmod.load_kit(a.kit) if (a.kit or not a.lab) else None
     if a.lab:
         lab, results = run_lab(a.lab, out, kit=kit, mc_n=a.mc, seed=a.seed,
                                workers=a.workers)
         paths = write_lab(lab, results, out, docx=not a.no_docx)
         for part, r in zip(lab.parts, results, strict=True):
-            bad = [m.title for m in r.spec.specs if not m.limits.ok(r.pick.ideal[m.name])]
+            # Judge what will be built: the kit build, at every corner it must meet.
+            judged = [r.pick.best.values or {}, *r.pick.best.corners.values()]
+            bad = sorted({m.title for v in judged for m in r.spec.specs
+                          if m.name in v and not m.limits.ok(v[m.name])})
             yld = f", Monte Carlo {r.mc['yield']:.0%}" if r.mc else ""
+            where = f" at {1 + len(r.pick.best.corners)} conditions" if r.pick.best.corners else ""
             print(f"{part['title']}: {len(r.spec.specs) - len(bad)}/{len(r.spec.specs)} "
-                  f"rows as expected{yld}" + (f"  MISSES: {', '.join(bad)}" if bad else ""))
+                  f"checks pass{where}{yld}" + (f"  MISSES: {', '.join(bad)}" if bad else ""))
     else:
         spec = specfile.load(a.spec)
         r = analyse(spec, Path(a.deck).read_text(encoding="utf-8"),

@@ -1,0 +1,27 @@
+# EE 346 Exp. 8 pre-lab:
+#   python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8
+title: EE 346 Experiment 8 — Design of a Common-Emitter Biasing Circuit (pre-lab)
+
+# Parts come from the real kit: quantities and power ratings respected.
+kit: ../../kits/3306L.yaml
+
+notes:
+  - >
+    The starting design is the course's worked example ("Notes on CE-ED
+    amplifier design"): VCC = 20 V, RB1 = 47k, RB2 = 10k, RE = 1k, RL = 4.7k.
+    Hand calculations (step 2 of the ten-step method) are not automated; the
+    report sets them beside simulation.
+  - >
+    2N2222 model parameters are the handout's (part B). The beta range
+    100-300 is a placeholder pending the datasheet and Exp. 7 measurements;
+    change it in ce_amp.yaml.
+  - >
+    "No distortion" is checked as headroom: V_CE stays at least 1 V out of
+    saturation and the voltage across RL at least 1 V out of cutoff, over the
+    whole 10 Vp-p swing, at both extremes.
+
+parts:
+  - title: CE amplifier with emitter feedback (Figure 1)
+    deck: ce_amp.cir
+    spec: ce_amp.yaml
+    fix: [RL, Cb]

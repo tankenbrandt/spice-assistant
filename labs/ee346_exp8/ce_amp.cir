@@ -1,0 +1,18 @@
+CE amplifier with emitter feedback -- EE 346 Exp. 8 (design to spec)
+* Starting point: the course's worked design ("Notes on CE-ED amplifier
+* design"): VCC = 20 V, RB1 = 47k, RB2 = 10k, RE = 1k, RL = 4.7k (given).
+* Gain ~ RL/RE = 4.7. The spec file holds the handout's requirements.
+Vcc vcc 0 DC 20
+* 1 kHz test signal. Its amplitude is set by the spec's analysis so the
+* output is 10 Vp-p whatever this design's gain turns out to be.
+Vin in 0 DC 0 AC 1 SIN(0 1 1k)
+Cb in b 10u
+RB1 vcc b 47k
+RB2 b 0 10k
+RL vcc out 4.7k
+RE e 0 1k
+Q1 out b e Q2N2222
+* 2N2222 parameters from the handout (Exp. 8, part B); BF is the corner's beta.
+.model Q2N2222 NPN(BF=200 BR=3.9 IS=2.7E-14 RB=30 RC=1.9 RE=0.1 VAF=317
++ TF=0.3n TR=144n CJE=23.6p VJE=0.88 CJC=9.44p VJC=0.56 EG=1.11)
+.end

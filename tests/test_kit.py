@@ -155,3 +155,66 @@ def test_a_circuit_of_kit_values_is_left_alone():
     p = kit.pick(specs.load(PROJECT_DIR / "specs_lib" / "lab_clipper.yaml"), deck)
     assert p.best.choices["R1"].value == 15e3
     assert p.sims == 1
+
+
+# ------------------------------------------------------- design mode (Exp. 8)
+
+EXP8 = PROJECT_DIR / "labs" / "ee346_exp8"
+KIT_3306L = PROJECT_DIR / "kits" / "3306L.yaml"
+
+
+def test_a_real_parts_list_carries_quantities_and_ratings():
+    k = kit.load_kit(KIT_3306L)
+    r = k.family("r")
+    assert r.available(10e3) == 2 and r.available(47e3) == 1
+    assert r.available(12e3) == 0 or 12e3 not in r.values
+    assert r.rating(100) == 0.5            # 1/4 W and 1/2 W both on hand
+    assert r.rating(4700) == 0.25
+    assert kit.load_kit().family("r").available(4700) == math.inf   # E-series: unlimited
+
+
+def test_design_mode_offers_every_kit_value_in_range():
+    k = kit.load_kit(KIT_3306L)
+    c = kit.candidates(47e3, "r", k, span=4)
+    vals = [x.value for x in c]
+    assert vals[0] == 47e3                  # the hand value first
+    assert set(vals) == {v for v in k.family("r").values if 47e3 / 4 <= v <= 47e3 * 4}
+
+
+def test_builds_the_kit_cannot_supply_are_skipped():
+    spec = specs.load(EXP8 / "ce_amp.yaml")
+    deck = (EXP8 / "ce_amp.cir").read_text()
+    k = kit.load_kit(KIT_3306L)
+    params = kit.kit_params(deck, ["RL", "Cb"])
+    ev = kit._Evaluator(spec, deck, params, {}, 1, kit=k, base_usage={("r", 4700.0): 1})
+    one = kit.Choice(47e3, (47e3,), "single")
+    assert not ev.in_stock({"RB1": one, "RB2": one})            # only one 47k
+    ten = kit.Choice(10e3, (10e3,), "single")
+    assert ev.in_stock({"RB1": ten, "RB2": ten})                # two 10k
+    big = kit.Choice(4700.0, (4700.0,), "single")
+    assert not ev.in_stock({"RE": big})                         # RL took the only 4.7k
+
+
+def test_margins_are_fractions_of_each_limit():
+    spec = specs.load(EXP8 / "ce_amp.yaml")
+    m = kit.margins({"vout_pp": 10.0, "gain": 4.0, "vce_min": 3.0, "vrl_min": 0.5}, spec)
+    assert m["gain"] == pytest.approx(1.0)          # (4 - 2) / 2
+    assert m["vce_min"] == pytest.approx(2.0)
+    assert m["vrl_min"] == pytest.approx(-0.5)      # outside spec
+
+
+@needs_ngspice
+def test_course_example_saturates_and_one_resistor_fixes_it():
+    """The worked example clips at both extremes; from the real kit the tool
+    moves RB1 47k -> 68k and nothing else, and that build passes both."""
+    spec = specs.load(EXP8 / "ce_amp.yaml")
+    deck = (EXP8 / "ce_amp.cir").read_text()
+    hot = specs.measure(spec, specs.corner_deck(deck, spec.corners[1]))
+    assert hot["vce_min"] < 0.2 and hot["vout_pp"] < 9.0
+    p = kit.pick(spec, deck, kit.load_kit(KIT_3306L), fixed=["RL", "Cb"])
+    assert {k: c.value for k, c in p.best.choices.items()} == \
+        {"RB1": 68e3, "RB2": 10e3, "RE": 1e3}
+    assert p.best.changes == 1 and p.best.score < 0
+    for vals in p.best.corners.values():
+        assert all(m.limits.ok(vals[m.name]) for m in spec.specs)
+    assert 0 < p.passing < p.sims

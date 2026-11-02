@@ -31,6 +31,7 @@ import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 
 import yaml
@@ -59,6 +60,13 @@ UNITS = {"r": "", "c": "F", "l": "H"}   # 15k, 1.5nF: ASCII so a cp1252 console 
 # It costs this much score (2% of a tolerance band), so a pair only wins when
 # it is genuinely closer, not when it ties a single part.
 COMBO_PENALTY = 0.02
+
+# Design mode: each part moved off the student's hand design costs this much
+# headroom (10% of a limit). The hand design is the student's; a change has to
+# buy real margin to be worth making. On EE 346 Exp. 8 this is what picks
+# "47k -> 68k, nothing else" over a three-part rewrite with 3% more headroom
+# and a divider too weak to hold the Q-point against beta.
+CHANGE_PENALTY = 0.10
 
 # Builds that cannot be simulated or measured rank below everything.
 FAILED = math.inf
@@ -92,13 +100,28 @@ def _as_fraction(x) -> float:
 
 @dataclass
 class Family:
-    """One drawer: the values on hand and how far a part may be from its label."""
+    """One drawer: the values on hand and how far a part may be from its label.
+
+    `stock` maps a value to how many of it the kit holds; a value missing from
+    it is unlimited (an E-series range describes what you can buy, not count).
+    `watts` maps a value to the power ratings on hand.
+    """
     letter: str
     values: list[float]
     tol: float
+    stock: dict = field(default_factory=dict)
+    watts: dict = field(default_factory=dict)
 
     def __bool__(self) -> bool:
         return bool(self.values)
+
+    def available(self, value: float) -> float:
+        return self.stock.get(value, math.inf)
+
+    def rating(self, value: float) -> float | None:
+        """The highest power rating on hand for `value`, if the kit says."""
+        r = self.watts.get(value)
+        return max(r) if r else None
 
 
 @dataclass
@@ -124,8 +147,18 @@ def parse_kit(data: dict, source: Path | None = None) -> Kit:
         if "series" in d:
             lo, hi = (_as_value(v) for v in d.get("range", [1, 1e6]))
             values += series_values(d["series"], lo, hi)
+        stock, watts = {}, {}
+        # An exact parts list: [{value: 4.7k, qty: 1, watts: 1/4}, ...]. The
+        # same value may appear twice at different ratings (100 ohm 1/4 W and
+        # 1/2 W); quantities add up.
+        for part in d.get("parts", []):
+            v = _as_value(part["value"])
+            values.append(v)
+            stock[v] = stock.get(v, 0) + int(part.get("qty", 1))
+            if "watts" in part:
+                watts.setdefault(v, []).append(float(Fraction(str(part["watts"]))))
         tol = _as_fraction(d["tol"]) if "tol" in d else 0.05
-        families[letter] = Family(letter, sorted(set(values)), tol)
+        families[letter] = Family(letter, sorted(set(values)), tol, stock, watts)
     combine = tuple(data.get("combine", ("series", "parallel")))
     bad = set(combine) - {"series", "parallel"}
     if bad:
@@ -207,17 +240,25 @@ def _best_recip(values: list[float], target: float):
 
 
 def candidates(target: float, letter: str, kit: Kit, *,
-               singles_only: bool = False) -> list[Choice]:
+               singles_only: bool = False, span: float | None = None) -> list[Choice]:
     """The builds worth simulating for one component, closest first.
 
     The nearest kit value on each side, plus the best two-part combination of
     each allowed kind. A value the kit already holds exactly stays as it is:
     those are the handout's given parts, and they should not move.
+
+    `span` is design mode: every kit value within a factor of `span` of the
+    starting value, singles only, and nothing pinned -- a hand design is a
+    starting point, not a target to round to.
     """
     fam = kit.family(letter)
     if not fam:
         return [Choice(target, (target,), "ideal")]
     vals = fam.values
+    if span:
+        near = [v for v in vals if target / span <= v <= target * span]
+        return [Choice(v, (v,), "single")
+                for v in sorted(near, key=lambda v: abs(math.log(v / target)))]
     exact = [v for v in vals if abs(v - target) <= 1e-6 * target]
     if exact:
         return [Choice(exact[0], (exact[0],), "single")]
@@ -279,9 +320,12 @@ def kit_params(netlist: str, fixed=()) -> list:
 @dataclass
 class Build:
     choices: dict                 # refdes -> Choice
-    values: dict | None = None    # measurement name -> value
+    values: dict | None = None    # measurement name -> value, deck as written
     score: float = FAILED
     error: str | None = None
+    corners: dict = field(default_factory=dict)   # corner label -> values
+    changes: int = 0              # parts moved off the starting design
+    change_cost: float = 0.0      # CHANGE_PENALTY in design mode, else 0
 
     @property
     def combos(self) -> int:
@@ -289,7 +333,7 @@ class Build:
 
     @property
     def rank(self) -> float:
-        return self.score + COMBO_PENALTY * self.combos
+        return self.score + COMBO_PENALTY * self.combos + self.change_cost * self.changes
 
 
 def build_deck(netlist: str, params: list, build: Build, kit: Kit | None = None) -> str:
@@ -338,6 +382,49 @@ def score(values: dict, refs: dict) -> float:
     return math.sqrt(sum(errs) / len(errs)) if errs else 0.0
 
 
+def margins(values: dict, spec) -> dict:
+    """How far inside each limit a reading sits, as a fraction of the limit.
+
+    A two-sided band is scaled by its half-width; a one-sided limit by its own
+    size (gain >= 2 at 3 is a margin of 0.5). Negative means outside spec.
+    """
+    out = {}
+    for m in spec.specs:
+        if m.name not in values:
+            continue
+        lim, v, terms = m.limits, values[m.name], []
+        both = lim.lsl is not None and lim.usl is not None
+        if lim.lsl is not None:
+            s = (lim.usl - lim.lsl) / 2 if both else (abs(lim.lsl) or 1.0)
+            terms.append((v - lim.lsl) / s)
+        if lim.usl is not None:
+            s = (lim.usl - lim.lsl) / 2 if both else (abs(lim.usl) or 1.0)
+            terms.append((lim.usl - v) / s)
+        if terms:
+            out[m.name] = min(terms)
+    return out
+
+
+def margin_score(per_corner: list, spec) -> float:
+    """Design-mode score: lower is better.
+
+    A build that misses any limit at any corner ranks below every build that
+    passes, ordered by how far it misses. Among passing builds, the one whose
+    *smallest* headroom (over the measurements marked `maximize_margin`, at
+    its worst corner) is largest wins -- the design furthest from trouble.
+    """
+    if not per_corner or any(v is None for v in per_corner):
+        return FAILED
+    all_m = [margins(v, spec) for v in per_corner]
+    if any(len(m) < len(spec.specs) for m in all_m):
+        return FAILED
+    worst = min(min(m.values()) for m in all_m)
+    if worst < 0:
+        return 100.0 - worst
+    keys = [m.name for m in spec.specs if m.maximize_margin] or [m.name for m in spec.specs]
+    return -min(m[k] for m in all_m for k in keys)
+
+
 def errors(values: dict, refs: dict) -> dict:
     """Per-measurement error as a fraction of the band half-width."""
     return {n: (values[n] - ref) / scale for n, (ref, scale) in refs.items()
@@ -359,32 +446,61 @@ class Pick:
     singles: Build | None      # best build with no combined parts
     sims: int = 0
     exhaustive: bool = True
+    passing: int | None = None     # design mode: builds that pass at every corner
 
     def deck(self, build: Build | None = None) -> str:
         return build_deck(self.netlist, self.params, build or self.best, self.kit)
 
 
 class _Evaluator:
-    """Simulates builds, once each, in parallel."""
+    """Simulates builds, once each (and once per corner), in parallel."""
 
-    def __init__(self, spec, netlist, params, refs, workers):
+    def __init__(self, spec, netlist, params, refs, workers, kit=None, base_usage=None):
         self.spec, self.netlist, self.params = spec, netlist, params
         self.refs, self.workers = refs, workers
+        self.kit, self.base_usage = kit, base_usage or {}
         self.cache: dict = {}
+
+    def in_stock(self, build: dict) -> bool:
+        """Does the kit hold enough of every part this build uses?"""
+        if self.kit is None:
+            return True
+        use = dict(self.base_usage)
+        for refdes, c in build.items():
+            if c.how == "ideal":
+                continue
+            for part in c.parts:
+                k = (refdes[0].lower(), part)
+                use[k] = use.get(k, 0) + 1
+        return all(n <= self.kit.family(letter).available(v) for (letter, v), n in use.items())
 
     def _run(self, key):
         choices = dict(key)
         b = Build(choices)
+        if self.spec.objective == "margin":
+            nominal = {p.key: p.nominal for p in self.params}
+            b.changes = sum(abs(c.value - nominal[k]) > 1e-9 * nominal[k]
+                            for k, c in choices.items())
+            b.change_cost = CHANGE_PENALTY
         deck = robustness.apply_params(
             self.netlist, self.params, {k: c.value for k, c in choices.items()})
         try:
             b.values = specfile.measure(self.spec, deck)
-            b.score = score(b.values, self.refs)
+            for corner in self.spec.corners:
+                b.corners[corner["label"]] = specfile.measure(
+                    self.spec, specfile.corner_deck(deck, corner))
+            if self.spec.objective == "margin":
+                b.score = margin_score(list(b.corners.values()) or [b.values], self.spec)
+            else:
+                # Closest to target, judged at the worst condition.
+                b.score = max(score(v, self.refs)
+                              for v in [b.values, *b.corners.values()])
         except Exception as exc:          # noqa: BLE001 - a failed build is data
             b.error = f"{type(exc).__name__}: {exc}"
         return key, b
 
     def run(self, builds: list[dict]) -> list[Build]:
+        builds = [b for b in builds if self.in_stock(b)]
         keys = [tuple(sorted(b.items())) for b in builds]
         todo = list(dict.fromkeys(k for k in keys if k not in self.cache))
         if todo:
@@ -404,17 +520,26 @@ def _search(ev: _Evaluator, params: list, cands: dict, max_sims: int):
     if space <= max_sims:
         builds = [dict(zip(keys, combo, strict=True))
                   for combo in itertools.product(*(cands[k] for k in keys))]
-        return min(ev.run(builds), key=lambda b: b.rank), True
+        done = ev.run(builds)
+        if not done:
+            raise ValueError("no combination of these parts is in stock in the kit")
+        return min(done, key=lambda b: b.rank), True
 
-    # Start from every part at its closest candidate; then, a part at a time,
-    # try each of its candidates with the rest held. Stops at a fixed point.
-    current = {k: cands[k][0] for k in keys}
+    # Start from the closest in-stock combination; then, a part at a time, try
+    # each of its candidates with the rest held. Stops at a fixed point.
+    current = next((b for b in (dict(zip(keys, combo, strict=True)) for combo in
+                                itertools.product(*(cands[k] for k in keys)))
+                    if ev.in_stock(b)), None)
+    if current is None:
+        raise ValueError("no combination of these parts is in stock in the kit")
     best = ev.run([current])[0]
     for _ in range(6):
         improved = False
         for k in keys:
-            trials = [{**current, k: c} for c in cands[k]]
-            top = min(ev.run(trials), key=lambda b: b.rank)
+            done = ev.run([{**current, k: c} for c in cands[k]])
+            if not done:
+                continue
+            top = min(done, key=lambda b: b.rank)
             if top.rank < best.rank - 1e-12:
                 best, current, improved = top, dict(top.choices), True
         if not improved:
@@ -423,20 +548,45 @@ def _search(ev: _Evaluator, params: list, cands: dict, max_sims: int):
 
 
 def pick(spec, netlist: str, kit: Kit | None = None, *, fixed=(),
-         singles_only: bool = False, max_sims: int = 400, workers: int = 8) -> Pick:
-    """Find the kit build closest to the spec. See the module docstring."""
+         singles_only: bool = False, max_sims: int = 400, workers: int = 8,
+         span: float = 4.0) -> Pick:
+    """Find the kit build closest to the spec. See the module docstring.
+
+    A spec with `objective: margin` is a design problem: every kit value within
+    a factor of `span` of each starting value is tried, and the build with the
+    most headroom at its worst corner wins.
+    """
     kit = kit or load_kit()
     ideal = specfile.measure(spec, netlist)       # raises if the ideal deck fails
     refs = references(spec, ideal)
     params = kit_params(netlist, fixed)
-    ev = _Evaluator(spec, netlist, params, refs, workers)
+    # Parts held fixed still come out of the drawer: a given 4.7k is one fewer
+    # 4.7k for the rest of the design.
+    searched = {p.key for p in params}
+    base = {}
+    for p in kit_params(netlist):
+        fam = kit.family(p.key[0])
+        if p.key not in searched and p.nominal in fam.values:
+            k = (p.key[0].lower(), p.nominal)
+            base[k] = base.get(k, 0) + 1
+    ev = _Evaluator(spec, netlist, params, refs, workers, kit=kit, base_usage=base)
+    design = spec.objective == "margin"
 
     letter = {p.key: p.key[0] for p in params}
     singles = {p.key: candidates(p.nominal, letter[p.key], kit, singles_only=True)
                for p in params}
     rounded_choice = {k: min(c, key=lambda c, p=p: abs(c.value - p.nominal))
                       for p in params for k, c in [(p.key, singles[p.key])]}
-    rounded = ev.run([rounded_choice])[0]
+    rounded = (ev.run([rounded_choice]) or [Build(rounded_choice,
+                                                  error="not enough of these parts in the kit")])[0]
+
+    if design:
+        wide = {p.key: candidates(p.nominal, letter[p.key], kit, span=span) for p in params}
+        best, exh = _search(ev, params, wide, max_sims)
+        return Pick(spec=spec, netlist=netlist, kit=kit, params=params, ideal=ideal,
+                    refs=refs, best=best, rounded=rounded, singles=None,
+                    sims=len(ev.cache), exhaustive=exh,
+                    passing=sum(b.score < 0 for b in ev.cache.values()))
 
     best_singles, exh1 = _search(ev, params, singles, max_sims)
     if singles_only or not kit.combine:

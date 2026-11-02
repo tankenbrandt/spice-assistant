@@ -444,3 +444,26 @@ def test_unknown_builtin_circuit_lists_the_known_ones():
     import robustness as rb
     with pytest.raises(KeyError, match="ce_bjt_amp"):
         rb.resolve("no_such_circuit")
+
+
+def test_corner_deck_sets_temperature_and_model_parameters():
+    import specs as S
+    deck = "t\nQ1 c b e M\n.model M NPN(IS=1e-14 BF=200\n+ VAF=100)\n.temp 27\n.end\n"
+    out = S.corner_deck(deck, {"temp": 100, "model": {"M.BF": 300, "M.XTB": 1.5}})
+    assert "BF=300" in out and "BF=200" not in out
+    assert "XTB=1.5)" in out                       # added to a card that lacked it
+    assert out.count(".temp") == 1 and ".temp 100" in out
+    assert out.index(".temp 100") < out.index(".end")
+
+
+def test_corners_and_objective_parse():
+    import specs as S
+    spec = S.parse({"corners": [{"temp": 25, "model": {"Q.BF": 100}}], "objective": "margin",
+                    "analyses": {"op": {"command": "op", "vectors": ["v(a)"]}},
+                    "measurements": [{"name": "a", "extract": {"kind": "max", "of": "v(a)"},
+                                      "min": 1, "maximize_margin": True}]})
+    assert spec.objective == "margin" and spec.corners[0]["label"] == "25 C, Q.BF=100"
+    assert spec.measurements[0].maximize_margin
+    with pytest.raises(S.SpecError):
+        S.parse({"corners": [{"label": "x"}], "measurements": [{"name": "a", "expr": "1",
+                                                               "informational": True}]})

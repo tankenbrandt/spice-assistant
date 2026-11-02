@@ -1,0 +1,86 @@
+# EE 346 Exp. 8 -- design a CE amplifier with emitter feedback.
+#
+# The handout's requirements, as checks:
+#   1. 10 Vp-p output with no distortion (no operation near cutoff or
+#      saturation)                       -> output swing, V_CE and V_RL headroom
+#   2. over 25-100 C and beta_min..beta_max -> the two corners below
+#   3. gain |dVo/dVi| >= 2               -> gain
+#   4. VCC <= 20 V                       -> the deck's supply (20 V)
+#   5. standard 10% resistor values      -> parts come from the kit
+#
+# The handout pairs the extremes: low beta with low temperature, high beta
+# with high temperature ("both beta and ICO increase with temperature").
+#
+# BETA RANGE: 100-300 is a PLACEHOLDER pending the 2N2222 datasheet / your
+# Exp. 7 measurements -- the handout says to use both. Change it here.
+
+circuit: ee346_exp8_ce_amp
+description: >
+  Common-emitter amplifier with emitter feedback (Figure 1): RL = 4.7k given,
+  RB1/RB2/RE/VCC chosen so the output swings 10 Vp-p undistorted, gain >= 2,
+  from 25 C at beta min to 100 C at beta max.
+objective: margin
+
+corners:
+  - {label: "25 C, beta min", temp: 25, model: {Q2N2222.BF: 100}}
+  - {label: "100 C, beta max", temp: 100, model: {Q2N2222.BF: 300}}
+
+analyses:
+  swing:
+    # Measure this design's gain at 1 kHz, then drive the input at the
+    # amplitude that should give 5 V peak out -- so the test is always the
+    # handout's 10 Vp-p, whatever gain the design has. Clipping then shows up
+    # as an output short of 10 Vp-p and as lost headroom.
+    options:
+      - ac lin 1 1k 1k
+      - let gain_ac = abs(v(out))
+      - let amp = 5/gain_ac
+      - alter @vin[sin] = [ 0 $&amp 1k ]
+    command: tran 2u 5m
+    vectors: [v(in), v(out), "v(out,e)", "v(vcc,out)"]
+
+measurements:
+  - name: vin_pp
+    label: input needed (Vi p-p)
+    units: V
+    extract: {kind: peak_to_peak, of: v(in), window: last 50%}
+    informational: true
+
+  - name: vout_pp
+    label: output swing
+    units: Vpp
+    extract: {kind: peak_to_peak, of: v(out), window: last 50%}
+    min: 9.8
+    bench: >
+      Set Vi to the p-p value in the results table (1 kHz sine). With CH1 on
+      Vi and CH2 on Vo, DC-coupled, read Vo p-p; it should be 10 Vp-p with
+      both peaks rounded the same (no flat top or bottom).
+
+  - name: gain
+    label: gain |dVo/dVi|
+    units: V/V
+    expr: vout_pp / vin_pp
+    min: 2
+
+  # Distortion = limiting near saturation or cutoff. V_CE (out to emitter)
+  # must stay clear of saturation at the bottom of the swing, and the
+  # voltage across RL (which is IC * RL) must stay clear of zero (cutoff) at
+  # the top. 1 V of headroom each way is the design margin used here.
+  - name: vce_min
+    label: lowest V_CE in the swing
+    units: V
+    extract: {kind: min, of: "v(out,e)", window: last 50%}
+    min: 1.0
+    maximize_margin: true
+    bench: >
+      Put CH1 on the collector (Vo) and CH2 on the emitter; the smallest
+      Vo - VE over the cycle (math channel CH1-CH2) is V_CE min.
+
+  - name: vrl_min
+    label: lowest V across RL (cutoff margin)
+    units: V
+    extract: {kind: min, of: "v(vcc,out)", window: last 50%}
+    min: 1.0
+    maximize_margin: true
+    bench: >
+      VCC minus the highest Vo reading; it should stay above 1 V.

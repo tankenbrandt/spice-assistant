@@ -225,6 +225,7 @@ class Measurement:
     expr: str = ""            # derived measurements only
     informational: bool = False   # measured and reported, but not a spec
     bench: str = ""           # how to take this reading at the bench (lab reports)
+    maximize_margin: bool = False   # design mode: headroom on this decides the build
 
     @property
     def derived(self) -> bool:
@@ -242,6 +243,13 @@ class CircuitSpec:
     analyses: dict = field(default_factory=dict)
     measurements: list = field(default_factory=list)
     source: Path | None = None
+    # Conditions the design must meet spec at, beyond the deck as written:
+    # [{"label": "100 C, beta max", "temp": 100, "model": {"Q2N2222.BF": 300}}].
+    corners: list = field(default_factory=list)
+    # How kit.py ranks builds: "target" (closest to each target value) or
+    # "margin" (furthest inside every limit, at every corner) for design labs
+    # whose specs are limits rather than targets.
+    objective: str = "target"
 
     @property
     def specs(self) -> list:
@@ -331,6 +339,7 @@ def parse(data: dict, source: Path | None = None) -> CircuitSpec:
             analysis=analysis, extract=dict(extract), expr=expr,
             informational=bool(raw.get("informational", False)),
             bench=" ".join(str(raw.get("bench", "")).split()),
+            maximize_margin=bool(raw.get("maximize_margin", False)),
             limits=limits_from(raw, units)))
 
     names = [m.name for m in measurements]
@@ -338,10 +347,62 @@ def parse(data: dict, source: Path | None = None) -> CircuitSpec:
     if dupes:
         raise SpecError(f"duplicate measurement names: {', '.join(sorted(dupes))}")
 
+    corners = []
+    for c in data.get("corners") or []:
+        if not isinstance(c, dict) or not ({"temp", "model"} & set(c)):
+            raise SpecError(f"a corner needs 'temp' and/or 'model' settings: {c!r}")
+        corners.append({"label": str(c.get("label") or _corner_label(c)),
+                        "temp": None if c.get("temp") is None else float(c["temp"]),
+                        "model": {str(k): v for k, v in (c.get("model") or {}).items()}})
+    objective = str(data.get("objective", "target"))
+    if objective not in ("target", "margin"):
+        raise SpecError(f"objective must be 'target' or 'margin', not {objective!r}")
+
     return CircuitSpec(
         name=str(data.get("circuit") or (source.stem if source else "circuit")),
         description=str(data.get("description", "")),
-        analyses=analyses, measurements=measurements, source=source)
+        analyses=analyses, measurements=measurements, source=source,
+        corners=corners, objective=objective)
+
+
+def _corner_label(c: dict) -> str:
+    bits = [f"{c['temp']:g} C"] if c.get("temp") is not None else []
+    bits += [f"{k}={v}" for k, v in (c.get("model") or {}).items()]
+    return ", ".join(bits)
+
+
+def corner_deck(netlist: str, corner: dict | None) -> str:
+    """`netlist` at a corner: its temperature and model parameters set.
+
+    Model keys are MODEL.PARAM ("Q2N2222.BF"). A parameter the card lacks is
+    added to it, so a corner can set what the model left at its default.
+    """
+    if not corner:
+        return netlist
+    lines = [ln for ln in netlist.splitlines()
+             if not re.match(r"(?i)^\s*\.temp\b", ln)]
+    text = "\n".join(lines)
+    for key, value in (corner.get("model") or {}).items():
+        model, _, param = key.partition(".")
+        if not param:
+            raise SpecError(f"corner model key {key!r} must be MODEL.PARAM")
+        head = re.search(r"(?im)^\s*\.model\s+" + re.escape(model) + r"\b[^\n]*(?:\n\+[^\n]*)*",
+                         text)
+        if not head:
+            raise SpecError(f"corner sets {key!r} but the deck has no .model {model}")
+        card = head.group(0)
+        pat = re.compile(r"(?i)\b" + re.escape(param) + r"\s*=\s*[^\s)]+")
+        if pat.search(card):
+            new = pat.sub(f"{param}={value}", card, count=1)
+        else:
+            new = card.rstrip()
+            new = new[:-1] + f" {param}={value})" if new.endswith(")") else new + f" {param}={value}"
+        text = text[:head.start()] + new + text[head.end():]
+    if corner.get("temp") is not None:
+        tl = f".temp {corner['temp']:g}"
+        end = re.search(r"(?im)^\s*\.end\s*$", text)
+        text = (text[:end.start()] + tl + "\n" + text[end.start():]) if end else text + "\n" + tl
+    return text.rstrip() + "\n"
 
 
 def load(path) -> CircuitSpec:

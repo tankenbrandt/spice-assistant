@@ -1,0 +1,39 @@
+# Resistors in the EE 3306L lab kit, from the course's parts list
+# ("Resistors in 3306L lab kit"). Quantities and power ratings are real: the
+# picker will not use two 47k resistors when the kit holds one, and the lab
+# report checks each resistor's dissipation against its rating.
+#
+# Tolerance: the list gives no tolerance band. The Exp. 8 handout calls them
+# "standard nominal 10% resistance values", so Monte Carlo uses 10%.
+
+name: EE 3306L lab kit (resistors)
+
+resistors:
+  tol: 10%
+  parts:
+    - {value: 100, watts: 1/4, qty: 1}
+    - {value: 100, watts: 1/2, qty: 1}
+    - {value: 270, watts: 1/2, qty: 1}
+    - {value: 330, watts: 1/4, qty: 1}
+    - {value: 390, watts: 1/4, qty: 1}
+    - {value: 680, watts: 1/4, qty: 1}
+    - {value: 1k, watts: 1/4, qty: 2}
+    - {value: 2.2k, watts: 1/2, qty: 1}
+    - {value: 4.7k, watts: 1/4, qty: 1}
+    - {value: 10k, watts: 1/4, qty: 2}
+    - {value: 15k, watts: 1/4, qty: 1}
+    - {value: 27k, watts: 1/4, qty: 1}
+    - {value: 47k, watts: 1/4, qty: 1}
+    - {value: 68k, watts: 1/4, qty: 1}
+    - {value: 100k, watts: 1/4, qty: 1}
+    - {value: 150k, watts: 1/4, qty: 1}
+    - {value: 390k, watts: 1/4, qty: 1}
+    - {value: 1meg, watts: 1/4, qty: 1}
+
+# Students supply 10 uF coupling capacitors (Exp. 8 equipment list); the
+# picker leaves capacitors at their given values.
+capacitors:
+  values: [10u]
+  tol: 20%
+
+combine: [series, parallel]

@@ -155,3 +155,24 @@ def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
     from docx import Document
     doc = Document(str(paths["docx"]))
     assert len(doc.inline_shapes) == 10             # a timing diagram and a test set per part
+
+
+def test_power_rating_is_the_next_standard_size_at_twice_the_dissipation():
+    assert lr.rating_for(0.010) == 1 / 8
+    assert lr.rating_for(0.070) == 1 / 4
+    assert lr.rating_for(0.2) == 1 / 2
+    assert lr.watts_text(0.25) == "1/4 W" and lr.watts_text(2) == "2 W"
+
+
+@needs_ngspice
+def test_design_lab_report_compares_both_designs_at_the_extremes(tmp_path):
+    pytest.importorskip("docx")
+    pytest.importorskip("matplotlib")
+    lab, results = lr.run_lab(PROJECT_DIR / "labs" / "ee346_exp8" / "lab.yaml", tmp_path, mc_n=20)
+    r = results[0]
+    assert r.pick.kit.name.startswith("EE 3306L")              # the lab's own kit
+    md = lr.write_lab(lab, results, tmp_path)["md"].read_text(encoding="utf-8")
+    assert "Both designs at the extremes" in md and "✗" in md and "✓" in md
+    assert "Q-point at the extremes" in md and "Resistor power ratings" in md
+    qp = r.study["qpoints"]
+    assert len(qp) == 2 and all(2 < vce < 15 for _, _, _, _, vce, _, _ in qp)
