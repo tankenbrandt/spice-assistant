@@ -1,0 +1,49 @@
+# EE 347 Exp. 4. Each measurement is one truth-table row, read at a time
+# when the deck's stepped inputs hold that row. Logic bands: high >= 90% of
+# VDD, low <= 10%.
+circuit: ee347_fig4_3
+description: Static CMOS 2-input NOR from CD4007 transistors, VDD = 5 V.
+analyses:
+  tran:
+    command: tran 2u 4m
+    vectors:
+    - v(a)
+    - v(b)
+    - v(y)
+measurements:
+- name: y00
+  label: Y (A = 0 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0005
+  min: 4.5
+  bench: Set A = 0 V and B = 0 V (DC); read Y with the DMM.
+- name: y05
+  label: Y (A = 0 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0015
+  max: 0.5
+  bench: Set A = 0 V and B = 5 V (DC); read Y with the DMM.
+- name: y50
+  label: Y (A = 5 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0025
+  max: 0.5
+  bench: Set A = 5 V and B = 0 V (DC); read Y with the DMM.
+- name: y55
+  label: Y (A = 5 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0035
+  max: 0.5
+  bench: Set A = 5 V and B = 5 V (DC); read Y with the DMM.

@@ -1,0 +1,97 @@
+# EE 347 Exp. 4. Each measurement is one truth-table row, read at a time
+# when the deck's stepped inputs hold that row. Logic bands: high >= 90% of
+# VDD, low <= 10%.
+# Dynamic nodes may overshoot VDD slightly (clock feedthrough), so highs
+# have no upper limit.
+circuit: ee347_fig4_4
+description: 'Dynamic CMOS 2-input NOR: phi low pre-charges Y to VDD; phi high evaluates Y
+  = (A + B)''. VDD = 5 V, 1 kHz clock.'
+analyses:
+  tran:
+    command: tran 2u 4m
+    vectors:
+    - v(phi)
+    - v(a)
+    - v(b)
+    - v(y)
+measurements:
+- name: y_phi0_00
+  label: Y (phi = 0 V, A = 0 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0004
+  min: 4.5
+  bench: Set A = 0 V, B = 0 V, clock phi at 1 kHz. Read Y on the scope during pre-charge (phi
+    low).
+- name: y_phi5_00
+  label: Y (phi = 5 V, A = 0 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0009
+  min: 4.5
+  bench: Set A = 0 V, B = 0 V, clock phi at 1 kHz. Read Y on the scope during evaluate (phi
+    high).
+- name: y_phi0_05
+  label: Y (phi = 0 V, A = 0 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0014
+  min: 4.5
+  bench: Set A = 0 V, B = 5 V, clock phi at 1 kHz. Read Y on the scope during pre-charge (phi
+    low).
+- name: y_phi5_05
+  label: Y (phi = 5 V, A = 0 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0019
+  max: 0.5
+  bench: Set A = 0 V, B = 5 V, clock phi at 1 kHz. Read Y on the scope during evaluate (phi
+    high).
+- name: y_phi0_50
+  label: Y (phi = 0 V, A = 5 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0024000000000000002
+  min: 4.5
+  bench: Set A = 5 V, B = 0 V, clock phi at 1 kHz. Read Y on the scope during pre-charge (phi
+    low).
+- name: y_phi5_50
+  label: Y (phi = 5 V, A = 5 V, B = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0029
+  max: 0.5
+  bench: Set A = 5 V, B = 0 V, clock phi at 1 kHz. Read Y on the scope during evaluate (phi
+    high).
+- name: y_phi0_55
+  label: Y (phi = 0 V, A = 5 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0034000000000000002
+  min: 4.5
+  bench: Set A = 5 V, B = 5 V, clock phi at 1 kHz. Read Y on the scope during pre-charge (phi
+    low).
+- name: y_phi5_55
+  label: Y (phi = 5 V, A = 5 V, B = 5 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0039
+  max: 0.5
+  bench: Set A = 5 V, B = 5 V, clock phi at 1 kHz. Read Y on the scope during evaluate (phi
+    high).

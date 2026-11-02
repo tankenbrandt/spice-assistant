@@ -577,6 +577,24 @@ python labreport.py reference/inv_active_lowpass.cir --spec specs_lib/inv_active
   table with the expected value, the range 90% of real builds land in, and
   an empty *Measured* column.
 
+A handout with several circuits goes in one document. A lab file lists the
+parts, and each gets its own heading. `labs/ee347_exp4/` is a real one: EE 347
+Exp. 4 (static and dynamic CMOS gates). It has five figures, each spec a
+truth table with one measurement per row and its bench step written in. The
+4001B is built transistor by transistor from the course's W/L ratios. Logic
+transients get a stacked timing diagram like the handout's:
+
+```bash
+python labreport.py --lab labs/ee347_exp4/lab.yaml --out runs/ee347_exp4
+```
+
+Two of its results are the handout's own questions. The NMOS pass-gate mux
+only pulls X to 5.19 V from an 8 V supply (threshold plus body effect),
+while the transmission-gate version reaches 8.0 V. Building the domino gate's
+stimulus also surfaced a timing rule. Changing the inputs on the same clock
+edge that ends evaluation races the evaluate transistor and glitches X low,
+so the inputs change 50 µs into pre-charge.
+
 It writes `report.docx`, `report.md`, the kit-build deck and the figures. It
 needs `python-docx` and `matplotlib` (both in `requirements-dev.txt`). Like
 everything except generation, it makes no API calls.

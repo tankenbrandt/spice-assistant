@@ -1,0 +1,100 @@
+# EE 347 Exp. 4. Each measurement is one truth-table row, read at a time
+# when the deck's stepped inputs hold that row. Logic bands: high >= 90% of
+# VDD, low <= 10%.
+# Clock periods 1-4 hold ABCD = 1100, 0011, 1010, 0101 (pre-lab 2).
+circuit: ee347_fig4_5
+description: 'Domino AND-OR-INVERT: X = (AB + CD)'' on the dynamic node, Y = X'' = AB + CD
+  through a 4001B. VDD = 5 V, 1 kHz clock.'
+analyses:
+  tran:
+    command: tran 2u 4m
+    vectors:
+    - v(clk)
+    - v(a)
+    - v(b)
+    - v(c)
+    - v(d)
+    - v(x)
+    - v(y)
+measurements:
+- name: x_pre
+  label: X during pre-charge (phi = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0004
+  min: 4.5
+  bench: 'Hold phi low: X should sit at VDD whatever ABCD is.'
+- name: x_1100
+  label: X (ABCD = 1100, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0009
+  max: 0.5
+  bench: Set ABCD = 1100 (1 = 5 V). Read X during evaluate (phi high).
+- name: y_1100
+  label: Y (ABCD = 1100, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0009
+  min: 4.5
+  bench: 'Same inputs: read Y = AB + CD during evaluate.'
+- name: x_0011
+  label: X (ABCD = 0011, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0019
+  max: 0.5
+  bench: Set ABCD = 0011 (1 = 5 V). Read X during evaluate (phi high).
+- name: y_0011
+  label: Y (ABCD = 0011, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0019
+  min: 4.5
+  bench: 'Same inputs: read Y = AB + CD during evaluate.'
+- name: x_1010
+  label: X (ABCD = 1010, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0029
+  min: 4.5
+  bench: Set ABCD = 1010 (1 = 5 V). Read X during evaluate (phi high).
+- name: y_1010
+  label: Y (ABCD = 1010, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0029
+  max: 0.5
+  bench: 'Same inputs: read Y = AB + CD during evaluate.'
+- name: x_0101
+  label: X (ABCD = 0101, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0039
+  min: 4.5
+  bench: Set ABCD = 0101 (1 = 5 V). Read X during evaluate (phi high).
+- name: y_0101
+  label: Y (ABCD = 0101, evaluate)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0039
+  max: 0.5
+  bench: 'Same inputs: read Y = AB + CD during evaluate.'

@@ -53,9 +53,16 @@ def part_text(c: kitmod.Choice, letter: str) -> str:
     return f"{joiner.join(value(p, letter) for p in c.parts)} in {c.how}"
 
 
+# Below this a voltage is a numerical zero, not a reading: "2.974e-09 V" on a
+# logic low is noise from the solver's tolerances.
+NEGLIGIBLE_V = 1e-6
+
+
 def num(v, units: str = "", sig: int = 4) -> str:
     if v is None:
         return "—"
+    if units == "V" and abs(v) < NEGLIGIBLE_V:
+        v = 0.0
     return f"{v:.{sig}g}{(' ' + units) if units else ''}"
 
 
@@ -70,7 +77,7 @@ def theory(m) -> str:
 
 @dataclass
 class Block:
-    kind: str                 # h1 h2 h3 p bullets steps table image code
+    kind: str                 # h1-h4 p bullets steps table image code
     text: str = ""
     items: list = field(default_factory=list)
     header: list = field(default_factory=list)
@@ -85,7 +92,7 @@ def _md_cell(s) -> str:
 def render_md(blocks: list, rel_to: Path) -> str:
     out = []
     for b in blocks:
-        if b.kind in ("h1", "h2", "h3"):
+        if b.kind in ("h1", "h2", "h3", "h4"):
             out.append("#" * int(b.kind[1]) + " " + b.text)
         elif b.kind == "p":
             out.append(b.text)
@@ -115,7 +122,7 @@ def render_docx(blocks: list, path: Path) -> None:
     for b in blocks:
         if b.kind == "h1":
             doc.add_heading(b.text, level=0)
-        elif b.kind in ("h2", "h3"):
+        elif b.kind in ("h2", "h3", "h4"):
             doc.add_heading(b.text, level=int(b.kind[1]) - 1)
         elif b.kind == "p":
             doc.add_paragraph(b.text)
@@ -147,18 +154,33 @@ def render_docx(blocks: list, path: Path) -> None:
 
 # ------------------------------------------------------------------- figures
 
-def figures(spec, ideal_deck: str, kit_deck: str, out: Path, stem: str) -> list:
-    """One PNG per analysis: the ideal trace dashed, the kit build solid."""
+# A transient with this many vectors is a logic timing diagram: one strip per
+# signal, stacked on a shared time axis, the way the handouts draw them.
+TIMING_MIN_VECTORS = 4
+
+
+def figures(spec, ideal_deck: str, kit_deck: str | None, out: Path, stem: str) -> list:
+    """One PNG per analysis: the ideal trace dashed, the kit build solid.
+
+    `kit_deck=None` means nothing was changed from the ideal circuit, so each
+    signal is drawn once.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.ticker import EngFormatter
 
     ideal = plot.capture(ideal_deck, spec.analyses)
-    built = plot.capture(kit_deck, spec.analyses)
+    built = plot.capture(kit_deck, spec.analyses) if kit_deck else None
     colors = plot.THEMES["light"]["series"]
     made = []
     for aname, (xs, vecs) in ideal.items():
+        if (spec.analyses[aname].command.split()[0].lower() == "tran"
+                and len(vecs) >= TIMING_MIN_VECTORS):
+            made.append((aname, _timing(plt, EngFormatter, xs, vecs,
+                                        built[aname] if built else None,
+                                        out / f"{stem}_{aname}.png")))
+            continue
         groups: dict = {}
         for vname in vecs:
             groups.setdefault(plot.unit_family(vname), []).append(vname)
@@ -166,12 +188,15 @@ def figures(spec, ideal_deck: str, kit_deck: str, out: Path, stem: str) -> list:
                                  sharex=True, squeeze=False)
         xlog = plot.aname_is_swept_log(aname, spec)
         for ax, ((family, unit), names) in zip(axes[:, 0], groups.items(), strict=True):
-            bxs, bvecs = built[aname]
             for i, n in enumerate(names):
                 col = colors[i % len(colors)]
-                ax.plot(bxs, bvecs[n], color=col, lw=1.6, label=f"{n} (kit build)")
-                ax.plot(xs, vecs[n], color=col, lw=1.0, ls="--", alpha=0.7,
-                        label=f"{n} (ideal)")
+                if built:
+                    bxs, bvecs = built[aname]
+                    ax.plot(bxs, bvecs[n], color=col, lw=1.6, label=f"{n} (kit build)")
+                    ax.plot(xs, vecs[n], color=col, lw=1.0, ls="--", alpha=0.7,
+                            label=f"{n} (ideal)")
+                else:
+                    ax.plot(xs, vecs[n], color=col, lw=1.6, label=n)
             ax.set_ylabel(f"{family} ({unit})" if unit and unit != family else family)
             ax.grid(True, color="#e1e0d9", lw=0.6)
             ax.legend(fontsize=8, loc="best", frameon=False)
@@ -186,6 +211,38 @@ def figures(spec, ideal_deck: str, kit_deck: str, out: Path, stem: str) -> list:
         plt.close(fig)
         made.append((aname, path))
     return made
+
+
+def _timing(plt, EngFormatter, xs, vecs, built, path: Path) -> Path:
+    names = list(vecs)
+    fig, axes = plt.subplots(len(names), 1, figsize=(6.5, 0.85 * len(names) + 0.6),
+                             sharex=True, squeeze=False)
+    ink = plot.THEMES["light"]["ink"]
+    accent = plot.THEMES["light"]["series"][0]
+    top = max(max(v) for v in vecs.values())
+    rail = max(vecs[names[0]])           # the first strip is a driven input: a clean level
+    for ax, n in zip(axes[:, 0], names, strict=True):
+        if built:
+            ax.plot(built[0], built[1][n], color=accent, lw=1.4)
+            ax.plot(xs, vecs[n], color=ink, lw=0.9, ls="--", alpha=0.6)
+        else:
+            ax.plot(xs, vecs[n], color=accent if n == names[-1] else ink, lw=1.3)
+        ax.set_ylim(-0.1 * top, 1.15 * top)
+        ax.set_yticks([0, rail])
+        ax.yaxis.set_major_formatter(EngFormatter(unit="V", places=0))
+        ax.tick_params(labelsize=7)
+        ax.set_ylabel(n.upper().removeprefix("V(").removesuffix(")"), rotation=0,
+                      ha="right", va="center", fontsize=9)
+        ax.grid(True, axis="x", color="#e1e0d9", lw=0.6)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+    last = axes[-1, 0]
+    last.set_xlabel("time")
+    last.xaxis.set_major_formatter(EngFormatter(unit="s"))
+    fig.tight_layout(h_pad=0.2)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path
 
 
 # ------------------------------------------------------------- the deck, read
@@ -206,7 +263,14 @@ def sources(deck: str) -> list[dict]:
         r = rest.lower()
         sin = re.search(r"sin\s*\(([^)]*)\)", r)
         pulse = re.search(r"pulse\s*\(([^)]*)\)", r)
-        if sin:
+        pwl = re.search(r"pwl\s*\(([^)]*)\)", r)
+        if pwl:
+            levels = sorted({specfile_value(v) for v in pwl.group(1).split()[1::2]})
+            text = ("logic input, switched between "
+                    + " and ".join(num(v, "V", 3) for v in levels)
+                    + " row by row (DC supply or a jumper to VDD/ground)")
+            out.append({"name": name, "kind": "logic", "text": text, "nodes": (npos, nneg)})
+        elif sin:
             a = (sin.group(1).split() + ["0"] * 3)[:3]
             off, amp, f = (specfile_value(x) for x in a)
             text = (f"function generator, sine: {num(amp, 'V', 3)} peak "
@@ -259,6 +323,8 @@ def _vector_words(vec: str, sweep: str = "") -> str:
 
 def instruction(m, spec) -> str:
     """One measurement, as something to do with a scope or meter."""
+    if m.bench:
+        return f"{m.title}: {m.bench}"
     if m.derived:
         return f"{m.title}: calculate from the readings above ({m.expr})."
     analysis = spec.analyses[m.analysis]
@@ -352,69 +418,95 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
     kit = kit or kitmod.load_kit()
     p = kitmod.pick(spec, netlist, kit, fixed=fixed, singles_only=singles_only,
                     workers=workers)
-    kit_deck = p.deck()
+    kit_deck = p.deck() if p.params else netlist
     mc = None
     if mc_n:
         mc = robustness.monte_carlo(spec, kit_deck, mc_n, seed=seed, vary_temp=False,
                                     workers=workers, passive_tol=kit.passive_tol())
-    figs = figures(spec, netlist, kit_deck, out, spec.name) if make_figures else []
+    figs = []
+    if make_figures:
+        figs = figures(spec, netlist, kit_deck if p.params else None, out, spec.name)
+    supplies = sources(kit_deck)
+    # A DC checkpoint means "input off". With stepped logic inputs or a pulse
+    # train there is no such state; the truth-table rows are the checkpoints.
+    stepped = re.search(r"(?i)\b(pwl|pulse)\s*\(", _deck_body(kit_deck))
     return LabResult(spec=spec, title=title, pick=p, kit_deck=kit_deck, mc=mc,
-                     op_ideal=_nodes(netlist), op_kit=_nodes(kit_deck),
-                     figures=figs, supplies=sources(kit_deck))
+                     op_ideal=None if stepped else _nodes(netlist),
+                     op_kit=None if stepped else _nodes(kit_deck),
+                     figures=figs, supplies=supplies)
 
 
 # ---------------------------------------------------------------- the report
 
-def compose(r: LabResult) -> list:
+def _range(br, units: str) -> str:
+    if not br:
+        return "—"
+    lo, hi = num(br[0], units), num(br[1], units)
+    if lo == hi:
+        return lo
+    return f"{lo.removesuffix(' ' + units) if units else lo} to {hi}"
+
+
+def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
+    """The report as blocks. `top` is the heading level of the three sections,
+    so a multi-part lab can nest them under one heading per part."""
     spec, p = r.spec, r.pick
     B = Block
-    today = date.today()
-    blocks = [B("h1", r.title),
-              B("p", f"Circuit: {spec.name}. Pre-lab prepared "
-                     f"{today:%B} {today.day}, {today.year}. "
-                     "Every value below is from an ngspice simulation.")]
+    H, h = f"h{top}", f"h{top + 1}"
+    blocks = []
+    if header:
+        today = date.today()
+        blocks += [B("h1", r.title),
+                   B("p", f"Circuit: {spec.name}. Pre-lab prepared "
+                          f"{today:%B} {today.day}, {today.year}. "
+                          "Every value below is from an ngspice simulation.")]
     if spec.description:
         blocks.append(B("p", " ".join(spec.description.split())))
 
     # ---- Simulation
-    blocks += [B("h2", "Simulation"),
-               B("p", "The circuit was first simulated with the ideal (theory) "
-                      "component values, to confirm the design meets its "
-                      "requirements before any part is chosen.")]
-    comp_rows = [(prm.key, value(prm.nominal, prm.key[0], 5)) for prm in p.params]
-    if comp_rows:
-        blocks.append(B("table", header=["Component", "Ideal value"], rows=comp_rows))
+    blocks += [B(H, "Simulation")]
+    if p.params:
+        blocks.append(B("p", "The circuit was first simulated with the ideal (theory) "
+                             "component values, to confirm the design meets its "
+                             "requirements before any part is chosen."))
+        blocks.append(B("table", header=["Component", "Ideal value"],
+                        rows=[(prm.key, value(prm.nominal, prm.key[0], 5))
+                              for prm in p.params]))
     blocks.append(B("table", header=["Measurement", "Theory / requirement",
-                                     "Simulated (ideal)", "In spec"],
+                                     "Simulated", "In spec"],
                     rows=[(m.title, theory(m), num(p.ideal.get(m.name), m.units),
                            "yes" if m.limits.ok(p.ideal[m.name]) else "NO")
                           for m in spec.specs]))
     for aname, path in r.figures:
-        blocks.append(B("image", path=path,
-                        text=f"Figure: {aname} analysis. Dashed: ideal values; "
-                             f"solid: the kit build from the Design section."))
-    blocks.append(B("p", "Netlist simulated (ideal values):"))
+        what = ("Dashed: ideal values; solid: the kit build from the Design section."
+                if p.params else "Simulated waveforms.")
+        blocks.append(B("image", path=path, text=f"Figure: {spec.name}, {aname} "
+                                                  f"analysis. {what}"))
+    blocks.append(B("p", "Netlist simulated:" if not p.params
+                    else "Netlist simulated (ideal values):"))
     blocks.append(B("code", text=_deck_body(p.netlist)))
 
     # ---- Design
-    blocks += [B("h2", "Design"), B("h3", "Component selection")]
+    blocks += [B(H, "Design")]
     if not p.params:
-        blocks.append(B("p", "Every component is a given value from the handout, "
-                             "or part of a device model; nothing needs choosing."))
+        blocks.append(B("p", "No resistor, capacitor or inductor values need choosing: "
+                             "every part is fixed by the handout (transistors, ICs, "
+                             "sources). The table above is the predicted performance."))
     else:
-        blocks.append(B("p", f"Parts come from: {p.kit.name}. Rather than rounding "
-                             f"each value on its own, {p.sims} candidate builds "
-                             f"(nearest kit values, and two-part series/parallel "
-                             f"combinations) were simulated, and the build whose "
-                             f"measurements land closest to the requirements was "
-                             f"chosen. Values already in the kit are kept as given."))
-        blocks.append(B("table", header=["Component", "Ideal", "Kit part(s)",
-                                         "Built value", "Difference"],
-                        rows=[(prm.key, value(prm.nominal, prm.key[0], 5),
-                               part_text(p.best.choices[prm.key], prm.key[0]),
-                               value(p.best.choices[prm.key].value, prm.key[0], 4),
-                               f"{(p.best.choices[prm.key].value - prm.nominal) / prm.nominal:+.1%}")
-                              for prm in p.params]))
+        blocks += [B(h, "Component selection"),
+                   B("p", f"Parts come from: {p.kit.name}. Rather than rounding "
+                          f"each value on its own, {p.sims} candidate builds "
+                          f"(nearest kit values, and two-part series/parallel "
+                          f"combinations) were simulated, and the build whose "
+                          f"measurements land closest to the requirements was "
+                          f"chosen. Values already in the kit are kept as given."),
+                   B("table", header=["Component", "Ideal", "Kit part(s)",
+                                      "Built value", "Difference"],
+                     rows=[(prm.key, value(prm.nominal, prm.key[0], 5),
+                            part_text(p.best.choices[prm.key], prm.key[0]),
+                            value(p.best.choices[prm.key].value, prm.key[0], 4),
+                            f"{(p.best.choices[prm.key].value - prm.nominal) / prm.nominal:+.1%}")
+                           for prm in p.params])]
         changed = [prm.key for prm in p.params
                    if p.rounded.choices[prm.key] != p.best.choices[prm.key]]
         if changed and p.rounded.values and p.best.values:
@@ -432,69 +524,72 @@ def compose(r: LabResult) -> list:
                 f"{worst.title} = {dev(rv)}; the chosen build gives {dev(bv)}. "
                 f"The parts that differ: {', '.join(changed)}.")))
 
-    blocks += [B("h3", "Predicted performance")]
-    rows = []
-    for m in spec.specs:
-        bv = (p.best.values or {}).get(m.name)
-        rows.append((m.title, theory(m), num(p.ideal.get(m.name), m.units),
-                     num(bv, m.units),
-                     "—" if bv is None else ("yes" if m.limits.ok(bv) else "NO")))
-    blocks.append(B("table", header=["Measurement", "Theory / requirement", "Ideal",
-                                     "Kit build", "In spec"], rows=rows))
+        rows = []
+        for m in spec.specs:
+            bv = (p.best.values or {}).get(m.name)
+            rows.append((m.title, theory(m), num(p.ideal.get(m.name), m.units),
+                         num(bv, m.units),
+                         "—" if bv is None else ("yes" if m.limits.ok(bv) else "NO")))
+        blocks += [B(h, "Predicted performance"),
+                   B("table", header=["Measurement", "Theory / requirement", "Ideal",
+                                      "Kit build", "In spec"], rows=rows)]
 
     if r.mc:
-        tol = ", ".join(f"{kitmod.FAMILY_KEYS[k]} ±{f.tol:.0%}"
-                        for k, f in p.kit.families.items() if f)
-        blocks += [B("h3", "Tolerance analysis"),
-                   B("p", f"{r.mc['n']} Monte Carlo builds varied every part by its "
-                          f"kit tolerance ({tol}), the supplies by "
-                          f"±{robustness.SUPPLY_TOL:.0%}, and device model "
-                          f"parameters by their typical spread. "
-                          f"{r.mc['yield']:.0%} of builds met every requirement.")]
+        varied = []
+        if p.params:
+            varied.append("every chosen part by its kit tolerance (" + ", ".join(
+                f"{kitmod.FAMILY_KEYS[k]} ±{f.tol:.0%}"
+                for k, f in p.kit.families.items() if f) + ")")
+        varied.append(f"the supplies by ±{robustness.SUPPLY_TOL:.0%}")
+        varied.append("device model parameters by their typical spread"
+                      + _model_spread(r.kit_deck))
         mrows = []
         for m in spec.specs:
             st = r.mc["metrics"].get(m.name)
-            br = bench_range(r.mc, m.name)
-            if not st:
-                continue
-            mrows.append((m.title, num(st["mean"], m.units),
-                          "—" if not br else f"{num(br[0])} to {num(br[1], m.units)}",
-                          f"{st['pass_rate']:.0%}"))
-        blocks.append(B("table", header=["Measurement", "Mean", "90% of builds",
-                                         "Builds in spec"], rows=mrows))
+            if st:
+                mrows.append((m.title, num(st["mean"], m.units),
+                              _range(bench_range(r.mc, m.name), m.units),
+                              f"{st['pass_rate']:.0%}"))
+        blocks += [B(h, "Tolerance analysis"),
+                   B("p", f"{r.mc['n']} Monte Carlo builds varied "
+                          f"{', '.join(varied[:-1])} and {varied[-1]}. "
+                          f"{r.mc['yield']:.0%} of builds met every requirement."),
+                   B("table", header=["Measurement", "Mean", "90% of builds",
+                                      "Builds in spec"], rows=mrows)]
 
-    blocks.append(B("p", "Netlist of the kit build:"))
-    blocks.append(B("code", text=_deck_body(r.kit_deck)))
+    if p.params:
+        blocks += [B("p", "Netlist of the kit build:"),
+                   B("code", text=_deck_body(r.kit_deck))]
 
     # ---- Test plan
-    blocks += [B("h2", "Test Plan"), B("h3", "Equipment")]
+    blocks += [B(H, "Test Plan"), B(h, "Equipment")]
+    kinds = {s["kind"] for s in r.supplies}
     eq = ["Digital multimeter (DMM)"]
-    if any(s["kind"] == "dc" for s in r.supplies):
+    if "dc" in kinds:
         eq.append("DC power supply: " + "; ".join(
             f"{s['name']} = {num(s['value'], 'V', 3)}" for s in r.supplies if s["kind"] == "dc"))
-    if any(s["kind"] in ("signal", "ac") for s in r.supplies):
+    if kinds & {"signal", "ac"}:
         eq.append("Function generator")
     if any(a.command.split()[0].lower() in ("ac", "tran") for a in spec.analyses.values()):
-        eq.append("Oscilloscope, two channels (CH1 on the input, CH2 on the output)")
-    eq.append("Breadboard and the parts listed below")
+        eq.append("Oscilloscope, DC-coupled (two channels or more)")
+    eq.append("Breadboard and the parts listed in the schematic")
     blocks.append(B("bullets", items=eq))
 
     if p.params:
-        blocks += [B("h3", "Part check (before building)"),
-                   B("p", "Measure each part before it goes in the board; replace "
-                          "any outside its range.")]
         prow = []
         for prm in p.params:
-            c = p.best.choices[prm.key]
             fam = p.kit.family(prm.key[0])
-            for part in c.parts:
+            for part in p.best.choices[prm.key].parts:
                 prow.append((prm.key, value(part, prm.key[0]),
                              f"{value(part * (1 - fam.tol), prm.key[0])} to "
                              f"{value(part * (1 + fam.tol), prm.key[0])}"))
-        blocks.append(B("table", header=["Component", "Part", "Acceptable reading"],
-                        rows=prow))
+        blocks += [B(h, "Part check (before building)"),
+                   B("p", "Measure each part before it goes in the board; replace "
+                          "any outside its range."),
+                   B("table", header=["Component", "Part", "Acceptable reading"],
+                     rows=prow)]
 
-    steps = ["Build the circuit from the schematic with the parts above."]
+    steps = ["Build the circuit from the schematic."]
     dcs = [s for s in r.supplies if s["kind"] == "dc"]
     if dcs:
         steps.append("Set the supplies before connecting them: " + "; ".join(
@@ -504,34 +599,45 @@ def compose(r: LabResult) -> list:
         steps.append("With the input signal off, check the DC voltages in the "
                      "checkpoint table below. Stop and find the wiring error if "
                      "any is far off.")
-    sigs = [s for s in r.supplies if s["kind"] in ("signal", "ac")]
-    for s in sigs:
-        steps.append(f"Input ({s['name']}, node {s['nodes'][0]}): {s['text']}.")
+    for s in r.supplies:
+        if s["kind"] in ("signal", "ac", "logic"):
+            steps.append(f"Input {s['nodes'][0].upper()} ({s['name']}): {s['text']}.")
     # Informational readings stay in: a derived requirement is calculated from them.
     steps += [instruction(m, spec) for m in spec.measurements]
     steps.append("Record each reading in the results table and compare it with "
                  "the expected range.")
-    blocks += [B("h3", "Procedure"), B("steps", items=steps)]
+    blocks += [B(h, "Procedure"), B("steps", items=steps)]
 
     if r.op_kit:
+        cols = ["Node", "Expected (kit build)", "Ideal values"] if p.params \
+            else ["Node", "Expected"]
         rows = [(n, num(r.op_kit[n], "V", 3),
-                 num((r.op_ideal or {}).get(n), "V", 3)) for n in sorted(r.op_kit)]
-        blocks += [B("h3", "DC checkpoints (input off)"),
-                   B("table", header=["Node", "Expected (kit build)", "Ideal values"],
-                     rows=rows)]
+                 num((r.op_ideal or {}).get(n), "V", 3))[:len(cols)]
+                for n in sorted(r.op_kit)]
+        blocks += [B(h, "DC checkpoints (input off)"),
+                   B("table", header=cols, rows=rows)]
 
-    blocks.append(B("h3", "Results"))
-    res = []
-    for m in spec.specs:
-        bv = (p.best.values or {}).get(m.name)
-        br = bench_range(r.mc, m.name)
-        res.append((m.title, num(bv, m.units),
-                    "—" if not br else f"{num(br[0])} to {num(br[1], m.units)}",
-                    theory(m), "", ""))
-    blocks.append(B("table", header=["Measurement", "Expected", "Expected range "
-                                     "(90% of builds)", "Requirement", "Measured",
-                                     "Pass?"], rows=res))
+    res = [(m.title, num((p.best.values or {}).get(m.name), m.units),
+            _range(bench_range(r.mc, m.name), m.units), theory(m), "", "")
+           for m in spec.specs]
+    blocks += [B(h, "Results"),
+               B("table", header=["Measurement", "Expected", "Expected range "
+                                  "(90% of builds)", "Requirement", "Measured",
+                                  "Pass?"], rows=res)]
     return blocks
+
+
+def _model_spread(deck: str) -> str:
+    """Name the model parameters robustness.py actually varies in this deck."""
+    kinds = {k.lower() for k in re.findall(r"(?im)^\s*\.model\s+\S+\s+(\w+)", deck)}
+    said = []
+    if kinds & {"nmos", "pmos"}:
+        said.append(f"MOSFET threshold ±{robustness.MODEL_TOL[('nmos', 'vto')]:.0%}")
+    if kinds & {"npn", "pnp"}:
+        said.append(f"BJT beta ±{robustness.MODEL_TOL[('npn', 'bf')]:.0%}")
+    if "d" in kinds:
+        said.append(f"diode saturation current ±{robustness.MODEL_TOL[('d', 'is')]:.0%}")
+    return f" ({', '.join(said)})" if said else ""
 
 
 def _deck_body(deck: str) -> str:
@@ -540,21 +646,93 @@ def _deck_body(deck: str) -> str:
     return strip_analyses(deck).strip()
 
 
-def write(r: LabResult, out: Path, docx: bool = True) -> dict:
-    blocks = compose(r)
-    paths = {"md": out / "report.md", "deck": out / "kit_build.cir"}
+def _emit(blocks: list, out: Path, docx: bool, paths: dict) -> dict:
+    paths["md"] = out / "report.md"
     paths["md"].write_text(render_md(blocks, out), encoding="utf-8")
-    paths["deck"].write_text(r.kit_deck, encoding="utf-8")
     if docx:
         paths["docx"] = out / "report.docx"
         render_docx(blocks, paths["docx"])
     return paths
 
 
+def write(r: LabResult, out: Path, docx: bool = True) -> dict:
+    paths = {"deck": out / "kit_build.cir"}
+    paths["deck"].write_text(r.kit_deck, encoding="utf-8")
+    return _emit(compose(r), out, docx, paths)
+
+
+# ------------------------------------------------------------ multi-part labs
+#
+# A handout is usually several circuits. A lab file lists them, and they go
+# into one document, a heading per part:
+#
+#   title: EE 347 Exp. 4 -- Static and Dynamic CMOS Gates
+#   notes: ["Model assumptions: ..."]
+#   parts:
+#     - {title: "Figure 4.1 -- NMOS 2-1 MUX", deck: fig4_1.cir, spec: fig4_1.yaml}
+
+@dataclass
+class Lab:
+    title: str
+    parts: list               # [{title, deck, spec, fix}]
+    notes: list = field(default_factory=list)
+
+
+def load_lab(path) -> Lab:
+    import yaml
+    path = Path(path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    parts = []
+    for raw in data.get("parts", []):
+        parts.append({"title": raw.get("title") or Path(raw["deck"]).stem,
+                      "deck": path.parent / raw["deck"],
+                      "spec": path.parent / raw["spec"],
+                      "fix": list(raw.get("fix", []))})
+    if not parts:
+        raise ValueError(f"{path}: a lab file needs at least one entry under 'parts'")
+    return Lab(title=data.get("title", path.stem), parts=parts,
+               notes=[" ".join(str(n).split()) for n in data.get("notes", [])])
+
+
+def compose_lab(lab: Lab, results: list) -> list:
+    today = date.today()
+    blocks = [Block("h1", lab.title),
+              Block("p", f"Pre-lab prepared {today:%B} {today.day}, {today.year}. "
+                         "Every value below is from an ngspice simulation; each "
+                         "part's netlist is included.")]
+    if lab.notes:
+        blocks.append(Block("bullets", items=lab.notes))
+    for part, r in zip(lab.parts, results, strict=True):
+        blocks.append(Block("h2", part["title"]))
+        blocks += compose(r, top=3, header=False)
+    return blocks
+
+
+def write_lab(lab: Lab, results: list, out: Path, docx: bool = True) -> dict:
+    paths = {}
+    for r in results:          # the .cir files a handout asks to be handed in
+        p = out / f"{r.spec.name}.cir"
+        p.write_text(r.kit_deck, encoding="utf-8")
+        paths[r.spec.name] = p
+    return _emit(compose_lab(lab, results), out, docx, paths)
+
+
+def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
+            workers: int = 8) -> tuple:
+    lab = load_lab(path)
+    results = [analyse(specfile.load(part["spec"]),
+                       part["deck"].read_text(encoding="utf-8"),
+                       title=part["title"], out=out, kit=kit, fixed=part["fix"],
+                       mc_n=mc_n, seed=seed, workers=workers)
+               for part in lab.parts]
+    return lab, results
+
+
 def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("deck", help="the handout circuit with its ideal (theory) values")
-    ap.add_argument("--spec", required=True, help="spec YAML: what the circuit must do")
+    ap.add_argument("deck", nargs="?", help="the handout circuit with its ideal values")
+    ap.add_argument("--spec", help="spec YAML: what the circuit must do")
+    ap.add_argument("--lab", help="lab YAML listing several parts (instead of deck + --spec)")
     ap.add_argument("--title", help="report title (default: the spec name)")
     ap.add_argument("--out", required=True, help="output directory")
     ap.add_argument("--kit", help="kit YAML (default: kit.yaml)")
@@ -567,17 +745,32 @@ def _cli(argv=None) -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--no-docx", action="store_true", help="Markdown only")
     a = ap.parse_args(argv)
+    if bool(a.lab) == bool(a.deck and a.spec):
+        ap.error("give either a deck with --spec, or --lab")
 
-    spec = specfile.load(a.spec)
     out = Path(a.out)
-    r = analyse(spec, Path(a.deck).read_text(encoding="utf-8"),
-                title=a.title or spec.name, out=out, kit=kitmod.load_kit(a.kit),
-                fixed=a.fix, singles_only=a.singles_only, mc_n=a.mc, seed=a.seed,
-                workers=a.workers)
-    paths = write(r, out, docx=not a.no_docx)
-    print(kitmod.summary(r.pick))
-    if r.mc:
-        print(f"\nMonte Carlo ({r.mc['n']} builds, kit tolerances): {r.mc['yield']:.0%} meet spec")
+    out.mkdir(parents=True, exist_ok=True)
+    kit = kitmod.load_kit(a.kit)
+    if a.lab:
+        lab, results = run_lab(a.lab, out, kit=kit, mc_n=a.mc, seed=a.seed,
+                               workers=a.workers)
+        paths = write_lab(lab, results, out, docx=not a.no_docx)
+        for part, r in zip(lab.parts, results, strict=True):
+            bad = [m.title for m in r.spec.specs if not m.limits.ok(r.pick.ideal[m.name])]
+            yld = f", Monte Carlo {r.mc['yield']:.0%}" if r.mc else ""
+            print(f"{part['title']}: {len(r.spec.specs) - len(bad)}/{len(r.spec.specs)} "
+                  f"rows as expected{yld}" + (f"  MISSES: {', '.join(bad)}" if bad else ""))
+    else:
+        spec = specfile.load(a.spec)
+        r = analyse(spec, Path(a.deck).read_text(encoding="utf-8"),
+                    title=a.title or spec.name, out=out, kit=kit, fixed=a.fix,
+                    singles_only=a.singles_only, mc_n=a.mc, seed=a.seed,
+                    workers=a.workers)
+        paths = write(r, out, docx=not a.no_docx)
+        print(kitmod.summary(r.pick))
+        if r.mc:
+            print(f"\nMonte Carlo ({r.mc['n']} builds, kit tolerances): "
+                  f"{r.mc['yield']:.0%} meet spec")
     for v in paths.values():
         print(f"wrote {v}")
     return 0

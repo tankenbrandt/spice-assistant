@@ -224,6 +224,7 @@ class Measurement:
     extract: dict = field(default_factory=dict)
     expr: str = ""            # derived measurements only
     informational: bool = False   # measured and reported, but not a spec
+    bench: str = ""           # how to take this reading at the bench (lab reports)
 
     @property
     def derived(self) -> bool:
@@ -329,6 +330,7 @@ def parse(data: dict, source: Path | None = None) -> CircuitSpec:
             name=name, label=str(raw.get("label", "")), units=units,
             analysis=analysis, extract=dict(extract), expr=expr,
             informational=bool(raw.get("informational", False)),
+            bench=" ".join(str(raw.get("bench", "")).split()),
             limits=limits_from(raw, units)))
 
     names = [m.name for m in measurements]

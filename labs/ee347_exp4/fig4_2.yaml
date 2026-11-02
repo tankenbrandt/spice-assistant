@@ -1,0 +1,92 @@
+# EE 347 Exp. 4. Each measurement is one truth-table row, read at a time
+# when the deck's stepped inputs hold that row. Logic bands: high >= 90% of
+# VDD, low <= 10%.
+circuit: ee347_fig4_2
+description: 'CMOS (transmission-gate) 2-1 mux plus 4001B buffer, VDD = 8 V: X = A''B + AC,
+  Y = X''.'
+analyses:
+  tran:
+    command: tran 2u 2m
+    vectors:
+    - v(a)
+    - v(b)
+    - v(c)
+    - v(x)
+    - v(y)
+measurements:
+- name: x1
+  label: X (A = 0 V, B = 8 V, C = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0004
+  min: 7.2
+  bench: Set B = 8 V, C = 0 V. With the scope DC-coupled, read X during the low half of the
+    A square wave.
+- name: y1
+  label: Y (A = 0 V, B = 8 V, C = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0004
+  max: 0.8
+  bench: 'Same setting: read Y during the low half of A.'
+- name: x2
+  label: X (A = 8 V, B = 8 V, C = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0009
+  max: 0.8
+  bench: Set B = 8 V, C = 0 V. With the scope DC-coupled, read X during the high half of the
+    A square wave.
+- name: y2
+  label: Y (A = 8 V, B = 8 V, C = 0 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0009
+  min: 7.2
+  bench: 'Same setting: read Y during the high half of A.'
+- name: x3
+  label: X (A = 0 V, B = 0 V, C = 8 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0014
+  max: 0.8
+  bench: Set B = 0 V, C = 8 V. With the scope DC-coupled, read X during the low half of the
+    A square wave.
+- name: y3
+  label: Y (A = 0 V, B = 0 V, C = 8 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0014
+  min: 7.2
+  bench: 'Same setting: read Y during the low half of A.'
+- name: x4
+  label: X (A = 8 V, B = 0 V, C = 8 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(x)
+    at: 0.0019
+  min: 7.2
+  bench: Set B = 0 V, C = 8 V. With the scope DC-coupled, read X during the high half of the
+    A square wave.
+- name: y4
+  label: Y (A = 8 V, B = 0 V, C = 8 V)
+  units: V
+  extract:
+    kind: value_at
+    of: v(y)
+    at: 0.0019
+  max: 0.8
+  bench: 'Same setting: read Y during the high half of A.'

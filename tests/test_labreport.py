@@ -78,3 +78,80 @@ def test_report_has_the_three_sections_and_the_kit_build(tmp_path):
     assert {"Simulation", "Design", "Test Plan"} <= set(heads)
     assert len(doc.tables) >= 6
     assert len(doc.inline_shapes) == 1
+
+
+# ------------------------------------------------- multi-part logic labs
+
+LAB = PROJECT_DIR / "labs" / "ee347_exp4"
+FIGS = ["fig4_1", "fig4_2", "fig4_3", "fig4_4", "fig4_5"]
+
+
+def test_stepped_logic_inputs_are_described_as_logic():
+    deck = "t\nVdd vdd 0 DC 5\nVa a 0 PWL(0 0 1m 0 1.001m 5)\n"
+    (src,) = [s for s in lr.sources(deck) if s["name"] == "Va"]
+    assert src["kind"] == "logic"
+    assert "0 V and 5 V" in src["text"]
+
+
+def test_bench_text_in_the_spec_wins():
+    spec = specs.load(LAB / "fig4_3.yaml")
+    m = spec.measurements[0]
+    assert m.bench.startswith("Set A = 0 V and B = 0 V")
+    assert lr.instruction(m, spec) == f"{m.title}: {m.bench}"
+
+
+def test_numerical_zero_volts_read_as_zero():
+    assert lr.num(2.97e-9, "V") == "0 V"
+    assert lr.num(2.97e-9, "A") == "2.97e-09 A"          # a current that small is real
+    assert lr._range((3.3e-8, -1e-19), "V") == "0 V"
+    assert lr._range((4.877, 5.128), "V") == "4.877 to 5.128 V"
+
+
+def test_lab_file_lists_every_part():
+    lab = lr.load_lab(LAB / "lab.yaml")
+    assert [p["deck"].stem for p in lab.parts] == FIGS
+    assert all(p["deck"].exists() and p["spec"].exists() for p in lab.parts)
+    assert any("Figure 3.4" in n for n in lab.notes)
+
+
+@needs_ngspice
+@pytest.mark.parametrize("fig", FIGS)
+def test_each_ee347_circuit_meets_its_truth_table(fig):
+    v = specs.verdict(specs.load(LAB / f"{fig}.yaml"), (LAB / f"{fig}.cir").read_text())
+    assert v["pass"], v
+
+
+@needs_ngspice
+def test_nmos_pass_gate_stops_a_threshold_short_of_vdd():
+    """The handout's question for Figure 4.1; Figure 4.2's transmission gates don't."""
+    nmos = specs.measure(specs.load(LAB / "fig4_1.yaml"), (LAB / "fig4_1.cir").read_text())
+    cmos = specs.measure(specs.load(LAB / "fig4_2.yaml"), (LAB / "fig4_2.cir").read_text())
+    assert 4.5 < nmos["x1"] < 6.5
+    assert cmos["x1"] > 7.9
+
+
+@needs_ngspice
+def test_a_miswired_domino_gate_fails_its_truth_table():
+    """C wired in series with B instead of D: ABCD = 0011 no longer pulls X low."""
+    deck = (LAB / "fig4_5.cir").read_text().replace("Mc x c n2 0", "Mc x c n1 0")
+    v = specs.verdict(specs.load(LAB / "fig4_5.yaml"), deck)
+    assert not v["pass"]
+    assert not v["specs"]["Y (ABCD = 0011, evaluate)"]["pass"]
+
+
+@needs_ngspice
+def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
+    pytest.importorskip("docx")
+    pytest.importorskip("matplotlib")
+    lab, results = lr.run_lab(LAB / "lab.yaml", tmp_path, mc_n=0)
+    paths = lr.write_lab(lab, results, tmp_path)
+    md = paths["md"].read_text(encoding="utf-8")
+    assert md.count("\n## Figure 4.") == 5
+    assert md.count("### Test Plan") == 5
+    assert "Component selection" not in md                  # nothing to pick
+    assert (tmp_path / "ee347_fig4_5.cir").exists()          # hand-in netlist
+    assert (tmp_path / "ee347_fig4_5_tran.png").stat().st_size > 10_000
+
+    from docx import Document
+    doc = Document(str(paths["docx"]))
+    assert len(doc.inline_shapes) == 5

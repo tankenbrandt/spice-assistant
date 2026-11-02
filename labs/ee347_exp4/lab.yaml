@@ -1,0 +1,35 @@
+# EE 347 Exp. 4 pre-lab, as one document:
+#   python labreport.py --lab labs/ee347_exp4/lab.yaml --out runs/ee347_exp4
+title: EE 347 Experiment 4 — Static and Dynamic CMOS Gates (pre-lab)
+
+notes:
+  - >
+    Pre-lab 1 (truth tables for Figures 4.1-4.4) is the "Simulated" column of
+    each part's table; pre-lab 2 is Figure 4.5's timing diagram and netlist.
+  - >
+    Transistor models: level 1 with TOX = 0.1 um and the 4001B W/L ratios from
+    Exp. 3 Figure 3.4, as the handout specifies. The handouts give no threshold,
+    body-effect or capacitance values, nor CD4007 sizes, so VTO = ±1.5 V,
+    GAMMA, PHI, LAMBDA, the overlap/junction capacitances and CD4007 W/L
+    (N 30/5, P 60/5) are assumed typical values. Logic levels depend mainly on
+    VTO and GAMMA; timing depends on all of them.
+  - >
+    ngspice has no ten-transistor limit, so Figure 4.5 uses the full
+    double-buffered 4001B NOR (eight transistors) as its inverter.
+
+parts:
+  - title: Figure 4.1 — NMOS 2-1 MUX plus buffer (VDD = 8 V)
+    deck: fig4_1.cir
+    spec: fig4_1.yaml
+  - title: Figure 4.2 — CMOS 2-1 MUX plus buffer (VDD = 8 V)
+    deck: fig4_2.cir
+    spec: fig4_2.yaml
+  - title: Figure 4.3 — Static CMOS NOR (VDD = 5 V)
+    deck: fig4_3.cir
+    spec: fig4_3.yaml
+  - title: Figure 4.4 — Dynamic CMOS NOR (VDD = 5 V)
+    deck: fig4_4.cir
+    spec: fig4_4.yaml
+  - title: Figure 4.5 — Domino AND-OR-INVERT (pre-lab 2)
+    deck: fig4_5.cir
+    spec: fig4_5.yaml

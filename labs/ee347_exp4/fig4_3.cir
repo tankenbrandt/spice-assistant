@@ -1,0 +1,40 @@
+Static CMOS 2-input NOR -- EE 347 Exp. 4, Figure 4.3
+* Two series PMOS pull-ups, two parallel NMOS pull-downs (CD4007). VDD = 5 V.
+VDD vdd 0 DC 5
+* AB stepped through 00, 01, 10, 11 (1 ms per row)
+Va a 0 PWL(0 0 1.999m 0 2m 5)
+Vb b 0 PWL(0 0 0.999m 0 1m 5 1.999m 5 2m 0 2.999m 0 3m 5)
+Mp1 n1 a vdd vdd PM W=60u L=5u
+Mp2 y b n1 vdd PM W=60u L=5u
+Mn1 y a 0 0 NM W=30u L=5u
+Mn2 y b 0 0 NM W=30u L=5u
+* --- Transistor models (shared by every figure in this lab) -------------------
+* Level 1 with TOX = 0.1 um, as the handout specifies (EE 347 Exp. 3/4). The
+* handouts give no threshold or body-effect values; VTO = +/-1.5 V, GAMMA,
+* PHI, LAMBDA and the overlap/junction capacitances (CGSO, CGDO, CBD, CBS)
+* below are ASSUMED typical metal-gate CD4000-series values. Without some
+* capacitance a node between two off transistors is singular in transient.
+.model NM NMOS (LEVEL=1 TOX=0.1u VTO=1.5 GAMMA=0.8 PHI=0.6 LAMBDA=0.02 UO=600
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+.model PM PMOS (LEVEL=1 TOX=0.1u VTO=-1.5 GAMMA=0.6 PHI=0.6 LAMBDA=0.02 UO=250
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+* --- CD4001B: one double-buffered 2-input NOR, W/L from Exp. 3 Figure 3.4 -----
+.subckt CD4001B a b j vdd vss
+Mp1 n1 a vdd vdd PM W=50u L=5u
+Mp2 nor b n1 vdd PM W=50u L=5u
+Mn1 nor a vss vss NM W=10u L=5u
+Mn2 nor b vss vss NM W=10u L=5u
+Mp3 inv1 nor vdd vdd PM W=100u L=5u
+Mn3 inv1 nor vss vss NM W=40u L=5u
+Mp4 j inv1 vdd vdd PM W=250u L=5u
+Mn4 j inv1 vss vss NM W=100u L=5u
+.ends CD4001B
+* CD4007 discrete transistors: size ASSUMED (the handouts give none).
+* NMOS W/L = 30/5, PMOS W/L = 60/5.
+* Gear integration: trapezoidal stalls ("timestep too small") on the level-1
+* gate capacitances when two inputs switch at the same instant.
+.options method=gear
+.control
+tran 2u 4m
+.endc
+.end
