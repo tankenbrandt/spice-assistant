@@ -143,6 +143,20 @@ def _control_mask(lines: list[str]) -> list[bool]:
     return mask
 
 
+def _subckt_owner(lines: list[str]) -> list[str]:
+    """The enclosing .subckt name for each line, or "" at top level."""
+    owner, name = [], ""
+    for ln in lines:
+        toks = ln.split()
+        head = toks[0].lower() if toks else ""
+        if head == ".subckt" and len(toks) > 1:
+            name = toks[1]
+        owner.append(name)
+        if head == ".ends":
+            name = ""
+    return owner
+
+
 def extract_params(netlist: str, *, vary_temp: bool = True,
                    passive_tol: dict | None = None) -> tuple[list[str], list[Param]]:
     """Find every perturbable parameter in a deck.
@@ -159,6 +173,7 @@ def extract_params(netlist: str, *, vary_temp: bool = True,
     tol_for_passive = PASSIVE_TOL if passive_tol is None else passive_tol
     lines = netlist.splitlines()
     in_control = _control_mask(lines)
+    owner = _subckt_owner(lines)
     params: list[Param] = []
 
     for i, ln in enumerate(lines):
@@ -170,7 +185,10 @@ def extract_params(netlist: str, *, vary_temp: bool = True,
             continue
         letter = m.group(1).lower()
         toks = ln.split()
-        refdes = toks[0]
+        # A subcircuit's parts are keyed by their subcircuit: an op-amp model's
+        # internal `Rin` is not the circuit's `Rin`, and sharing a key gave the
+        # circuit's input resistor the model's 2 Mohm in every Monte Carlo draw.
+        refdes = f"{owner[i]}.{toks[0]}" if owner[i] else toks[0]
 
         if letter in tol_for_passive:
             if len(toks) < 4:

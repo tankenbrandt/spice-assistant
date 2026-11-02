@@ -29,6 +29,8 @@ spice-tolerances = "tolerances:_cli"        # sourced component tolerances
 spice-op         = "oppoint:_cli"           # every node voltage and branch current
 spice-report     = "report:_cli"            # one circuit, every layer, one report
 spice-design     = "design:_cli"            # generate/repair until the spec passes
+spice-kit        = "kit:_cli"               # pick real parts from a lab kit
+spice-labreport  = "labreport:_cli"         # simulate / design / test-plan pre-lab
 
 [tool.setuptools]
 # A flat layout of single-purpose CLIs, so the modules are listed rather than
@@ -36,10 +38,11 @@ spice-design     = "design:_cli"            # generate/repair until the spec pas
 py-modules = ["main", "speccheck", "specs", "robustness", "benchmark",
               "robustness_study", "ascview", "plot", "netlist", "symlib",
               "ltspice", "crosscheck", "ascgen", "tolerances", "oppoint",
-              "report", "design"]
+              "report", "design", "kit", "labreport"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.5"]
+labreport = ["python-docx", "matplotlib"]   # the .docx and figures labreport.py writes
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

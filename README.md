@@ -28,6 +28,12 @@ for, with real part tolerances, and in two different simulators.
 - **Draws it.** You get a schematic image and an LTspice `.asc` file you can
   open, probe and edit.
 - **Puts it all in one report** with a single command.
+- **Builds it from my lab kit and writes the pre-lab.** Give it the handout's
+  circuit with its theory values. It picks the closest parts the kit actually
+  has, including two-part series/parallel combinations, by simulating each
+  candidate build. Then it writes the Simulation, Design and Test Plan
+  sections of a lab report as a Word file (upload it to Google Drive to get a
+  Google Doc). See [From handout to pre-lab](#from-handout-to-pre-lab-kitpy-labreportpy).
 
 Only the first step (writing the circuit) uses the AI and costs money. If you
 already have a netlist, everything else is free and runs on your machine.
@@ -530,6 +536,50 @@ worth knowing about, and both are tested:
   *constants* plot -- `pi`, `boltz`, `echarge`, `kelvin`. Those are filtered on
   value as well as name, so a real node that happens to be called `c` survives
   and one sitting at 3e8 volts does not.
+
+## From handout to pre-lab (`kit.py`, `labreport.py`)
+
+A handout's theory says Cf = 1.5915 nF; the drawer has 1.5 nF and 2.2 nF.
+`kit.py` picks real parts from `kit.yaml`. That file is an assumed kit (E12
+resistors ±5%, E6 capacitors ±10%) until it is replaced with a real course
+parts list. For each R, C and L it tries the nearest kit value on each side
+and the best two-part series/parallel pair. It simulates the candidate
+builds, jointly rather than one part at a time, and keeps the build whose
+*measurements* land closest to the spec. Parts the kit already has are left as
+given.
+
+```bash
+python kit.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml
+```
+
+Joint search matters because parts interact. In the CE amplifier, Rc (7.5k)
+and Re2 (910) are not E12 values. Rounding each part on its own gives a gain
+of 48.1. The search moves both down about 9%, which keeps their ratio, and
+the gain lands at 50.04. In the active low-pass, rounding Cf gives fc =
+1047 Hz. 1.5 nF ∥ 100 pF gives 982.6 Hz.
+
+`labreport.py` turns the same inputs into the three pre-lab sections:
+
+```bash
+python labreport.py reference/inv_active_lowpass.cir --spec specs_lib/inv_active_lowpass.yaml \
+    --title "Lab 5: Active filters" --out runs/lab5
+```
+
+- **Simulation:** the ideal circuit, theory beside simulation, a plot (ideal
+  dashed, kit build solid) and the netlist.
+- **Design:** the parts chosen and how far each is from ideal, what rounding
+  alone would have given, predicted performance, and a Monte Carlo run over
+  the kit's tolerances. On the low-pass this shows that a ±10% capacitor
+  alone puts 18% of builds outside a ±5% corner-frequency requirement.
+- **Test plan:** equipment, a DMM check for every part with its acceptable
+  reading, supply settings, DC checkpoints, one bench step per measurement
+  ("raise the frequency until the output falls to 0.707×…"), and a results
+  table with the expected value, the range 90% of real builds land in, and
+  an empty *Measured* column.
+
+It writes `report.docx`, `report.md`, the kit-build deck and the figures. It
+needs `python-docx` and `matplotlib` (both in `requirements-dev.txt`). Like
+everything except generation, it makes no API calls.
 
 ## Specs for your own circuits (`specs_lib/`, `specs.py`)
 

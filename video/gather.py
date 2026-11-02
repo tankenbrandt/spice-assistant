@@ -49,9 +49,7 @@ def main():
     spec = specs.load(SPEC)
     deck = DECK.read_text(encoding="utf-8")
 
-    good = specs.verdict(spec, deck)
     miswired = with_batteries(deck, 0)
-    bad = specs.verdict(spec, miswired)
 
     # The textbook answer: ideal diodes clip at the battery voltage.
     ideal = {"vmax": 1.5, "vmin": -1.5}

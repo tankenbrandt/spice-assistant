@@ -1,0 +1,32 @@
+# The parts drawer kit.py picks from.
+#
+# This is an ASSUMED kit -- standard E12 resistors and E6 capacitors -- until
+# the real course parts list replaces it. Swap a family for an exact list with
+# `values: [...]`; a family may have both (the union is used).
+#
+# Tolerances are what Monte Carlo varies the chosen parts by. 5% carbon-film
+# resistors and 10% ceramic/film capacitors are the usual student-kit grades;
+# an electrolytic is worse (often -20/+80%), so if the kit's large values are
+# electrolytic, give them their own entry in a real kit file.
+
+name: Assumed lab kit (E12 resistors, E6 capacitors)
+
+resistors:
+  series: E12
+  range: [10, 1meg]
+  tol: 5%
+
+capacitors:
+  series: E6
+  range: [10p, 1000u]
+  tol: 10%
+
+# Most lab kits have no inductors. With none listed, an inductor keeps its
+# ideal value and the report says it is not from the kit.
+inductors:
+  values: []
+  tol: 10%
+
+# Two parts may be combined to hit a value the drawer does not have
+# (R/L add in series, C adds in parallel). Remove an entry to forbid it.
+combine: [series, parallel]
