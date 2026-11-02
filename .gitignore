@@ -32,3 +32,10 @@ runs/
 # Benchmark repeats on other models: same rule, summary only.
 logs/repeats_*/*.json
 !logs/repeats_*/summary.json
+logs/repeats_*/*.txt
+
+# Course files dropped in the project root: never published.
+/*.zip
+/*.docx
+/*.asc
+/*SPICE model*.txt

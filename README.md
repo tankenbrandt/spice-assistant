@@ -2,10 +2,13 @@
 
 [![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
 
-**The problem.** An AI can write a circuit that simulates without a single
-error and is still wrong. I asked it for eight circuits: all eight ran, but
-only five or six did what I asked. "It simulated" isn't proof that it works,
-and that's true of my own lab circuits too.
+**The problem.** A circuit that simulates isn't a circuit that works. In
+September, Claude Sonnet 5 wrote eight circuits for me: all eight ran, and
+only five or six met spec. Today's models (Sonnet 5.5, Opus 5.5) met spec 31
+of 32 times. But even their *passing* amplifiers hold spec in only 63-91% of
+simulated real builds, once part tolerances come in. "It simulated" isn't
+proof, "it met spec once" isn't either, and both are as true of my own lab
+circuits as of the AI's.
 
 **What I wanted:** use AI to design and simulate circuits, check that they'll
 work with real parts, fix whatever misses spec, confirm the answer in a
@@ -102,6 +105,9 @@ reading. The kit itself is a file (`kit.yaml`), E12/E6 by default.
 
 ## When the AI's circuit is wrong: gain 107 instead of 50
 
+*Claude Sonnet 5, September 2026. Current models get much closer; see
+[More results](#more-results).*
+
 Asked for a common-emitter amplifier with a gain of −50, the AI wrote a
 textbook-looking circuit that ran perfectly and measured a gain of **107**:
 
@@ -126,8 +132,16 @@ resistor (56 → 59 Ω) takes yield from 69% to **92%**.
 
 ## More results
 
-- **Benchmark, 8 circuits × 4 runs:** 100% simulate cleanly, 62–75% meet
-  spec, and the worst design had a 1% Monte Carlo yield before repair.
+- **Benchmark, 8 circuits × 4 runs per model:**
+
+  | Model | Simulate | Meet spec | CE amp real-build yield, passing designs |
+  |---|---|---|---|
+  | Sonnet 5 (Sept 2026) | 8/8 | 5–6 | none passed (1% yield; 69% after the tool's repair) |
+  | Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 | 63–85% |
+  | Opus 5.5 (Nov 2026) | 8/8 | 7–8 | 85–91% |
+
+  Newer models fixed nominal correctness; tolerance is now where designs
+  fail. All four runs per model cost $0.33–0.59.
 - **EE 346 diode lab (AI-designed):** 9 of 10 designs were correct, and the
   spec caught the one with a reversed clamper diode. Writing the specs also
   showed that the handout's V<sub>p</sub>/π rectifier estimate runs about 10%

@@ -1,0 +1,71 @@
+{
+  "n_runs": 4,
+  "circuits": 8,
+  "simulated": "8",
+  "spec_passed": "7-8 (mean 7.8)",
+  "attempts": "12-13 (mean 12.8)",
+  "total_cost_usd": 0.3319,
+  "same_circuits_fail_each_run": false,
+  "spec_failure_sets": [
+    [],
+    [
+      "ce_bjt_amp"
+    ]
+  ],
+  "runs": [
+    {
+      "file": "run_1.json",
+      "model": "claude-sonnet-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 7,
+      "attempts": 13,
+      "seconds": 69.5,
+      "api_calls": 13,
+      "cost_usd": 0.0851,
+      "spec_failures": [
+        "ce_bjt_amp"
+      ]
+    },
+    {
+      "file": "run_2.json",
+      "model": "claude-sonnet-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 12,
+      "seconds": 63.8,
+      "api_calls": 12,
+      "cost_usd": 0.0699,
+      "spec_failures": []
+    },
+    {
+      "file": "run_3.json",
+      "model": "claude-sonnet-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 13,
+      "seconds": 75.5,
+      "api_calls": 13,
+      "cost_usd": 0.0898,
+      "spec_failures": []
+    },
+    {
+      "file": "run_4.json",
+      "model": "claude-sonnet-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 13,
+      "seconds": 71.2,
+      "api_calls": 13,
+      "cost_usd": 0.0871,
+      "spec_failures": []
+    }
+  ]
+}

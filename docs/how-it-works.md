@@ -5,11 +5,42 @@ how each layer works, and what was verified.
 
 ## How good is the AI at this, really?
 
-The README's amplifier example isn't a one-off. On an 8-circuit benchmark, "does it run?",
-"does it meet spec?" and "does it keep meeting spec across real parts?" get
-three very different answers: **100% simulate cleanly, 62-75% meet spec**,
-and the worst offender had a **1% Monte Carlo yield** before repair. Judged
-by "it ran", the AI looks 25 to 38 points better than it really is.
+Three questions get three different answers: "does it run?", "does it meet
+spec?" and "does it keep meeting spec across real parts?" The answers depend
+on the model, so every number here names one.
+
+**Claude Sonnet 5, September 2026** (the original runs): **100% simulated
+cleanly, 62-75% met spec**, and the worst design had a **1% Monte Carlo
+yield** before repair. Judged by "it ran", the model looked 25 to 38 points
+better than it was.
+
+**Claude Sonnet 5.5 and Opus 5.5, November 2026** (4 runs each, same 8
+circuits, `SPICE_MODEL=... python benchmark.py --out logs/repeats_<model>/run_N.json`):
+
+| Model | Simulate cleanly | Meet spec | Attempts / 8 circuits | Cost, 4 runs |
+|---|---|---|---|---|
+| Sonnet 5 (Sept) | 8/8 | 5-6 (mean 5.2) | 8-11 | $0.59 |
+| Sonnet 5.5 | 8/8 | 7-8 (mean 7.8) | 12-13 | $0.33 |
+| Opus 5.5 | 8/8 | 7-8 (mean 7.8) | 9-10 | $0.48 |
+
+The current models are much better at nominal values: the buck converter
+that failed every Sonnet 5 run now passes every time, and the one miss per
+model is the CE amplifier landing just under the 47.5 V/V floor (47.2, 47.0),
+not at 107. Sonnet 5.5 still needs a simulator-error repair on about half its
+first drafts.
+
+The gap moved to the third question. Monte Carlo over 500 builds (5% resistors,
+beta ±50%, supply ±5%, -40 to 85 °C) on each CE amplifier those runs produced
+(`logs/ce_amp_current_models_mc.json`):
+
+| Model | Nominal gains | Met spec | Real-build yield |
+|---|---|---|---|
+| Sonnet 5.5 | 47.2, 47.8, 50.6, 48.5 | 3 of 4 | 43%, 63%, 85%, 70% |
+| Opus 5.5 | 49.0, 49.6, 50.6, 47.0 | 3 of 4 | 86%, 85%, 91%, 37% |
+
+The amplifiers that *passed* hold spec in 63-91% of real builds. A design
+centred at 47.8 passes a 47.5-52.5 window at nominal and fails about one
+build in three. Nominal pass/fail can't see that; the tolerance check can.
 
 | Layer | Question | Cost |
 |-------|----------|------|
@@ -17,12 +48,10 @@ by "it ran", the AI looks 25 to 38 points better than it really is.
 | `speccheck.py` + `specs.py` | does it meet its electrical spec? | free (ngspice only) |
 | `robustness.py` | how often does it meet it, across tolerance, supply and temperature? | free (ngspice only) |
 
-Those are four independent runs, not one. Generation is sampling, so a single
-run is an anecdote. Across 4 runs (`python repeat_summary.py`) every circuit
-simulated cleanly **every time**, while the spec pass rate moved between 5 and
-6 of 8. `buck_converter` and `ce_bjt_amp` fail their spec in *all four*, and
-the rectifiers are borderline and each fail once. The reproducible part is the
-gap, not the second decimal place.
+Each model's numbers are four independent runs, not one. Generation is
+sampling, so a single run is an anecdote (`python repeat_summary.py --dir
+logs/repeats_<model>`). On Sonnet 5, `buck_converter` and `ce_bjt_amp` failed
+their spec in all four runs and the rectifiers failed once each.
 
 Every measurement is then cross-checked against a **second, independently
 written simulator**. The same spec is re-measured in LTspice, headlessly, and

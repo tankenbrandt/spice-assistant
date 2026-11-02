@@ -1,0 +1,74 @@
+[
+  {
+    "model": "sonnet-5-5",
+    "run": "run_1",
+    "nominal": 47.2,
+    "passes": false,
+    "yield_": 0.434,
+    "lo": 43.5,
+    "hi": 50.8
+  },
+  {
+    "model": "sonnet-5-5",
+    "run": "run_2",
+    "nominal": 47.82,
+    "passes": true,
+    "yield_": 0.628,
+    "lo": 43.7,
+    "hi": 51.9
+  },
+  {
+    "model": "sonnet-5-5",
+    "run": "run_3",
+    "nominal": 50.55,
+    "passes": true,
+    "yield_": 0.848,
+    "lo": 46.3,
+    "hi": 54.8
+  },
+  {
+    "model": "sonnet-5-5",
+    "run": "run_4",
+    "nominal": 48.51,
+    "passes": true,
+    "yield_": 0.696,
+    "lo": 43.4,
+    "hi": 54.2
+  },
+  {
+    "model": "opus-5-5",
+    "run": "run_1",
+    "nominal": 48.97,
+    "passes": true,
+    "yield_": 0.862,
+    "lo": 45.7,
+    "hi": 53.3
+  },
+  {
+    "model": "opus-5-5",
+    "run": "run_2",
+    "nominal": 49.62,
+    "passes": true,
+    "yield_": 0.85,
+    "lo": 45.5,
+    "hi": 55.1
+  },
+  {
+    "model": "opus-5-5",
+    "run": "run_3",
+    "nominal": 50.6,
+    "passes": true,
+    "yield_": 0.912,
+    "lo": 47.4,
+    "hi": 54.8
+  },
+  {
+    "model": "opus-5-5",
+    "run": "run_4",
+    "nominal": 47.01,
+    "passes": false,
+    "yield_": 0.37,
+    "lo": 43.8,
+    "hi": 51.5
+  }
+]

@@ -1,0 +1,71 @@
+{
+  "n_runs": 4,
+  "circuits": 8,
+  "simulated": "8",
+  "spec_passed": "7-8 (mean 7.8)",
+  "attempts": "9-10 (mean 9.5)",
+  "total_cost_usd": 0.4754,
+  "same_circuits_fail_each_run": false,
+  "spec_failure_sets": [
+    [],
+    [
+      "ce_bjt_amp"
+    ]
+  ],
+  "runs": [
+    {
+      "file": "run_1.json",
+      "model": "claude-opus-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 10,
+      "seconds": 64.4,
+      "api_calls": 10,
+      "cost_usd": 0.1165,
+      "spec_failures": []
+    },
+    {
+      "file": "run_2.json",
+      "model": "claude-opus-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 10,
+      "seconds": 67.0,
+      "api_calls": 10,
+      "cost_usd": 0.128,
+      "spec_failures": []
+    },
+    {
+      "file": "run_3.json",
+      "model": "claude-opus-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 8,
+      "attempts": 9,
+      "seconds": 66.5,
+      "api_calls": 9,
+      "cost_usd": 0.1243,
+      "spec_failures": []
+    },
+    {
+      "file": "run_4.json",
+      "model": "claude-opus-5-5",
+      "circuits": 8,
+      "simulated": 8,
+      "spec_checked": 8,
+      "spec_passed": 7,
+      "attempts": 9,
+      "seconds": 60.0,
+      "api_calls": 9,
+      "cost_usd": 0.1066,
+      "spec_failures": [
+        "ce_bjt_amp"
+      ]
+    }
+  ]
+}
