@@ -120,9 +120,28 @@ def analyses_in_control(text: str) -> list:
     return out
 
 
+def _join_continuations(lines: list) -> list:
+    """Fold SPICE `+` continuation lines onto the line they continue.
+
+    Comment lines in between are kept where they are; the continuation joins
+    the last real line before it (a long .model card is the usual case).
+    """
+    out: list = []
+    last = None
+    for ln in lines:
+        s = ln.strip()
+        if s.startswith("+") and last is not None:
+            out[last] = out[last].rstrip() + " " + s[1:].strip()
+            continue
+        out.append(ln)
+        if s and not s.startswith("*"):
+            last = len(out) - 1
+    return out
+
+
 def parse_deck(text: str) -> Deck:
     """Read a deck into devices plus the directives worth carrying over."""
-    lines = ltspice.strip_control(text).splitlines()
+    lines = _join_continuations(ltspice.strip_control(text).splitlines())
     deck = Deck()
     carried = [ltspice.directive(c) for c in analyses_in_control(text)]
 

@@ -176,3 +176,13 @@ def test_design_lab_report_compares_both_designs_at_the_extremes(tmp_path):
     assert "Q-point at the extremes" in md and "Resistor power ratings" in md
     qp = r.study["qpoints"]
     assert len(qp) == 2 and all(2 < vce < 15 for _, _, _, _, vce, _, _ in qp)
+
+
+def test_a_lab_part_can_carry_its_ltspice_schematic(tmp_path):
+    import ascview
+    if not ascview.find_chromium():
+        pytest.skip("no Chromium/Edge to rasterise the SVG")
+    asc = PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.asc"
+    copied, png = lr.attach_schematic(asc, tmp_path)
+    assert copied.read_text() == asc.read_text()
+    assert png and png.stat().st_size > 10_000

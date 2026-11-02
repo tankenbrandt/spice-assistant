@@ -408,6 +408,8 @@ class LabResult:
     supplies: list
     test_set: Path | None = None      # the block-diagram PNG (ten-step method, step 6)
     study: dict | None = None         # corners: hand vs kit design, Q-points, power
+    schematic: Path | None = None     # rendered .asc (ten-step method, step 3)
+    asc: Path | None = None           # the LTspice file itself, copied for hand-in
     mc_corners: dict = field(default_factory=dict)   # corner label -> MC yield
 
 
@@ -653,6 +655,10 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                 if p.params else "Simulated waveforms.")
         blocks.append(B("image", path=path, text=f"Figure: {spec.name}, {aname} "
                                                   f"analysis. {what}"))
+    if r.schematic:
+        blocks.append(B("image", path=r.schematic,
+                        text=f"Schematic: {r.asc.name}, the LTspice file for this part "
+                             f"(it opens and simulates in LTspice as is)."))
     blocks.append(B("p", "Netlist simulated:" if not p.params
                     else "Netlist simulated (ideal values):"))
     blocks.append(B("code", text=_deck_body(p.netlist)))
@@ -876,7 +882,8 @@ def load_lab(path) -> Lab:
         parts.append({"title": raw.get("title") or Path(raw["deck"]).stem,
                       "deck": path.parent / raw["deck"],
                       "spec": path.parent / raw["spec"],
-                      "fix": list(raw.get("fix", []))})
+                      "fix": list(raw.get("fix", [])),
+                      "asc": path.parent / raw["asc"] if raw.get("asc") else None})
     if not parts:
         raise ValueError(f"{path}: a lab file needs at least one entry under 'parts'")
     return Lab(title=data.get("title", path.stem), parts=parts,
@@ -917,7 +924,25 @@ def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
                        title=part["title"], out=out, kit=kit, fixed=part["fix"],
                        mc_n=mc_n, seed=seed, workers=workers)
                for part in lab.parts]
+    for part, r in zip(lab.parts, results, strict=True):
+        if part.get("asc"):
+            r.asc, r.schematic = attach_schematic(part["asc"], out)
     return lab, results
+
+
+def attach_schematic(asc: Path, out: Path) -> tuple:
+    """Copy a part's .asc next to the report and render it to PNG."""
+    import shutil
+
+    import ascview
+    dest = out / asc.name
+    shutil.copyfile(asc, dest)
+    sch = ascview.parse_asc(dest)
+    svg = dest.with_suffix(".svg")
+    svg.write_text(ascview.render_svg(sch, scale=1.0), encoding="utf-8")
+    w, h = ascview.svg_size(sch, 1.0)
+    png = dest.with_name(dest.stem + "_schematic.png")
+    return dest, (png if ascview.to_png(svg, png, w, h) else None)
 
 
 def _cli(argv=None) -> int:

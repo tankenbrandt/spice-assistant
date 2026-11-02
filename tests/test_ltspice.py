@@ -5,12 +5,14 @@ tested against fixtures and run everywhere, CI included. Only the tests that
 actually invoke LTspice are skipped when it is not installed.
 """
 import math
+import re
 
 import pytest
 
 import crosscheck
 import ltspice
 import specs
+from conftest import PROJECT_DIR, needs_ngspice
 
 # ------------------------------------------------------------ deck translation
 
@@ -314,3 +316,17 @@ def test_live_control_block_would_otherwise_simulate_nothing(have_ltspice):
     raw = ltspice.run(RC_DECK, "ac dec 20 1 1meg")
     assert len(raw.points) > 10
     assert raw.plotname.lower().startswith("ac")
+
+
+@needs_ngspice
+def test_a_computed_sine_stimulus_becomes_plain_numbers_for_ltspice():
+    """EE 346 Exp. 8 sets its drive from the measured gain in ngspice; LTspice
+    gets the resulting amplitude as a number and runs everything else itself."""
+    import specs
+    spec = specs.load(PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.yaml")
+    deck = (PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.cir").read_text()
+    out, rest = ltspice.resolve_stimulus(deck, spec.analyses["swing"].options)
+    assert rest == []
+    m = re.search(r"SIN\(0 ([0-9.eE+-]+) 1k\)", out)
+    assert m and 0.9 < float(m.group(1)) < 1.3          # 5 V / gain ~4.6
+    assert ltspice.resolve_stimulus(deck, ["set units=degrees"]) == (deck, ["set units=degrees"])

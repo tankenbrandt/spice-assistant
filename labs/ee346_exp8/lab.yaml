@@ -25,3 +25,4 @@ parts:
     deck: ce_amp.cir
     spec: ce_amp.yaml
     fix: [RL, Cb]
+    asc: ce_amp.asc          # the kit build as an LTspice schematic (hand-in)

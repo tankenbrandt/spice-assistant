@@ -377,14 +377,62 @@ def run(netlist: str, command: str, exe=None, keep=None, options=None):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+# `alter @vin[sin] = [ 0 $&amp 1k ]`: a sine stimulus whose arguments come
+# from ngspice variables the preceding `let` lines computed (EE 346 Exp. 8
+# drives its input at 5 V / measured gain, so every design is tested at the
+# same 10 Vp-p output).
+_ALTER_SIN = re.compile(r"^\s*alter\s+@(\w+)\s*\[\s*sin\s*\]\s*=\s*\[(.*)\]\s*$", re.IGNORECASE)
+
+
+def resolve_stimulus(netlist: str, options) -> tuple:
+    """Turn a computed sine stimulus into plain numbers LTspice can run.
+
+    The setup lines before the `alter` (an `ac` probe and `let`s) run once in
+    ngspice, the variables are read back, and the source's SIN(...) is
+    rewritten with them. LTspice then runs the analysis and every measurement
+    itself, so the two simulators still answer independently -- only the
+    drive level is shared, which is the point: both are asked the same
+    question. Returns `(netlist, remaining options)`.
+    """
+    opts = list(options or [])
+    idx = next((i for i, o in enumerate(opts) if _ALTER_SIN.match(o)), None)
+    if idx is None:
+        return netlist, opts
+    m = _ALTER_SIN.match(opts[idx])
+    src, args = m.group(1), m.group(2).split()
+    names = [a[2:] for a in args if a.startswith("$&")]
+    import speccheck
+    d, out = speccheck.run_measurement(
+        netlist, "\n".join(opts[:idx] + [f"print {n}" for n in names]) + "\n")
+    shutil.rmtree(d, ignore_errors=True)
+    vals = {}
+    for n in names:
+        mm = re.search(rf"(?im)^\s*{re.escape(n)}\s*=\s*([-+0-9.eE]+)", out)
+        if not mm:
+            raise UnsupportedOption(
+                f"could not compute {n!r} for {src}'s sine stimulus in ngspice")
+        vals[n] = mm.group(1)
+    sin = "SIN(" + " ".join(vals[a[2:]] if a.startswith("$&") else a for a in args) + ")"
+    lines, found = [], False
+    for line in netlist.splitlines():
+        parts = line.split()
+        if parts and parts[0].lower() == src.lower():
+            line, k = re.subn(r"(?i)\bsin\s*\([^)]*\)", sin, line, count=1)
+            found = found or bool(k)
+        lines.append(line)
+    if not found:
+        raise UnsupportedOption(f"alter targets {src!r}, which has no SIN(...) in the deck")
+    return "\n".join(lines) + "\n", opts[idx + 1:]
+
+
 def run_analysis(netlist: str, analysis, exe=None):
     """LTspice's answer to `specs._run_analysis`.
 
     Returns `(sweep axis, {vector name: values})` -- the same shape the ngspice
     path returns, so `specs.measure` can read either without changing.
     """
-    raw = run(netlist, analysis.command, exe=exe,
-              options=getattr(analysis, "options", None))
+    netlist, options = resolve_stimulus(netlist, getattr(analysis, "options", None))
+    raw = run(netlist, analysis.command, exe=exe, options=options)
     return sweep_axis(raw), {v: vector(raw, v) for v in analysis.vectors}
 
 

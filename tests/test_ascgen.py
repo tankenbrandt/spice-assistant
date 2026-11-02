@@ -433,3 +433,12 @@ def test_print_and_plot_commands_are_not_carried_over():
 def test_an_existing_dot_directive_analysis_is_kept():
     asc = ascgen.generate("t\nV1 in 0 AC 1\nR1 in 0 1k\n.ac dec 10 1 1k\n.end\n")
     assert any("!.ac dec 10 1 1k" in ln for ln in asc.splitlines())
+
+
+def test_continuation_lines_join_the_line_they_continue():
+    """The EE 346 Exp. 8 model card spans two lines; the writer used to refuse it."""
+    import ascgen
+    deck = ascgen.parse_deck("t\nQ1 c b 0 QX\nR1 c 0 1k\n.model QX NPN(BF=200\n"
+                             "* a comment in between\n+ VAF=317)\n.end\n")
+    model = [d for d in deck.directives if d.lower().startswith(".model")]
+    assert model == [".model QX NPN(BF=200 VAF=317)"]
