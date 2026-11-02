@@ -235,6 +235,14 @@ def test_row_diff_is_symmetric_and_bounded():
     assert flipped.diff_pct == pytest.approx(r.diff_pct)
 
 
+def test_two_numerical_zero_volts_agree():
+    """A logic low of 3 nV vs 6 nV is solver tolerance, not a 50% gap
+    (EE 347 Exp. 4 failed on exactly this before the floor)."""
+    assert crosscheck.Row("y", 2.97e-9, 5.94e-9, False, "V").agrees(1.0)
+    assert not crosscheck.Row("i", 2.97e-9, 5.94e-9, False, "A").agrees(1.0)
+    assert not crosscheck.Row("y", 2.97e-9, 0.5, False, "V").agrees(1.0)
+
+
 def test_row_agreement_uses_the_tolerance():
     r = crosscheck.Row("g", 100.0, 100.5, False)
     assert r.agrees(1.0)

@@ -4,9 +4,10 @@ NMOS 2-1 MUX plus buffer -- EE 347 Exp. 4, Figure 4.1
 VDD vdd 0 DC 8
 * A: 0-8 V square, 1 kHz (low for the first half of each period)
 Va a 0 PULSE(0 8 0.5m 1u 1u 0.499m 1m)
-* B, C: case 1 (B = 8 V, C = 0 V) for 0-1 ms, case 2 (B = 0 V, C = 8 V) for 1-2 ms
-Vb b 0 PWL(0 8 0.999m 8 1m 0)
-Vc c 0 PWL(0 0 0.999m 0 1m 8)
+* B, C: case 1 (B = 8 V, C = 0 V), then case 2 (B = 0 V, C = 8 V) from 1.05 ms --
+* switched by hand at the bench, so not on an edge of A (that only adds a glitch).
+Vb b 0 PWL(0 8 1.049m 8 1.05m 0)
+Vc c 0 PWL(0 0 1.049m 0 1.05m 8)
 * A-bar from one 4001B gate wired as an inverter
 XU1 a a abar vdd 0 CD4001B
 * NMOS pass transistors: B passes when A' is high, C when A is high

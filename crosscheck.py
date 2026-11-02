@@ -34,6 +34,11 @@ import specs
 
 DEFAULT_TOL = 1.0     # percent
 
+# Two voltages both under this are the same reading: a logic low of 3 nV in
+# one simulator and 6 nV in the other is solver tolerance, not a "50%"
+# disagreement. Volts only -- a microamp or a microsecond can be the answer.
+NEGLIGIBLE = {"V": 1e-6}
+
 
 @dataclass
 class Row:
@@ -41,6 +46,7 @@ class Row:
     ngspice: float
     ltspice: float
     informational: bool
+    units: str = ""
 
     @property
     def diff_pct(self) -> float:
@@ -51,7 +57,7 @@ class Row:
         produce a meaningless six-figure percentage.
         """
         scale = max(abs(self.ngspice), abs(self.ltspice))
-        if scale < 1e-12:
+        if scale < NEGLIGIBLE.get(self.units, 1e-12):
             return 0.0
         return abs(self.ngspice - self.ltspice) / scale * 100.0
 
@@ -63,8 +69,10 @@ def compare(spec, netlist: str, exe=None) -> list:
     """Measure `netlist` against `spec` in both simulators."""
     ng = specs.measure(spec, netlist)
     lt = specs.measure(spec, netlist, runner=lambda n, a: ltspice.run_analysis(n, a, exe=exe))
-    info = {m.name: m.informational for m in spec.measurements}
-    return [Row(k, ng[k], lt[k], info.get(k, False)) for k in ng if k in lt]
+    by = {m.name: m for m in spec.measurements}
+    return [Row(k, ng[k], lt[k], by[k].informational if k in by else False,
+                by[k].units if k in by else "")
+            for k in ng if k in lt]
 
 
 def find_deck(name: str):

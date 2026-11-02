@@ -599,9 +599,15 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         steps.append("With the input signal off, check the DC voltages in the "
                      "checkpoint table below. Stop and find the wiring error if "
                      "any is far off.")
+    # Inputs set up the same way are one step: "Inputs A, B, C, D: ...".
+    same: dict = {}
     for s in r.supplies:
         if s["kind"] in ("signal", "ac", "logic"):
-            steps.append(f"Input {s['nodes'][0].upper()} ({s['name']}): {s['text']}.")
+            same.setdefault(s["text"], []).append(s)
+    for text, group in same.items():
+        nodes = ", ".join(s["nodes"][0].upper() for s in group)
+        names = ", ".join(s["name"] for s in group)
+        steps.append(f"Input{'s' if len(group) > 1 else ''} {nodes} ({names}): {text}.")
     # Informational readings stay in: a derived requirement is calculated from them.
     steps += [instruction(m, spec) for m in spec.measurements]
     steps.append("Record each reading in the results table and compare it with "
