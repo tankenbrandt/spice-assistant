@@ -77,7 +77,7 @@ def test_report_has_the_three_sections_and_the_kit_build(tmp_path):
         or "Simulation" in heads
     assert {"Simulation", "Design", "Test Plan"} <= set(heads)
     assert len(doc.tables) >= 6
-    assert len(doc.inline_shapes) == 1
+    assert len(doc.inline_shapes) == 2              # response plot + test-set diagram
 
 
 # ------------------------------------------------- multi-part logic labs
@@ -154,4 +154,4 @@ def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
 
     from docx import Document
     doc = Document(str(paths["docx"]))
-    assert len(doc.inline_shapes) == 5
+    assert len(doc.inline_shapes) == 10             # a timing diagram and a test set per part

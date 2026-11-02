@@ -40,7 +40,25 @@ def load_dotenv(path: Path | None = None) -> None:
             os.environ[key] = val
 
 
-MODEL = "claude-sonnet-5"
+# The benchmark's published numbers were produced with claude-sonnet-5. Set
+# SPICE_MODEL to measure another model (e.g. claude-sonnet-5-5, claude-opus-5-5).
+MODEL = os.environ.get("SPICE_MODEL", "claude-sonnet-5")
+
+# $ per million tokens (input, output), first-party API rates.
+PRICES = {
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-opus-5-5": (4.00, 20.00),
+}
+
+
+def prices(model: str = "") -> tuple:
+    """(input, output) $/MTok for `model`; unknown models fail loudly rather
+    than being costed at someone else's rate."""
+    model = model or MODEL
+    if model not in PRICES:
+        raise KeyError(f"no price for {model!r}; add it to main.PRICES")
+    return PRICES[model]
 MAX_ATTEMPTS = 4
 
 SYSTEM_PROMPT = (
@@ -80,10 +98,15 @@ def _message_text(description_messages, system=SYSTEM_PROMPT) -> str:
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
     resp = client.messages.create(
         model=MODEL,
-        max_tokens=4000,
+        # Current models think before answering, and thinking counts against
+        # max_tokens: 4000 risked cutting a netlist off mid-deck, which the
+        # benchmark would have scored as the model's mistake.
+        max_tokens=16000,
         system=system,
         messages=description_messages,
     )
+    if resp.stop_reason in ("max_tokens", "refusal"):
+        raise RuntimeError(f"model stopped with {resp.stop_reason!r}; no usable netlist")
     USAGE["calls"] += 1
     USAGE["input_tokens"] += resp.usage.input_tokens
     USAGE["output_tokens"] += resp.usage.output_tokens

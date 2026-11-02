@@ -32,8 +32,7 @@ SPEC_REPAIR_ROUNDS = 2  # max spec-in-the-loop repair rounds (only with --spec-r
 SPEC_REPAIR = False  # set by --spec-repair in main_entry; each round costs API calls
 
 # Intro pricing for claude-sonnet-5 (per million tokens) — for cost reporting.
-PRICE_IN_PER_MTOK = 2.00
-PRICE_OUT_PER_MTOK = 10.00
+PRICE_IN_PER_MTOK, PRICE_OUT_PER_MTOK = main.prices()   # for the model this run uses
 
 # Each description ends with harness requirements (standard node/source names)
 # so the spec-verification layer can measure deterministically.

@@ -19,9 +19,9 @@ import json
 import statistics
 from pathlib import Path
 
+import main
+
 LOG_DIR = Path(__file__).resolve().parent / "logs"
-PRICE_IN_PER_MTOK = 2.00
-PRICE_OUT_PER_MTOK = 10.00
 
 
 def summarise_run(path: Path) -> dict:
@@ -29,11 +29,13 @@ def summarise_run(path: Path) -> dict:
     run = json.loads(path.read_text(encoding="utf-8"))
     results = run["results"]
     usage = run.get("api_usage") or {}
-    cost = (usage.get("input_tokens", 0) / 1e6 * PRICE_IN_PER_MTOK
-            + usage.get("output_tokens", 0) / 1e6 * PRICE_OUT_PER_MTOK)
+    p_in, p_out = main.prices(run.get("model", "claude-sonnet-5"))
+    cost = (usage.get("input_tokens", 0) / 1e6 * p_in
+            + usage.get("output_tokens", 0) / 1e6 * p_out)
     spec_known = [r for r in results if (r.get("spec_check") or {}).get("pass") is not None]
     return {
         "file": path.name,
+        "model": run.get("model", ""),
         "circuits": len(results),
         "simulated": sum(1 for r in results if r["success"]),
         "spec_checked": len(spec_known),
@@ -86,14 +88,18 @@ def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(
         prog="repeat-summary", description="Spread of the benchmark across repeat runs.")
     ap.add_argument("--write", action="store_true",
-                    help="write logs/repeats/summary.json")
+                    help="write summary.json into the runs directory")
+    ap.add_argument("--dir", default=str(LOG_DIR / "repeats"),
+                    help="directory of run_*.json (default: logs/repeats, which "
+                         "also counts logs/run_log.json as the first run)")
     args = ap.parse_args(argv)
+    run_dir = Path(args.dir)
 
     paths = []
     canonical = LOG_DIR / "run_log.json"
-    if canonical.exists():
+    if run_dir.resolve() == (LOG_DIR / "repeats").resolve() and canonical.exists():
         paths.append(canonical)
-    paths += [Path(p) for p in sorted(glob.glob(str(LOG_DIR / "repeats" / "run_*.json")))]
+    paths += [Path(p) for p in sorted(glob.glob(str(run_dir / "run_*.json")))]
     if not paths:
         print("no run logs found")
         return 1
@@ -114,7 +120,7 @@ def _cli(argv=None) -> int:
     print(f"  total API cost   : ${data['total_cost_usd']:.2f}")
 
     if args.write:
-        out = LOG_DIR / "repeats" / "summary.json"
+        out = run_dir / "summary.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(data, indent=2), encoding="utf-8")
         print(f"\nwrote {out}")

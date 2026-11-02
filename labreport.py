@@ -383,6 +383,7 @@ class LabResult:
     op_kit: dict | None
     figures: list
     supplies: list
+    test_set: Path | None = None      # the block-diagram PNG (ten-step method, step 6)
 
 
 def _percentile(xs: list, q: float) -> float:
@@ -423,9 +424,12 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
     if mc_n:
         mc = robustness.monte_carlo(spec, kit_deck, mc_n, seed=seed, vary_temp=False,
                                     workers=workers, passive_tol=kit.passive_tol())
-    figs = []
+    figs, test_set = [], None
     if make_figures:
         figs = figures(spec, netlist, kit_deck if p.params else None, out, spec.name)
+        import blockdiagram
+        test_set = blockdiagram.draw(blockdiagram.from_deck(spec, kit_deck, title),
+                                     out / f"{spec.name}_test_set.png")
     supplies = sources(kit_deck)
     # A DC checkpoint means "input off". With stepped logic inputs or a pulse
     # train there is no such state; the truth-table rows are the checkpoints.
@@ -433,7 +437,7 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
     return LabResult(spec=spec, title=title, pick=p, kit_deck=kit_deck, mc=mc,
                      op_ideal=None if stepped else _nodes(netlist),
                      op_kit=None if stepped else _nodes(kit_deck),
-                     figures=figs, supplies=supplies)
+                     figures=figs, supplies=supplies, test_set=test_set)
 
 
 # ---------------------------------------------------------------- the report
@@ -574,6 +578,11 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         eq.append("Oscilloscope, DC-coupled (two channels or more)")
     eq.append("Breadboard and the parts listed in the schematic")
     blocks.append(B("bullets", items=eq))
+    if r.test_set:
+        blocks += [B(h, "Test set"),
+                   B("image", path=r.test_set,
+                     text="Test-set block diagram: which instrument connects to which "
+                          "node. The procedure below refers to these channels.")]
 
     if p.params:
         prow = []

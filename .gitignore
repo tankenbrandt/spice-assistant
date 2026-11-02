@@ -28,3 +28,7 @@ runs/
 
 # Resumes live here for convenience; they are not part of the project.
 *.pdf
+
+# Benchmark repeats on other models: same rule, summary only.
+logs/repeats_*/*.json
+!logs/repeats_*/summary.json
