@@ -45,6 +45,9 @@ measurements:
     units: V
     extract: {kind: peak_to_peak, of: v(in), window: last 50%}
     informational: true
+    bench: >
+      Set the generator so CH1 (Vi) reads this p-p value; it is what makes
+      the output 10 Vp-p for this design's gain.
 
   - name: vout_pp
     label: output swing

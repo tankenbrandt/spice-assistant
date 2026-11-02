@@ -533,7 +533,16 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
         import blockdiagram
         test_set = blockdiagram.draw(blockdiagram.from_deck(spec, kit_deck, title),
                                      out / f"{spec.name}_test_set.png")
-    supplies = sources(kit_deck)
+    # A spec may compute its drive (Exp. 8 sets Vi from the measured gain).
+    # The bench needs the number, not the deck's placeholder amplitude.
+    bench_deck = kit_deck
+    for an in spec.analyses.values():
+        try:
+            import ltspice
+            bench_deck, _ = ltspice.resolve_stimulus(bench_deck, an.options)
+        except Exception:                  # noqa: BLE001 - keep the deck as written
+            pass
+    supplies = sources(bench_deck)
     # A DC checkpoint means "input off". With stepped logic inputs or a pulse
     # train there is no such state; the truth-table rows are the checkpoints.
     stepped = re.search(r"(?i)\b(pwl|pulse)\s*\(", _deck_body(kit_deck))

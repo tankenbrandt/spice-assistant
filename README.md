@@ -5,158 +5,187 @@
 **The problem.** A circuit that simulates isn't a circuit that works. In
 September, Claude Sonnet 5 wrote eight circuits for me: all eight ran, and
 only five or six met spec. Today's models (Sonnet 5.5, Opus 5.5) met spec 31
-of 32 times. But even their *passing* amplifiers hold spec in only 63-91% of
-simulated real builds, once part tolerances come in. "It simulated" isn't
+of 32 times. But even their *passing* amplifiers hold spec in only 63–91% of
+simulated real builds once part tolerances come in. "It simulated" isn't
 proof, "it met spec once" isn't either, and both are as true of my own lab
-circuits as of the AI's.
+designs as of the AI's.
 
 **What I wanted:** use AI to design and simulate circuits, check that they'll
 work with real parts, fix whatever misses spec, confirm the answer in a
-second simulator, and tell me which parts from my lab kit get closest to the
-theory. Then hand me the pre-lab.
+second simulator, and pick the parts from my actual lab kit. Then hand me the
+pre-lab.
 
 ## What it does
 
-1. **Writes the circuit.** You describe it in plain English and Claude writes
-   an ngspice netlist, repairing it until it simulates.
-2. **Checks it does what you asked.** A short spec file says what "working"
-   means (gain = 50 ±5%, or a truth table). Misses go back to the AI with the
-   measured numbers for a redesign.
-3. **Tests it like a real build.** Monte Carlo over part tolerances, transistor
-   spread and supply: what share of real builds would still pass.
-4. **Gets a second opinion.** It re-measures everything in LTspice, which
-   shares no code with ngspice.
-5. **Picks parts from your kit.** It tries the nearest kit values and
-   two-part series/parallel pairs, choosing them all together by simulation
-   instead of rounding each one on its own.
+1. **Writes the circuit.** Describe it in plain English and Claude writes an
+   ngspice netlist, repairing it until it simulates.
+2. **Checks it does what you asked.** A spec file says what "working" means
+   (a gain, a swing, a truth table), and at which extremes: temperature,
+   transistor β. Misses go back to the AI with the measured numbers.
+3. **Tests it like a real build.** Monte Carlo over part tolerances, β and
+   supply: what share of real builds would still pass.
+4. **Gets a second opinion.** Everything is re-measured in LTspice, which
+   shares no code with ngspice, and it writes the `.asc` schematic.
+5. **Designs from your kit.** It searches the parts you actually own
+   (quantities and power ratings included) for the build with the most
+   margin.
 6. **Writes the pre-lab.** It produces the Simulation, Design and Test Plan
-   sections as a Word file, with plots, expected bench readings and a blank
-   *Measured* column.
+   sections as a Word file: plots, schematic, test-set block diagram,
+   expected bench readings and a blank *Measured* column.
 
 Only step 1 calls the AI. Hand it a netlist and everything else is free and
 runs locally.
 
-## In my lab: EE 347, static and dynamic CMOS gates
+## In my lab: designing a CE amplifier (EE 346, Experiment 8)
 
-This is a real lab: five circuits built from CD4007 transistors and 4001B
-gates. I turned each handout figure into a netlist and a truth-table spec
-(with Claude Code's help). One command then produced the whole pre-lab in
-about 25 seconds:
+### What the lab asks
 
-```bash
-python labreport.py --lab labs/ee347_exp4/lab.yaml --out runs/ee347_exp4
+Choose R<sub>B1</sub>, R<sub>B2</sub>, R<sub>E</sub> and V<sub>CC</sub> for a
+common-emitter amplifier (R<sub>L</sub> = 4.7 kΩ given) so that:
+
+- the output swings **10 Vp-p with no distortion** (no clipping near
+  saturation or cutoff),
+- from **25 °C at β<sub>min</sub> to 100 °C at β<sub>max</sub>**,
+- with a **gain of at least 2**, **V<sub>CC</sub> ≤ 20 V**, standard resistor
+  values, and power ratings for each resistor.
+
+That becomes a [spec file](labs/ee346_exp8/ce_amp.yaml) of checks at two
+corners. The input is set from each design's measured gain, so every design
+is tested at exactly 10 Vp-p out.
+
+### The hand design, simulated
+
+The starting point is the course's worked example: V<sub>CC</sub> = 20 V,
+47k/10k divider, R<sub>E</sub> = 1k, which gives a gain of about 4.7. As a
+netlist:
+
+```spice
+Vcc vcc 0 DC 20
+Vin in 0 DC 0 AC 1 SIN(0 1 1k)
+Cb  in b 10u
+RB1 vcc b 47k
+RB2 b 0 10k
+RL  vcc out 4.7k
+RE  e 0 1k
+Q1  out b e Q2N2222      ; handout's 2N2222 parameters
 ```
 
-- **All 37 truth-table rows** came out as expected, and LTspice agrees on all
-  five circuits.
-- **Pre-lab 2's timing diagram**, the domino gate over four clock periods,
-  is laid out the way the handout draws it:
+**It saturates at both extremes.** The hand analysis checked the 5 V output
+peak against V<sub>C</sub> = 6.8 V but left out the 2.7 V across
+R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
+
+| | 25 °C, β = 100 | 100 °C, β = 300 |
+|---|---|---|
+| Output (need 10 Vp-p) | 9.14 Vp-p ✗ | 7.97 Vp-p ✗ |
+| Lowest V<sub>CE</sub> in the swing (need ≥ 1 V) | 0.05 V ✗ | 0.04 V ✗ |
+
+### Designing from the kit
+
+The tool tried every combination of resistors from my lab kit (the course's
+3306L parts list, with its quantities: one 47k, two 10k, one 4.7k already
+taken by R<sub>L</sub>) within 4× of the hand values. That's **96 buildable
+combinations, and only 9 pass at both extremes.** The pick moves one
+resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else:
 
 <p align="center">
-  <img src="docs/ee347-domino-timing.png" width="640" alt="Timing diagram: clock, inputs A to D, dynamic node X and output Y = AB + CD over four clock periods">
+  <img src="docs/exp8-schematic.png" width="640" alt="LTspice schematic of the kit build: VCC 20 V, RB1 68k, RB2 10k, RL 4.7k, RE 1k, 2N2222, 10 uF input coupling">
 </p>
-
-- **It answers the handout's questions with numbers.** The NMOS pass-gate
-  mux only pulls X to **5.19 V** from an 8 V supply (threshold plus body
-  effect), and across part spread it lands at 5.0 to 5.4 V. The CMOS
-  transmission-gate version reaches the full **8.0 V**.
-- **It caught a timing mistake before the bench.** Changing the domino gate's
-  inputs on the same clock edge that ends evaluation glitched X low. The
-  inputs have to change once pre-charge has started.
-- **It writes the test plan:** equipment, a bench step for every reading, and
-  a results table with the expected value and the range 90% of real builds
-  land in. I fill in the *Measured* column at the bench.
 
 <p align="center">
-  <img src="docs/ee347-test-plan.png" width="640" alt="Generated test plan for the domino gate: equipment, procedure, and a results table with expected values, expected ranges and empty Measured and Pass columns">
+  <img src="docs/exp8-waveforms.png" width="640" alt="Waveforms: input, output, V_CE and V across RL; the starting design's V_CE flattens at 0 V every cycle, the kit build stays a clean sine">
 </p>
+
+Dashed is the hand design; its V<sub>CE</sub> (OUT − E) sits flat at 0 V for
+part of every cycle. The kit build (solid) never comes close:
+
+| Kit build, R<sub>B1</sub> = 68k | 25 °C, β = 100 | 100 °C, β = 300 |
+|---|---|---|
+| Output | 9.98 Vp-p ✓ | 9.98 Vp-p ✓ |
+| Gain | 4.57 ✓ | 4.60 ✓ |
+| Lowest V<sub>CE</sub> | 3.92 V ✓ | 2.59 V ✓ |
+| Q-point (V<sub>CE</sub>, I<sub>C</sub>) | 10.0 V, 1.75 mA | 8.66 V, 1.99 mA |
+| Monte Carlo, ±10% resistors | 100% pass | 100% pass |
+
+- **LTspice agrees** to within 0.002% on every check. The `.asc` above
+  netlists to the same circuit in LTspice itself.
+- **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.6 mW,
+  so a 1/8 W part covers it with 2× margin. Every kit part is 1/4 W.
+- The runner-up on raw headroom (150k/10k/270 Ω) had 3% more, but changed
+  all three parts and breaks the stiff-divider rule (R<sub>B</sub> ≤
+  0.1·β·R<sub>E</sub>) by 3.5×. Each change off the hand design has to earn
+  real margin to be worth making.
+
+### The test plan
+
+The report also writes the test plan: equipment, the test-set block diagram
+(the course's step 6), a bench step per reading with the exact drive level
+(2.17 Vp-p), DC checkpoints, and a results table with the range 90% of real
+builds land in.
+
+<p align="center">
+  <img src="docs/exp8-test-set.png" width="560" alt="Test-set block diagram: 20 V supply, function generator into IN, oscilloscope channels on IN, OUT and E, common ground">
+</p>
+
+```bash
+python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # about 20 s
+```
 
 ### Where it fits in the course's ten-step method
 
-Every lab is graded on a ten-step design-and-test method. The tool covers the
-paperwork-heavy front half and leaves the engineering judgment to me:
-
 | Step | What the tool does |
 |---|---|
-| 1. Specify | The spec file is the specification: inputs, outputs and limits, checked automatically from here on. |
-| 2. Design (hand calculations) | **Not automated, on purpose.** The hand analysis is the point of the step. Put the hand-calculated values in the spec and the report sets them beside simulation. |
-| 3. Simulate | Simulation in ngspice and LTspice, theory beside simulation, netlists and plots. `.asc` files via `ascgen.py` for discrete circuits; not yet for IC subcircuits like the 4001B. |
-| 4. Layout | Not yet. |
-| 5. Test plan | Generated: equipment, procedure, expected readings. |
-| 6. Test-set block diagram | Not yet. |
+| 1. Specify | The spec file is the specification: requirements, limits and the extremes they hold at. |
+| 2. Design (hand calculations) | **Not automated, on purpose.** The hand design is the starting point, and the report shows where it holds and where it doesn't. |
+| 3. Simulate | ngspice and LTspice, every requirement at every extreme, waveforms, and the `.asc` file to hand in. |
+| 4. Layout | Not yet: pin assignments are next. |
+| 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
+| 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
 | 7–9. Build, test, parasitics | At the bench. |
-| 10. Discuss (double weight) | The expected-range column makes the comparison quantitative: a reading outside it means something is wrong. |
+| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in, so a bench result outside it means something is wrong. |
 
-## Picking parts from the kit
+## A digital lab too: CMOS gates (EE 347, Experiment 4)
 
-When theory asks for a value the drawer doesn't have, rounding each part on
-its own can push the circuit out of spec. Parts interact, so the tool picks
-them together:
+Five circuits from CD4007 transistors and 4001B gates, with truth tables as
+specs. **All 37 rows simulate as expected and LTspice agrees on all five.**
+Two of the handout's questions come back as numbers: the NMOS pass-gate mux
+only pulls X to **5.19 V** from an 8 V supply (threshold plus body effect),
+while the transmission-gate version reaches the full **8.0 V**. Pre-lab 2's
+timing diagram comes out the way the handout draws it:
 
-| Circuit | Ideal value | Rounding each part | Joint pick |
+<p align="center">
+  <img src="docs/ee347-domino-timing.png" width="560" alt="Timing diagram: clock, inputs A to D, dynamic node X and output Y = AB + CD over four clock periods">
+</p>
+
+## How good is the AI at this?
+
+8 circuits × 4 runs per model, every result measured against its spec, then
+500 simulated builds of each CE amplifier:
+
+| Model | Simulate | Meet spec | CE amp real-build yield, passing designs |
 |---|---|---|---|
-| Active low-pass, f<sub>c</sub> = 1 kHz | C<sub>f</sub> = 1.5915 nF | 1.5 nF → 1047 Hz | 1.5 nF ∥ 100 pF → 982.6 Hz |
-| CE amplifier, gain 50 | R<sub>C</sub> 7.5k, R<sub>E2</sub> 910 | gain 48.1 | 6.8k and 820, both −9%, ratio kept → gain 50.04 |
+| Sonnet 5 (Sept 2026) | 8/8 | 5–6 | none passed (1% yield; 69% after the tool's repair) |
+| Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 | 63–85% |
+| Opus 5.5 (Nov 2026) | 8/8 | 7–8 | 85–91% |
 
-Monte Carlo then says how much the kit's tolerance matters. On the filter, a
-±10% capacitor alone puts 18% of builds outside a ±5% corner-frequency
-requirement. That's worth knowing before you start debugging a "wrong" bench
-reading. The kit itself is a file (`kit.yaml`), E12/E6 by default.
-
-## When the AI's circuit is wrong: gain 107 instead of 50
-
-*Claude Sonnet 5, September 2026. Current models get much closer; see
-[More results](#more-results).*
-
-Asked for a common-emitter amplifier with a gain of −50, the AI wrote a
-textbook-looking circuit that ran perfectly and measured a gain of **107**:
+Newer models fixed nominal correctness; tolerance is now where designs fail.
+All four runs per model cost $0.33–0.59. The September worst case, a CE
+amplifier that ran perfectly with a gain of **107 instead of 50** (its bypass
+capacitor shorted the whole emitter resistor), is written up with the repair
+in [docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really).
 
 <p align="center">
-  <img src="docs/spec-fail.png" width="640" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
+  <img src="docs/spec-fail.png" width="560" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
 </p>
-
-Its 100 µF bypass capacitor shorts the *whole* emitter resistor, so the gain
-is set by the transistor's own r<sub>e</sub> rather than by the design. The
-bias point shows the warning sign: only 0.1 V across the emitter. Across real
-builds that gain swings from 42 to 163, and **1%** of builds meet spec.
-Given the measured gain, the AI made the textbook fix: it split the emitter
-resistor and left 56 Ω unbypassed.
-
-<p align="center">
-  <img src="docs/spec-pass.png" width="640" alt="Gain of 51.5 V/V inside the acceptance band">
-</p>
-
-Gain **51.5**, and LTspice reads 51.5265 against ngspice's 51.5266. One build
-in three still missed: 51.5 sits near the top of the window. Moving one
-resistor (56 → 59 Ω) takes yield from 69% to **92%**.
-
-## More results
-
-- **Benchmark, 8 circuits × 4 runs per model:**
-
-  | Model | Simulate | Meet spec | CE amp real-build yield, passing designs |
-  |---|---|---|---|
-  | Sonnet 5 (Sept 2026) | 8/8 | 5–6 | none passed (1% yield; 69% after the tool's repair) |
-  | Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 | 63–85% |
-  | Opus 5.5 (Nov 2026) | 8/8 | 7–8 | 85–91% |
-
-  Newer models fixed nominal correctness; tolerance is now where designs
-  fail. All four runs per model cost $0.33–0.59.
-- **EE 346 diode lab (AI-designed):** 9 of 10 designs were correct, and the
-  spec caught the one with a reversed clamper diode. Writing the specs also
-  showed that the handout's V<sub>p</sub>/π rectifier estimate runs about 10%
-  high. And it caught the AI's repair loop "passing" by quietly changing the
-  handout's given source values; repairs now treat the assignment as fixed.
 
 ## Quick start
 
 ```bash
 pip install -e ".[labreport]"   # Python 3.10+, plus ngspice (setup in docs/how-it-works.md)
-python labreport.py --lab labs/ee347_exp4/lab.yaml --out runs/ee347_exp4   # a whole pre-lab
+python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # a whole pre-lab
 python kit.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml
 python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_API_KEY
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 651 tests, no API calls, CI
-on Linux and Windows.
+**[docs/how-it-works.md](docs/how-it-works.md)**. 668 tests, no API calls,
+CI on Linux and Windows.
