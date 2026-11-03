@@ -97,6 +97,31 @@ def from_deck(spec, deck: str, title: str = "") -> TestSet:
 
 # ------------------------------------------------------------------ drawing
 
+def _text_pt(s: str, fontsize: float) -> float:
+    """Rendered width of `s` in points, measured from the font's glyphs."""
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.textpath import TextPath
+    return TextPath((0, 0), s, prop=FontProperties(size=fontsize)).get_extents().width
+
+
+def _fit(text: str, max_pt: float, fontsize: float = 8, max_lines: int = 4) -> list:
+    """Word-wrap `text` so every line renders within `max_pt` points."""
+    lines, cur = [], ""
+    for word in text.split():
+        trial = f"{cur} {word}".strip()
+        if cur and _text_pt(trial, fontsize) > max_pt:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = trial
+    if cur:
+        lines.append(cur)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = lines[-1].rstrip(",;") + "…"
+    return lines
+
+
 def _box(ax, x, y, w, h, title, lines, kind):
     from matplotlib.patches import FancyBboxPatch
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.08",
@@ -131,13 +156,19 @@ def draw(ts: TestSet, path: Path) -> Path:
     ax.set_xlim(0, 11)
     ax.set_ylim(-0.9, H)
     ax.axis("off")
+    # Points per data unit, so text can be wrapped to a box's real width.
+    # The axes fill the figure once laid out; every artist sits inside the limits.
+    fig.tight_layout()
+    ppu = ax.get_position().width * fig.get_figwidth() * 72 / 11
+
+    def fits(text, box_w):
+        return _fit(text, (box_w - 0.35) * ppu)
 
     # Circuit under test, centre.
     dx, dw = 4.1, 2.8
     dy, dh = 0.6, H - 2.4
     # A handout's part title is often longer than the box is wide: wrap it.
-    import textwrap
-    _box(ax, dx, dy, dw, dh, "Circuit under test", textwrap.wrap(ts.title, 30)[:4], "dut")
+    _box(ax, dx, dy, dw, dh, "Circuit under test", fits(ts.title, dw), "dut")
 
     # DC supply across the top, one lead per rail into the top of the circuit.
     if ts.supplies:
@@ -153,16 +184,19 @@ def draw(ts: TestSet, path: Path) -> Path:
     # Sources down the left, each wired to its input node. Boxes differ in
     # height (the switch box grows per input), so stack them by height with
     # equal gaps rather than spacing their centres evenly.
-    heights = [0.84 if kind == "gen" else 0.95 + 0.34 * len(item) for kind, item in left]
+    gen_lines = [fits(item[2], 2.9)[:2] if kind == "gen" else [] for kind, item in left]
+    heights = [0.57 + 0.27 * len(gl) if kind == "gen" else 0.95 + 0.34 * len(item)
+               for (kind, item), gl in zip(left, gen_lines, strict=True)]
     gap = max(0.2, (dh - sum(heights)) / (len(left) + 1)) if left else 0
     top = dy + dh
-    for (kind, item), bh in zip(left, heights, strict=True):
+    left_bottoms = []
+    for (kind, item), bh, gl in zip(left, heights, gen_lines, strict=True):
         top -= gap
         bottom = top - bh
+        left_bottoms.append(bottom)
         if kind == "gen":
-            _, node, text = item
-            text = text if len(text) <= 30 else text[:29] + "…"
-            _box(ax, 0.2, bottom, 2.9, bh, "Function generator", [text], "signal")
+            _, node, _ = item
+            _box(ax, 0.2, bottom, 2.9, bh, "Function generator", gl, "signal")
             _wire(ax, [(3.1, bottom + bh / 2), (dx, bottom + bh / 2)], label=node.upper())
         else:
             _box(ax, 0.2, bottom, 2.9, bh, "Logic inputs (switches)",
@@ -188,11 +222,24 @@ def draw(ts: TestSet, path: Path) -> Path:
         ax.text(sx + 1.45, dy + 0.18, "move a probe to read " + ", ".join(
             n.upper() for n in ts.overflow), ha="center", fontsize=7.2, color=MUTED)
 
-    # Common ground: every instrument returns to the circuit's ground.
+    # Common ground: every instrument returns to the circuit's ground, each
+    # return running to its own box. The sources on the left are stacked, so a
+    # drop from an upper one would cross the one below: with more than one,
+    # they share a ground rail up the left edge with a tap into each box.
     gy = -0.45
-    ax.plot([0.6, 10.4], [gy, gy], color=LINE, lw=1.6)
-    for x in ([1.65] if left else []) + [dx + dw / 2, sx + 1.45]:
-        ax.plot([x, x], [gy, dy if x != 1.65 else dy + 0.0], color=LINE, lw=1.0, ls=(0, (2, 2)))
+    dash = dict(color=LINE, lw=1.0, ls=(0, (2, 2)))
+    rail_x = 0.06
+    stacked = len(left_bottoms) > 1
+    ax.plot([rail_x if stacked else 0.6, 10.4], [gy, gy], color=LINE, lw=1.6)
+    if stacked:
+        taps = [b + 0.22 for b in left_bottoms]
+        ax.plot([rail_x, rail_x], [gy, max(taps)], **dash)
+        for y in taps:
+            ax.plot([rail_x, 0.18], [y, y], **dash)
+    elif left_bottoms:
+        ax.plot([1.65, 1.65], [gy, left_bottoms[0]], **dash)
+    for x in (dx + dw / 2, sx + 1.45):
+        ax.plot([x, x], [gy, dy], **dash)
     ax.text(10.4, gy - 0.12, "common ground", ha="right", va="top", fontsize=7.5, color=MUTED)
 
     fig.tight_layout()
