@@ -330,3 +330,48 @@ def test_a_computed_sine_stimulus_becomes_plain_numbers_for_ltspice():
     m = re.search(r"SIN\(0 ([0-9.eE+-]+) 1k\)", out)
     assert m and 0.9 < float(m.group(1)) < 1.3          # 5 V / gain ~4.6
     assert ltspice.resolve_stimulus(deck, ["set units=degrees"]) == (deck, ["set units=degrees"])
+
+
+# ------------------------------------------------- running a schematic itself
+
+EXP8_ASC = PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.asc"
+
+
+def test_asc_variant_sets_temperature_and_model_parameters():
+    text = EXP8_ASC.read_text()
+    out = ltspice.asc_variant(text, temp=100, model={"Q2N2222.BF": 325})
+    assert "BF=325 " in out and "BF=200" not in out
+    assert out.count("!.temp 100") == 1
+    # A second change replaces the .temp rather than stacking another.
+    again = ltspice.asc_variant(out, temp=25)
+    assert again.count("!.temp") == 1 and "!.temp 25" in again
+    # A parameter the card lacks is added; a model the sheet lacks is refused.
+    assert "XTB=1.5" in ltspice.asc_variant(text, model={"Q2N2222.XTB": 1.5})
+    with pytest.raises(ltspice.UnsupportedOption):
+        ltspice.asc_variant(text, model={"QX.BF": 1})
+
+
+def test_asc_matches_checks_connections_and_values():
+    deck = ("CE\nVcc vcc 0 DC 20\nCb in b 10u\nRB1 vcc b 68000\nRE e 0 1k\n"
+            "Q1 out b e Q2N2222\n.model Q2N2222 NPN(BF=200)\n.end\n")
+    drawn = ("* sheet.asc\nVcc vcc 0 20\nCb b in 10µ\nRB1 vcc b 68k\nRE e 0 1k\n"
+             "Q1 out b e 0 Q2N2222\n.tran 1m\n.end\n")
+    assert ltspice.asc_matches(drawn, deck) == []          # Cb drawn the other way round
+    stale = ltspice.asc_matches(drawn.replace("68k", "47k"), deck)
+    assert stale == ["RB1 is 47k on the schematic, 68000 in the design"]
+    moved = ltspice.asc_matches(drawn.replace("RE e 0", "RE out 0"), deck)
+    assert moved and "RE connects" in moved[0]
+    assert any("not on the schematic" in p
+               for p in ltspice.asc_matches(drawn.replace("RE e 0 1k\n", ""), deck))
+
+
+def test_live_ltspice_runs_the_schematic_file_itself(have_ltspice):
+    hot = ltspice.run_asc(EXP8_ASC, temp=100, model={"Q2N2222.BF": 325})
+    assert hot.version.startswith("LTspice")
+    assert ".temp 100" in hot.netlist and "BF=325" in hot.netlist
+    out = ltspice.vector(hot.raw, "v(out)")
+    half = out[len(out) // 2:]
+    assert 9.5 < max(half) - min(half) < 10.5             # ~10 Vp-p as the lab asks
+    vce = ltspice.vector(hot.op, "v(out)")[0] - ltspice.vector(hot.op, "v(e)")[0]
+    assert vce == pytest.approx(8.64, abs=0.05)
+    assert ltspice.vector(hot.op, "Ic(Q1)")[0] == pytest.approx(1.99e-3, rel=0.01)

@@ -154,7 +154,9 @@ def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
 
     from docx import Document
     doc = Document(str(paths["docx"]))
-    assert len(doc.inline_shapes) == 10             # a timing diagram and a test set per part
+    import ltspice
+    per_part = 3 if ltspice.available() else 2      # timing diagram, test set (+ LTspice run)
+    assert len(doc.inline_shapes) == 5 * per_part
 
 
 def test_power_rating_is_the_next_standard_size_at_twice_the_dissipation():
@@ -188,3 +190,26 @@ def test_a_lab_part_can_carry_its_ltspice_schematic(tmp_path):
     copied, png = lr.attach_schematic(asc, tmp_path)
     assert copied.read_text() == asc.read_text()
     assert png and png.stat().st_size > 10_000
+
+
+def test_ltspice_section_runs_the_hand_in_schematic(tmp_path):
+    import ltspice
+    if not ltspice.available():
+        pytest.skip("LTspice not installed")
+    pytest.importorskip("matplotlib")
+    spec = specs.load(PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.yaml")
+    asc = PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.asc"
+    kit_deck = (PROJECT_DIR / "labs" / "ee346_exp8" / "ce_amp.cir").read_text().replace(
+        "RB1 vcc b 47k", "RB1 vcc b 68k")
+    lt = lr.lt_simulation(spec, kit_deck, asc, tmp_path, "ce")
+    assert lt["asc"] == asc and not lt["mismatch"] and not lt["error"]
+    assert [row["label"] for row in lt["rows"]] == [c["label"] for c in spec.corners]
+    for row in lt["rows"]:
+        assert row["figure"].exists()
+        assert all(m.limits.ok(row["values"][m.name]) for m in spec.specs)
+        (q, vbe, vce, ic), = row["qpoints"]
+        assert q == "Q1" and 0.4 < vbe < 0.8 and 2 < vce < 15 and 1e-3 < ic < 3e-3
+    # The hand design is not what the sheet shows: LTspice runs the netlist instead.
+    stale = lr.lt_simulation(spec, kit_deck.replace("RB1 vcc b 68k", "RB1 vcc b 47k"),
+                             asc, tmp_path, "ce2")
+    assert stale["asc"] is None and stale["mismatch"]

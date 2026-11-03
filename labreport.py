@@ -223,7 +223,96 @@ def _strip_label(vec: str) -> str:
     return f"{a} − {b.upper()}" if b else a
 
 
-def _timing(plt, EngFormatter, xs, vecs, built, path: Path, logic: bool = True) -> Path:
+def _op_qpoints(deck: str, op) -> list:
+    """(refdes, VBE, VCE, IC) for each top-level BJT, read from an LTspice .op raw."""
+    import ltspice
+    out = []
+    lines = deck.splitlines()
+    inside = kitmod._subckt_mask(lines)
+    for ln, sub in zip(lines, inside, strict=True):
+        m = _BJT_RE.match(ln)
+        if not m or sub:
+            continue
+        q, c, b, e, _ = m.groups()
+
+        def v(n):
+            return 0.0 if n == "0" else ltspice.vector(op, f"v({n})")[0]
+        try:
+            ic = ltspice.vector(op, f"Ic({q})")[0]
+        except KeyError:
+            ic = None
+        out.append((q, v(b) - v(e), v(c) - v(e), ic))
+    return out
+
+
+def lt_simulation(spec, deck: str, asc: Path | None, out: Path, stem: str) -> dict | None:
+    """LTspice's own simulation, at every condition the spec names.
+
+    With a schematic (`asc`) LTspice runs *that file*, as drawn -- the one
+    handed in -- after checking that the netlist LTspice makes from it is the
+    design (same connections, same values). Otherwise it runs the design's
+    netlist. Each condition gets a waveform figure plotted from LTspice's raw
+    output, the spec's checks measured on it, and the Q-points from LTspice's
+    operating point. None if LTspice is not installed.
+    """
+    import ltspice
+    if not ltspice.available():
+        return None
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import EngFormatter
+
+    tran = next((n for n, a in spec.analyses.items()
+                 if a.command.split()[0].lower() == "tran"), None)
+    res = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [], "error": None}
+    if asc and tran:
+        try:
+            first = ltspice.run_asc(asc)
+            res["version"] = first.version
+            res["mismatch"] = ltspice.asc_matches(first.netlist, deck)
+            if not res["mismatch"]:
+                res["asc"] = Path(asc)
+        except Exception as e:             # noqa: BLE001 - fall back to the netlist
+            res["error"] = str(e)
+    logic = bool(re.search(r"(?i)\b(pwl|pulse)\s*\(", _deck_body(deck)))
+    for i, c in enumerate(spec.corners or [None]):
+        label = c["label"] if c else ("as drawn" if res["asc"] else "LTspice")
+        row = {"label": label, "corner": c, "values": None, "qpoints": [], "figure": None}
+        try:
+            if res["asc"]:
+                # The sheet's own .tran ran; every tran measurement reads it.
+                run = ltspice.run_asc(res["asc"], temp=c and c.get("temp"),
+                                      model=c and c.get("model"))
+                data = {a.command: (ltspice.sweep_axis(run.raw),
+                                    {v: ltspice.vector(run.raw, v) for v in a.vectors})
+                        for a in spec.analyses.values()
+                        if a.command.split()[0].lower() == "tran"}
+                d, op = deck, run.op
+            else:
+                d = specfile.corner_deck(deck, c) if c else deck
+                data = {a.command: ltspice.run_analysis(d, a) for a in spec.analyses.values()}
+                op = ltspice.run(d, "op")
+            try:
+                row["values"] = specfile.measure(spec, d, runner=lambda _n, a, data=data: data[a.command])
+            except Exception:              # noqa: BLE001 - a measurement LTspice can't take
+                row["values"] = None
+            if op is not None:
+                row["qpoints"] = _op_qpoints(deck, op)
+            if tran:
+                xs, vecs = data[spec.analyses[tran].command]
+                path = out / f"{stem}_ltspice_{i + 1}.png"
+                row["figure"] = _timing(plt, EngFormatter, xs, vecs, None, path, logic=logic,
+                                        title="LTspice" if label == "LTspice"
+                                        else f"LTspice: {label}")
+        except Exception as e:             # noqa: BLE001 - report what failed
+            res["error"] = f"{label}: {e}"
+        res["rows"].append(row)
+    return res
+
+
+def _timing(plt, EngFormatter, xs, vecs, built, path: Path, logic: bool = True,
+            title: str = "") -> Path:
     """Stacked strips on one time axis. Logic waveforms get the handout look
     (0 and the rail only); analog ones keep a real voltage scale per strip."""
     names = list(vecs)
@@ -262,6 +351,8 @@ def _timing(plt, EngFormatter, xs, vecs, built, path: Path, logic: bool = True) 
     last = axes[-1, 0]
     last.set_xlabel("time")
     last.xaxis.set_major_formatter(EngFormatter(unit="s"))
+    if title:
+        axes[0, 0].set_title(title, fontsize=9, loc="left", color=ink)
     fig.tight_layout(h_pad=0.2)
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -412,6 +503,7 @@ class LabResult:
     asc: Path | None = None           # the LTspice file itself, copied for hand-in
     mc_corners: dict = field(default_factory=dict)   # corner label -> MC yield
     layout: object = None             # layout.Layout: pin assignments (ten-step method, step 4)
+    lt: dict | None = None            # lt_simulation(): LTspice's own run at every condition
 
 
 def _percentile(xs: list, q: float) -> float:
@@ -512,7 +604,8 @@ def _corner_study(spec, netlist: str, kit_deck: str) -> dict:
 
 def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
             singles_only=False, mc_n: int = 200, seed: int = 0,
-            workers: int = 8, make_figures: bool = True) -> LabResult:
+            workers: int = 8, make_figures: bool = True,
+            asc: Path | None = None) -> LabResult:
     out.mkdir(parents=True, exist_ok=True)
     kit = kit or kitmod.load_kit()
     p = kitmod.pick(spec, netlist, kit, fixed=fixed, singles_only=singles_only,
@@ -528,9 +621,14 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
                 spec, specfile.corner_deck(kit_deck, c), mc_n, seed=seed, vary_temp=False,
                 workers=workers, passive_tol=kit.passive_tol())["yield"]
     study = _corner_study(spec, netlist, kit_deck) if spec.corners else None
-    figs, test_set = [], None
+    figs, test_set, lt = [], None, None
     if make_figures:
         figs = figures(spec, netlist, kit_deck if p.params else None, out, spec.name)
+        try:
+            lt = lt_simulation(spec, kit_deck, asc, out, spec.name)
+        except Exception as e:             # noqa: BLE001 - say so in the report
+            lt = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [],
+                  "error": str(e)}
         import blockdiagram
         test_set = blockdiagram.draw(blockdiagram.from_deck(spec, kit_deck, title),
                                      out / f"{spec.name}_test_set.png")
@@ -558,7 +656,7 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
                      op_ideal=None if stepped else _nodes(netlist),
                      op_kit=op_kit,
                      figures=figs, supplies=supplies, test_set=test_set,
-                     study=study, mc_corners=mc_corners, layout=lay)
+                     study=study, mc_corners=mc_corners, layout=lay, lt=lt)
 
 
 # ---------------------------------------------------------------- the report
@@ -670,12 +768,14 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
     for aname, path in r.figures:
         what = ("Dashed: ideal values; solid: the kit build from the Design section."
                 if p.params else "Simulated waveforms.")
-        blocks.append(B("image", path=path, text=f"Figure: {spec.name}, {aname} "
+        blocks.append(B("image", path=path, text=f"Figure: ngspice, {spec.name}, {aname} "
                                                   f"analysis. {what}"))
     if r.schematic:
         blocks.append(B("image", path=r.schematic,
                         text=f"Schematic: {r.asc.name}, the LTspice file for this part "
                              f"(it opens and simulates in LTspice as is)."))
+    if r.lt:
+        blocks += _lt_blocks(r, h)
     blocks.append(B("p", "Netlist simulated:" if not p.params
                     else "Netlist simulated (ideal values):"))
     blocks.append(B("code", text=_deck_body(p.netlist)))
@@ -841,6 +941,57 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
     return blocks
 
 
+def _lt_blocks(r: LabResult, h: str) -> list:
+    """LTspice's own run: what it ran, its numbers at each condition, its waveforms."""
+    lt, spec, B = r.lt, r.spec, Block
+    blocks = [B(h, "LTspice simulation")]
+    if lt["asc"]:
+        what = (f"{lt['version']} ran {lt['asc'].name} itself, the schematic handed in, "
+                f"exactly as drawn (including its fixed input drive), at each condition "
+                f"below. The netlist LTspice makes from that schematic was checked "
+                f"against the design part by part: same connections, same values.")
+    else:
+        what = (f"{lt['version']} ran the design's netlist"
+                + (" at each condition below" if spec.corners else "")
+                + ", independently of ngspice.")
+    if lt["mismatch"]:
+        what += (" The schematic file was NOT used, because it does not match the "
+                 "design: " + "; ".join(lt["mismatch"]) + ". Fix the .asc before "
+                 "handing it in.")
+    blocks.append(B("p", what))
+    rows = [row for row in lt["rows"] if row["values"]]
+    if rows:
+        blocks.append(B("table", header=["Requirement", "Limit"]
+                        + [row["label"] for row in rows],
+                        rows=[[m.title, theory(m)]
+                              + [_verdict_cell(row["values"], m) for row in rows]
+                              for m in spec.specs]))
+    qrows = []
+    for row in lt["rows"]:
+        beta = next((v for k, v in (row["corner"] or {}).get("model", {}).items()
+                     if k.upper().endswith(".BF")), "")
+        gain = (row["values"] or {}).get("gain")
+        for q, vbe, vce, ic in row["qpoints"]:
+            qrows.append((row["label"], q.upper(), str(beta), num(vbe, "V", 3),
+                          num(vce, "V", 3), "—" if ic is None else f"{ic * 1e3:.3g} mA",
+                          num(gain, "", 3) if gain is not None else "—"))
+    if qrows:
+        blocks += [B("p", "Q-points from LTspice's operating point (the SPICE rows of "
+                          "the handout's results table):"),
+                   B("table", header=["Condition", "Transistor", "β", "V_BE", "V_CE",
+                                      "I_C", "Gain"], rows=qrows)]
+    for row in lt["rows"]:
+        if row["figure"]:
+            where = "" if row["label"] in ("LTspice", "as drawn") else f", {row['label']}"
+            blocks.append(B("image", path=row["figure"],
+                            text=f"Figure: LTspice{where}"
+                                 + (f", {lt['asc'].name} as drawn." if lt["asc"] else ".")
+                                 + " Plotted from LTspice's own output file."))
+    if lt["error"]:
+        blocks.append(B("p", f"LTspice could not complete every run: {lt['error']}"))
+    return blocks
+
+
 def _layout_blocks(lay, H: str, h: str) -> list:
     """Step 4: every package pin, and the wiring list a breadboard is built from."""
     import layout as layoutmod
@@ -979,7 +1130,7 @@ def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
     results = [analyse(specfile.load(part["spec"]),
                        part["deck"].read_text(encoding="utf-8"),
                        title=part["title"], out=out, kit=kit, fixed=part["fix"],
-                       mc_n=mc_n, seed=seed, workers=workers)
+                       mc_n=mc_n, seed=seed, workers=workers, asc=part.get("asc"))
                for part in lab.parts]
     for part, r in zip(lab.parts, results, strict=True):
         if part.get("asc"):

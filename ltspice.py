@@ -425,6 +425,147 @@ def resolve_stimulus(netlist: str, options) -> tuple:
     return "\n".join(lines) + "\n", opts[idx + 1:]
 
 
+@dataclass
+class AscRun:
+    """LTspice's own run of a schematic file: what it simulated and what it got."""
+    raw: Raw                  # the analysis the schematic's directive asks for
+    op: Raw | None            # the operating point LTspice writes alongside it
+    netlist: str              # the netlist LTspice itself made from the .asc
+    version: str              # "LTspice 26.0.2 for Windows"
+
+
+_ASC_MODEL = re.compile(r"(?i)(!\.model\s+(\S+)\s+\w+\s*\()([^)]*)(\))")
+
+
+def asc_variant(asc_text: str, temp=None, model=None) -> str:
+    """The schematic with a `.temp` and model-parameter changes, for one condition.
+
+    `model` is {"Q2N2222.BF": 75}: the parameter is replaced inside the
+    sheet's own `.model` directive (or added to it). A `.temp` line already on
+    the sheet is replaced, not duplicated.
+    """
+    lines = [ln for ln in asc_text.splitlines()
+             if not (temp is not None and re.search(r"(?i)^TEXT .*!\.temp\b", ln))]
+    for key, val in (model or {}).items():
+        name, param = key.rsplit(".", 1)
+        hit = False
+        for i, ln in enumerate(lines):
+            m = _ASC_MODEL.search(ln)
+            if not (ln.startswith("TEXT") and m and m.group(2).lower() == name.lower()):
+                continue
+            body, n = re.subn(rf"(?i)\b{re.escape(param)}\s*=\s*[^\s)]+",
+                              f"{param}={val}", m.group(3))
+            if not n:
+                body = f"{body} {param}={val}".strip()
+            lines[i] = ln[:m.start(3)] + body + ln[m.end(3):]
+            hit = True
+        if not hit:
+            raise UnsupportedOption(f"the schematic has no .model {name} to set {param} in")
+    if temp is not None:
+        y = max((int(p[2]) for p in (ln.split() for ln in lines)
+                 if len(p) > 3 and p[0] in ("TEXT", "FLAG", "WIRE")
+                 and p[2].lstrip("-").isdigit()), default=0) + 32
+        lines.append(f"TEXT -224 {y} Left 2 !.temp {temp}")
+    return "\n".join(lines) + "\n"
+
+
+def run_asc(asc: Path, *, temp=None, model=None, exe=None) -> AscRun:
+    """Run a schematic file in LTspice itself (batch mode), as drawn.
+
+    Nothing is converted: LTspice reads the .asc, makes its own netlist and
+    runs the sheet's own analysis directive, exactly as pressing Run would.
+    """
+    exe = find_executable(exe)
+    if exe is None:
+        raise RuntimeError("LTspice not found; set LTSPICE_EXE or pass --exe")
+    tmp = Path(tempfile.mkdtemp(prefix="ltspice-asc-"))
+    try:
+        sheet = tmp / Path(asc).name
+        sheet.write_text(asc_variant(Path(asc).read_text(encoding="utf-8", errors="replace"),
+                                     temp, model), encoding="utf-8")
+        proc = subprocess.run([str(exe), "-b", "-ascii", str(sheet)],
+                              capture_output=True, text=True, timeout=_TIMEOUT)
+        raw, op = sheet.with_suffix(".raw"), sheet.with_suffix(".op.raw")
+        log, net = sheet.with_suffix(".log"), sheet.with_suffix(".net")
+        if not raw.exists():
+            detail = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+            raise RuntimeError("LTspice wrote no raw file for the schematic.\n"
+                               f"exit={proc.returncode}\n{(detail or proc.stderr)[-800:]}")
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+        version = text.splitlines()[0].strip() if text else "LTspice"
+        return AscRun(parse_raw(raw.read_text(encoding="utf-8", errors="replace")),
+                      parse_raw(op.read_text(encoding="utf-8", errors="replace"))
+                      if op.exists() else None,
+                      net.read_text(encoding="utf-8", errors="replace") if net.exists() else "",
+                      version)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _parts_of(netlist: str) -> dict:
+    """{REFDES: (nodes, value)} for the top-level R, C, L, V, Q, M, D parts."""
+    lines = [ln for ln in netlist.splitlines()]
+    out, depth, first = {}, 0, True
+    for raw in lines:
+        s = raw.split(";")[0].strip()
+        if first and s:
+            first = False
+            if not s.startswith("*"):
+                continue                       # a deck's title line
+        low = s.lower()
+        if low.startswith(".subckt"):
+            depth += 1
+        if low.startswith(".ends"):
+            depth -= 1
+            continue
+        if depth or not s or s[0] in "*.+":
+            continue
+        tok = s.split()
+        p = tok[0][0].upper()
+        n = {"R": 2, "C": 2, "L": 2, "V": 2, "D": 2, "Q": 3, "M": 3}.get(p)
+        if n is None or len(tok) < n + 1:
+            continue
+        nodes = tuple("0" if t.lower() in ("0", "gnd") else t.lower() for t in tok[1:1 + n])
+        value = tok[1 + n] if p in "RCL" and len(tok) > 1 + n else None
+        out[tok[0].upper()] = (nodes, value)
+    return out
+
+
+def asc_matches(asc_netlist: str, deck: str) -> list:
+    """Differences between the circuit LTspice drew from a .asc and a deck.
+
+    Connections and R/C/L values; two-terminal parts may be drawn either way
+    round. Empty means the schematic is the deck.
+    """
+    import speccheck
+
+    def val(t):
+        return speccheck.spice_value(t.replace("µ", "u").replace("Ω", ""))
+
+    a, b = _parts_of(deck), _parts_of(asc_netlist)
+    problems = []
+    for ref in sorted(set(a) | set(b)):
+        if ref not in b:
+            problems.append(f"{ref} is in the design but not on the schematic")
+            continue
+        if ref not in a:
+            problems.append(f"{ref} is on the schematic but not in the design")
+            continue
+        (na, va), (nb, vb) = a[ref], b[ref]
+        same = sorted(na) == sorted(nb) if len(na) == 2 else na == nb
+        if not same:
+            problems.append(f"{ref} connects {' '.join(nb)} on the schematic, "
+                            f"{' '.join(na)} in the design")
+        if va is not None and vb is not None:
+            try:
+                x, y = val(va), val(vb)
+                if abs(x - y) > 1e-3 * max(abs(x), abs(y)):
+                    problems.append(f"{ref} is {vb} on the schematic, {va} in the design")
+            except ValueError:
+                pass
+    return problems
+
+
 def run_analysis(netlist: str, analysis, exe=None):
     """LTspice's answer to `specs._run_analysis`.
 

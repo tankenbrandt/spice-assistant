@@ -25,7 +25,8 @@ pre-lab.
 3. **Tests it like a real build.** Monte Carlo over part tolerances, β and
    supply: what share of real builds would still pass.
 4. **Gets a second opinion.** Everything is re-measured in LTspice, which
-   shares no code with ngspice, and it writes the `.asc` schematic.
+   shares no code with ngspice. Given the `.asc` schematic you'll hand in,
+   LTspice runs that file itself, after a check that it matches the design.
 5. **Designs from your kit.** It searches the parts you actually own
    (quantities and power ratings included) for the build with the most
    margin.
@@ -87,18 +88,34 @@ The tool tried every combination of resistors from my lab kit (the course's
 3306L parts list, with its quantities: one 47k, two 10k, one 4.7k already
 taken by R<sub>L</sub>) within 4× of the hand values. That's **96 buildable
 combinations, and only 7 pass at both extremes.** The pick moves one
-resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else:
+resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else.
+
+The kit build as an LTspice schematic, `ce_amp.asc`, the file I hand in:
 
 <p align="center">
   <img src="docs/exp8-schematic.png" width="640" alt="LTspice schematic of the kit build: VCC 20 V, RB1 68k, RB2 10k, RL 4.7k, RE 1k, 2N2222, 10 uF input coupling">
 </p>
 
+*This sheet was laid out by hand (with Claude) to match the handout's
+Figure 1. The tool's automatic `.asc` writer gets the connections right
+but crosses wires on this circuit. Before using the file, the tool has
+LTspice netlist it and checks the result against the design part by part,
+so a stale 47k on the sheet would be caught.*
+
+LTspice running that file, at the hot extreme (plotted from LTspice's own
+output file; the pre-lab has one of these for each condition):
+
 <p align="center">
-  <img src="docs/exp8-waveforms.png" width="640" alt="Waveforms: input, output, V_CE and V across RL; the starting design's V_CE flattens at 0 V every cycle, the kit build stays a clean sine">
+  <img src="docs/exp8-ltspice-hot.png" width="640" alt="LTspice waveforms of ce_amp.asc at 100 C, beta 325: IN, OUT, OUT minus E and VCC minus OUT, all clean sines">
 </p>
 
-Dashed is the hand design; its V<sub>CE</sub> (OUT − E) sits flat at 0 V for
-part of every cycle. The kit build (solid) never comes close:
+The same comparison in ngspice, against the hand design (dashed). The hand
+design's V<sub>CE</sub> (OUT − E) sits flat at 0 V for part of every cycle;
+the kit build (solid) never comes close:
+
+<p align="center">
+  <img src="docs/exp8-waveforms.png" width="640" alt="ngspice waveforms: input, output, V_CE and V across RL; the starting design's V_CE flattens at 0 V every cycle, the kit build stays a clean sine">
+</p>
 
 | Kit build, R<sub>B1</sub> = 68k | 25 °C, β = 75 | 100 °C, β = 325 |
 |---|---|---|
@@ -108,8 +125,9 @@ part of every cycle. The kit build (solid) never comes close:
 | Q-point (V<sub>CE</sub>, I<sub>C</sub>) | 10.3 V, 1.70 mA | 8.64 V, 1.99 mA |
 | Monte Carlo, ±10% resistors | 100% pass | 100% pass |
 
-- **LTspice agrees** to within 0.002% on every check. The `.asc` above
-  netlists to the same circuit in LTspice itself.
+- **LTspice agrees.** Running the `.asc` itself at every condition, it
+  gives the same Q-points to three figures (e.g. 8.64 V, 1.99 mA hot), and
+  every check passes.
 - **With my own transistor:** I measured β = 116 at 1.7 mA in the previous
   lab (Exp. 7). At that β the hand design still clips (V<sub>CE</sub>
   bottoms at 0.05 V), while the kit build sits at V<sub>CE</sub> = 9.9 V,
@@ -142,7 +160,7 @@ python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # abo
 |---|---|
 | 1. Specify | The spec file is the specification: requirements, limits and the extremes they hold at. |
 | 2. Design (hand calculations) | **Not automated, on purpose.** The hand design is the starting point, and the report shows where it holds and where it doesn't. |
-| 3. Simulate | ngspice and LTspice, every requirement at every extreme, waveforms, and the `.asc` file to hand in. |
+| 3. Simulate | ngspice and LTspice, every requirement at every extreme. LTspice runs the `.asc` you hand in and its waveforms go in the report. |
 | 4. Layout | Generated: every package pin, unused pins included, and a wiring list by node. CMOS assignments are re-simulated as wired. |
 | 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
 | 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
@@ -202,5 +220,5 @@ python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_A
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 684 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 688 tests, no API calls,
 CI on Linux and Windows.
