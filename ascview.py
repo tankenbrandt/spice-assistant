@@ -775,8 +775,12 @@ def to_png(svg_path: Path, png_path: Path, w: int, h: int) -> bool:
         print("  no Chrome/Edge found — skipping PNG", file=sys.stderr)
         return False
     uri = svg_path.resolve().as_uri()
+    # Ubuntu 23.10+ (GitHub's runners included) blocks the unprivileged user
+    # namespaces Chrome's sandbox needs, and Chrome then refuses to start.
+    # Rendering one local SVG we wrote ourselves doesn't need the sandbox.
+    extra = ["--no-sandbox"] if sys.platform.startswith("linux") else []
     proc = subprocess.run(
-        [exe, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+        [exe, "--headless=new", "--disable-gpu", "--hide-scrollbars", *extra,
          f"--screenshot={png_path.resolve()}",
          f"--window-size={w},{h}", uri],
         capture_output=True, text=True, timeout=90,
