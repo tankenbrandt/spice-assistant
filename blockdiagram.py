@@ -135,7 +135,9 @@ def draw(ts: TestSet, path: Path) -> Path:
     # Circuit under test, centre.
     dx, dw = 4.1, 2.8
     dy, dh = 0.6, H - 2.4
-    _box(ax, dx, dy, dw, dh, "Circuit under test", [ts.title], "dut")
+    # A handout's part title is often longer than the box is wide: wrap it.
+    import textwrap
+    _box(ax, dx, dy, dw, dh, "Circuit under test", textwrap.wrap(ts.title, 30)[:4], "dut")
 
     # DC supply across the top, one lead per rail into the top of the circuit.
     if ts.supplies:

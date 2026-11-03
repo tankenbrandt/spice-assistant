@@ -63,11 +63,33 @@ def num(v, units: str = "", sig: int = 4) -> str:
         return "—"
     if units == "V" and abs(v) < NEGLIGIBLE_V:
         v = 0.0
+    if units == "s" and v and abs(v) < 1:
+        # 828 µs, not 0.0008281 s: a time reads the way a scope shows it.
+        for scale, prefix in ((1e-3, "m"), (1e-6, "µ"), (1e-9, "n"), (1e-12, "p")):
+            if abs(v) >= scale or prefix == "p":
+                return f"{v / scale:.{sig}g} {prefix}s"
     return f"{v:.{sig}g}{(' ' + units) if units else ''}"
 
 
 def theory(m) -> str:
+    if m.informational:
+        return "record (no limit)"
     return m.limits.describe().replace("+/-", "±")
+
+
+def in_spec(m, v) -> str:
+    """yes / NO against the limit; a reading with no limit is just recorded."""
+    if v is None or m.informational:
+        return "—"
+    return "yes" if m.limits.ok(v) else "NO"
+
+
+def shown(spec) -> list:
+    """Every measurement the report tabulates: the checks, and the readings a
+    handout only asks to record ("measure tR", `record: true`) -- those have
+    no limit, but the student still needs the number. Other informational
+    measurements are scratch values (a crossing time) and stay out."""
+    return [m for m in spec.measurements if not m.informational or m.record]
 
 
 # ----------------------------------------------------------- document blocks
@@ -674,6 +696,8 @@ def _verdict_cell(vals: dict | None, m) -> str:
     if not vals or m.name not in vals:
         return "—"
     v = vals[m.name]
+    if m.informational:
+        return num(v, m.units)
     return f"{num(v, m.units)} {'✓' if m.limits.ok(v) else '✗'}"
 
 
@@ -702,7 +726,7 @@ def _design_blocks(r: LabResult, h: str) -> list:
         header = (["Requirement", "Limit"] + [f"Hand, {lb}" for lb in labels]
                   + [f"Kit, {lb}" for lb in labels])
         rows = []
-        for m in spec.specs:
+        for m in shown(spec):
             rows.append([m.title, theory(m)]
                         + [_verdict_cell(row.get("hand"), m) for row in r.study["rows"]]
                         + [_verdict_cell(row.get("kit"), m) for row in r.study["rows"]])
@@ -763,8 +787,8 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
     blocks.append(B("table", header=["Measurement", "Theory / requirement",
                                      "Simulated", "In spec"],
                     rows=[(m.title, theory(m), num(p.ideal.get(m.name), m.units),
-                           "yes" if m.limits.ok(p.ideal[m.name]) else "NO")
-                          for m in spec.specs]))
+                           in_spec(m, p.ideal.get(m.name)))
+                          for m in shown(spec)]))
     for aname, path in r.figures:
         what = ("Dashed: ideal values; solid: the kit build from the Design section."
                 if p.params else "Simulated waveforms.")
@@ -821,11 +845,10 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                 f"The parts that differ: {', '.join(changed)}.")))
 
         rows = []
-        for m in spec.specs:
+        for m in shown(spec):
             bv = (p.best.values or {}).get(m.name)
             rows.append((m.title, theory(m), num(p.ideal.get(m.name), m.units),
-                         num(bv, m.units),
-                         "—" if bv is None else ("yes" if m.limits.ok(bv) else "NO")))
+                         num(bv, m.units), in_spec(m, bv)))
         blocks += [B(h, "Predicted performance"),
                    B("table", header=["Measurement", "Theory / requirement", "Ideal",
                                       "Kit build", "In spec"], rows=rows)]
@@ -840,12 +863,12 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         varied.append("device model parameters by their typical spread"
                       + _model_spread(r.kit_deck))
         mrows = []
-        for m in spec.specs:
+        for m in shown(spec):
             st = r.mc["metrics"].get(m.name)
             if st:
                 mrows.append((m.title, num(st["mean"], m.units),
                               _range(bench_range(r.mc, m.name), m.units),
-                              f"{st['pass_rate']:.0%}"))
+                              "—" if m.informational else f"{st['pass_rate']:.0%}"))
         blocks += [B(h, "Tolerance analysis"),
                    B("p", f"{r.mc['n']} Monte Carlo builds varied "
                           f"{', '.join(varied[:-1])} and {varied[-1]}. "
@@ -897,7 +920,9 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                    B("table", header=["Component", "Part", "Acceptable reading"],
                      rows=prow)]
 
-    steps = ["Build the circuit from the schematic."]
+    steps = [("Build the circuit from the wiring list in the Layout section"
+              if r.layout is not None else "Build the circuit from the netlist above")
+             + (", checking it against the schematic." if r.asc else ".")]
     dcs = [s for s in r.supplies if s["kind"] == "dc"]
     if dcs:
         steps.append("Set the supplies before connecting them: " + "; ".join(
@@ -933,7 +958,7 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
 
     res = [(m.title, num((p.best.values or {}).get(m.name), m.units),
             _range(bench_range(r.mc, m.name), m.units), theory(m), "", "")
-           for m in spec.specs]
+           for m in shown(spec)]
     blocks += [B(h, "Results"),
                B("table", header=["Measurement", "Expected", "Expected range "
                                   "(90% of builds)", "Requirement", "Measured",
@@ -965,7 +990,7 @@ def _lt_blocks(r: LabResult, h: str) -> list:
                         + [row["label"] for row in rows],
                         rows=[[m.title, theory(m)]
                               + [_verdict_cell(row["values"], m) for row in rows]
-                              for m in spec.specs]))
+                              for m in shown(spec)]))
     qrows = []
     for row in lt["rows"]:
         beta = next((v for k, v in (row["corner"] or {}).get("model", {}).items()
@@ -1125,13 +1150,18 @@ def write_lab(lab: Lab, results: list, out: Path, docx: bool = True) -> dict:
 def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
             workers: int = 8) -> tuple:
     lab = load_lab(path)
+    choose = kit is not None or lab.kit is not None
     if kit is None and lab.kit:
         kit = kitmod.load_kit(lab.kit)
-    results = [analyse(specfile.load(part["spec"]),
-                       part["deck"].read_text(encoding="utf-8"),
-                       title=part["title"], out=out, kit=kit, fixed=part["fix"],
-                       mc_n=mc_n, seed=seed, workers=workers, asc=part.get("asc"))
-               for part in lab.parts]
+    results = []
+    for part in lab.parts:
+        deck = part["deck"].read_text(encoding="utf-8")
+        # A lab file with no `kit:` has nothing to choose: every part is the
+        # handout's (a given 0.1 uF load is not swapped for a kit value).
+        fixed = part["fix"] if choose else [p.key for p in kitmod.kit_params(deck)]
+        results.append(analyse(specfile.load(part["spec"]), deck, title=part["title"],
+                               out=out, kit=kit, fixed=fixed, mc_n=mc_n, seed=seed,
+                               workers=workers, asc=part.get("asc")))
     for part, r in zip(lab.parts, results, strict=True):
         if part.get("asc"):
             r.asc, r.schematic = attach_schematic(part["asc"], out)

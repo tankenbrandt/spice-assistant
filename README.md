@@ -35,8 +35,29 @@ pre-lab.
    test-set block diagram, expected bench readings and a blank *Measured*
    column.
 
-Only step 1 calls the AI. Hand it a netlist and everything else is free and
-runs locally.
+Only step 1 calls the Claude API. Hand it a netlist and everything else is
+free and runs locally.
+
+### From handout to pre-lab: `/prelab`
+
+The tool needs each lab written down first: the circuit as a netlist, the
+handout's requirements as a spec file, and a lab file. The
+[`/prelab`](.claude/skills/prelab/SKILL.md) Claude Code skill does that from
+the handout PDF:
+
+1. It writes the netlist, plus a spec where every check quotes the handout
+   line it comes from. Readings the handout only asks you to record get no
+   made-up limit.
+2. It runs the whole pipeline above and reads the report back.
+3. It hands you the Word file and a list of every value it had to assume.
+
+Hand calculations and "why" questions are left to me, on purpose. It runs
+on a Claude subscription, so it needs no API key. I tested it on a handout
+it had never seen (EE 347 Exp. 3, inverter speed), using a fresh agent that
+had only the skill file. It produced the full pre-lab: both circuits
+simulated, LTspice agreeing to 3–4 digits, and the handout's "Simulated
+Data" table fillable straight from the report. It also hit four tool bugs
+along the way, all now fixed.
 
 ## In my lab: designing a CE amplifier (EE 346, Experiment 8)
 
@@ -52,11 +73,10 @@ common-emitter amplifier (R<sub>L</sub> = 4.7 kΩ given) so that:
 - with a **gain of at least 2**, **V<sub>CC</sub> ≤ 20 V**, standard resistor
   values, and power ratings for each resistor.
 
-I turn that into a netlist and a [spec file](labs/ee346_exp8/ce_amp.yaml)
+Claude turned that into a netlist and a [spec file](labs/ee346_exp8/ce_amp.yaml)
 of checks at each extreme, plus a third at the β I measured in the previous
-lab. That step is done by hand with Claude for now: the tool doesn't read
-handouts yet. The input is set from each design's measured gain, so every
-design is tested at exactly 10 Vp-p out.
+lab. This was the session that became `/prelab`. The input is set from each
+design's measured gain, so every design is tested at exactly 10 Vp-p out.
 
 ### The hand design, simulated
 
@@ -160,7 +180,7 @@ python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # abo
 
 | Step | What the tool does |
 |---|---|
-| 1. Specify | The spec file is the specification: requirements, limits and the extremes they hold at. |
+| 1. Specify | `/prelab` writes the spec from the handout: requirements, limits and the extremes they hold at, each traced to a handout line. |
 | 2. Design (hand calculations) | **Not automated, on purpose.** The hand design is the starting point, and the report shows where it holds and where it doesn't. |
 | 3. Simulate | ngspice and LTspice, every requirement at every extreme. LTspice runs the `.asc` you hand in and its waveforms go in the report. |
 | 4. Layout | Generated: every package pin, unused pins included, and a wiring list by node. CMOS assignments are re-simulated as wired. |
@@ -216,11 +236,12 @@ in [docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really
 
 ```bash
 pip install -e ".[labreport]"   # Python 3.10+, plus ngspice (setup in docs/how-it-works.md)
+# In Claude Code, from the repo:  /prelab "Exp9 handout.pdf"
 python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # a whole pre-lab
 python kit.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml
 python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_API_KEY
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 688 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 692 tests, no API calls,
 CI on Linux and Windows.

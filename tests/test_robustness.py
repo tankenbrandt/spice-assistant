@@ -241,3 +241,13 @@ def test_monte_carlo_yield_improves_after_repair(project_dir):
     # and the spread tightens, not just the centre
     assert (mc_after["metrics"]["gain"]["sigma"]
             < mc_before["metrics"]["gain"]["sigma"])
+
+
+def test_the_title_line_is_never_a_part():
+    """SPICE's first line is the title: "CMOS inverter driving 0.1 uF" once
+    became a capacitor named CMOS that the kit search tried to replace."""
+    deck = "CMOS inverter driving 0.1 uF\nV1 in 0 DC 5\nCL out 0 0.1u\nR1 in out 1k\n.end\n"
+    _, params = rb.extract_params(deck, vary_temp=False)
+    keys = {p.key for p in params}
+    assert "CL" in keys and "R1" in keys
+    assert not any(k.upper() == "CMOS" for k in keys)

@@ -213,3 +213,38 @@ def test_ltspice_section_runs_the_hand_in_schematic(tmp_path):
     stale = lr.lt_simulation(spec, kit_deck.replace("RB1 vcc b 68k", "RB1 vcc b 47k"),
                              asc, tmp_path, "ce2")
     assert stale["asc"] is None and stale["mismatch"]
+
+
+def test_times_read_like_a_scope_and_recorded_readings_are_tabulated():
+    assert lr.num(0.0008281, "s") == "828.1 µs"
+    assert lr.num(2.5e-9, "s", 3) == "2.5 ns"
+    assert lr.num(1.5, "s") == "1.5 s"
+    assert lr.num(0.513, "V", 3) == "0.513 V"          # volts unchanged
+    spec = specs.parse({
+        "analyses": {"op": {"command": "op", "vectors": ["v(out)"]}},
+        "measurements": [
+            {"name": "vo", "extract": {"kind": "max", "of": "v(out)"}, "min": 1},
+            {"name": "tr", "units": "s", "extract": {"kind": "max", "of": "v(out)"},
+             "record": True},
+            {"name": "scratch", "extract": {"kind": "max", "of": "v(out)"},
+             "informational": True}]})
+    assert [m.name for m in lr.shown(spec)] == ["vo", "tr"]
+    tr = spec.measurement("tr")
+    assert lr.theory(tr) == "record (no limit)" and lr.in_spec(tr, 1e-3) == "—"
+
+
+@needs_ngspice
+def test_a_lab_without_a_kit_keeps_every_given_part(tmp_path):
+    pytest.importorskip("matplotlib")
+    (tmp_path / "rc.cir").write_text(
+        "RC load 0.1 uF\nV1 in 0 PULSE(0 5 0 1n 1n 5m 10m)\nR1 in out 1.5k\n"
+        "C1 out 0 0.1u\n.end\n")
+    (tmp_path / "rc.yaml").write_text(
+        "analyses:\n  tran: {command: tran 10u 2m, vectors: [v(out)]}\n"
+        "measurements:\n  - {name: vmax, units: V, extract: {kind: max, of: v(out)}, min: 4}\n")
+    (tmp_path / "lab.yaml").write_text(
+        "title: no kit\nparts:\n  - {title: rc, deck: rc.cir, spec: rc.yaml}\n")
+    lab, results = lr.run_lab(tmp_path / "lab.yaml", tmp_path / "out", mc_n=0)
+    (r,) = results
+    assert r.pick.params == []                     # nothing searched, nothing swapped
+    assert "R1 in out 1.5k" in r.kit_deck and "C1 out 0 0.1u" in r.kit_deck

@@ -1,0 +1,30 @@
+EE 347 Exp. 3, part 1 (Figure 2.2d) -- CMOS inverter driving 0.1 uF
+* Figure 2.2d is in the Exp. 2 handout, which is not in the repo. ASSUMED: it
+* is the one-PMOS / one-NMOS CD4007 inverter (P source and body at VDD, N
+* source and body at ground, gates tied as the input, drains as the output).
+* VDD = 5 V (Exp. 3 part 1).
+VDD vdd 0 DC 5
+* Input (pre-lab 1): 0-5 V pulse, width 1.5 ms, period 4 ms, rise/fall 1 ns.
+* Delayed 0.5 ms so the output starts settled high.
+Vin in 0 PULSE(0 5 0.5m 1n 1n 1.5m 4m)
+Mp out in vdd vdd PM W=60u L=5u
+Mn out in 0 0 NM W=30u L=5u
+* Load: 100 nF (0.1 uF), part 1 and pre-lab 1.
+CL out 0 0.1u
+* --- Transistor models (same cards as Exp. 4) ----------------------------------
+* Level 1 with TOX = 0.1 um, as the handout specifies (Exp. 3 part 2). The
+* handout gives no threshold, mobility, body-effect or capacitance values;
+* VTO = +/-1.5 V, UO, GAMMA, PHI, LAMBDA and the overlap/junction
+* capacitances (CGSO, CGDO, CBD, CBS) are ASSUMED typical metal-gate
+* CD4000-series values, the same ones the Exp. 4 pre-lab uses.
+.model NM NMOS (LEVEL=1 TOX=0.1u VTO=1.5 GAMMA=0.8 PHI=0.6 LAMBDA=0.02 UO=600
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+.model PM PMOS (LEVEL=1 TOX=0.1u VTO=-1.5 GAMMA=0.6 PHI=0.6 LAMBDA=0.02 UO=250
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+* CD4007 discrete transistors: size ASSUMED (no handout gives one).
+* NMOS W/L = 30/5, PMOS W/L = 60/5, as in the Exp. 4 pre-lab.
+.options method=gear
+.control
+tran 1u 8.5m
+.endc
+.end

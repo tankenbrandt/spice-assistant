@@ -1,0 +1,136 @@
+# EE 347 Exp. 3, part 2 -- one double-buffered NOR of the CD4001B (Figure 3.4)
+# wired as an inverter, driving 0.1 uF.
+#
+# The handout's requirements, as checks (every one traces to a handout line):
+#   Part 2: "Repeat Part 1 for a buffered CMOS inverter on the 4001B chip, with
+#     VDD = 5V"                                         -> the same checks as part 1:
+#   Part 1: "measure the risetime, fall time, and propagation delay ... driving
+#     a capacitive load of 100 nF"                      -> tr, tf, tPHL, tPLH, tP
+#   Part 1 / Figures 3.2, 3.3: 10%-90% rise/fall of the final value; input 50%
+#     (or the input change, if fast) to output 50%     -> the crossing levels
+#   Part 1: "tP = (tPHL + tPLH)/2"                      -> tP
+#   Example Summary of Transient Data, "Simulated Data" rows: VDD, VOH, VOL,
+#     tr, tf, tPHL, tPLH, tP                            -> voh, vol
+#   Pre-lab 1: "Select appropriate pulse parameters for the gate of Figure 3.4,
+#     and connect both NOR inputs of the NOR together"; "run for at least two
+#     output pulse periods"                             -> the deck's Vin, XU1, tran
+#   Part 2 / pre-lab: "Use the appropriate W/L ratios ... and TOX=0.1um"
+#                                                       -> the deck's subckt and models
+#
+# INTERPRETATION (the handout gives no numeric limits; these are the
+# conditions its definitions need, not new requirements):
+#   * "final value" = the output just before the input switches back. VOH and
+#     VOL are read there and must be logic levels (>= 90% / <= 10% of VDD, as
+#     in the Exp. 4 pre-lab): the chosen pulse lets the output settle.
+#   * tr, tf, tPHL, tPLH and tP have no limit in the handout: `record: true`.
+#
+# Timing: Vin (1 kHz, CHOSEN -- see lab.yaml notes) rises at 0.25 + k ms and
+# falls 0.5 ms later. The run is 2.25 ms (two periods); every edge is read in
+# the second period (window last 50% starts at 1.125 ms).
+circuit: ee347_fig3_4
+description: >
+  One double-buffered 2-input NOR of the CD4001B (Figure 3.4), both inputs
+  tied as an inverter, at VDD = 5 V driving CL = 0.1 uF; input 0-5 V, 1 kHz
+  square wave: rise, fall and propagation delays.
+analyses:
+  tran:
+    command: tran 0.5u 2.25m
+    vectors: [v(in), v(out)]
+
+measurements:
+  - name: voh
+    label: VOH (output high, settled)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 1.249e-3}
+    min: 4.5
+    bench: >
+      Both inputs (pins 1 and 2) tied to Vin. Scope CH1 on Vin, CH2 on Vout (pin 3), DC-coupled, 5 V square wave at 1 kHz
+      (0.5 ms high). Put a cursor on Vout just before Vin rises: that is VOH.
+  - name: vol
+    label: VOL (output low, settled)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 1.749e-3}
+    max: 0.5
+    bench: Same trace; put a cursor on Vout just before Vin falls. That is VOL.
+
+  # Crossing times, second period. Intermediates for the timing rows below.
+  - name: t_in_up
+    label: Vin reaches 50% (rising)
+    units: s
+    extract: {kind: crossing, of: v(in), level: 2.5, direction: rising, window: last 50%}
+    informational: true
+    bench: Trigger on Vin rising; Vin's 50% point is time zero for tPHL.
+  - name: t_f90
+    label: Vout falls through 90%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "vol + 0.9 * (voh - vol)",
+              direction: falling, window: last 50%}
+    informational: true
+    bench: Cursor where Vout falls through VOL + 0.9 (VOH - VOL).
+  - name: t_f50
+    label: Vout falls through 50%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "(voh + vol) / 2",
+              direction: falling, window: last 50%}
+    informational: true
+    bench: Cursor where Vout falls through (VOH + VOL)/2.
+  - name: t_f10
+    label: Vout falls through 10%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "vol + 0.1 * (voh - vol)",
+              direction: falling, window: last 50%}
+    informational: true
+    bench: Cursor where Vout falls through VOL + 0.1 (VOH - VOL).
+  - name: t_in_dn
+    label: Vin reaches 50% (falling)
+    units: s
+    extract: {kind: crossing, of: v(in), level: 2.5, direction: falling, window: last 50%}
+    informational: true
+    bench: Trigger on Vin falling; Vin's 50% point is time zero for tPLH.
+  - name: t_r10
+    label: Vout rises through 10%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "vol + 0.1 * (voh - vol)",
+              direction: rising, window: last 50%}
+    informational: true
+    bench: Cursor where Vout rises through VOL + 0.1 (VOH - VOL).
+  - name: t_r50
+    label: Vout rises through 50%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "(voh + vol) / 2",
+              direction: rising, window: last 50%}
+    informational: true
+    bench: Cursor where Vout rises through (VOH + VOL)/2.
+  - name: t_r90
+    label: Vout rises through 90%
+    units: s
+    extract: {kind: crossing, of: v(out), level: "vol + 0.9 * (voh - vol)",
+              direction: rising, window: last 50%}
+    informational: true
+    bench: Cursor where Vout rises through VOL + 0.9 (VOH - VOL).
+
+  - name: tr
+    label: rise time tR (10% to 90%)
+    units: s
+    expr: t_r90 - t_r10
+    record: true
+  - name: tf
+    label: fall time tF (90% to 10%)
+    units: s
+    expr: t_f10 - t_f90
+    record: true
+  - name: tphl
+    label: tPHL (Vin 50% to Vout 50%, output falling)
+    units: s
+    expr: t_f50 - t_in_up
+    record: true
+  - name: tplh
+    label: tPLH (Vin 50% to Vout 50%, output rising)
+    units: s
+    expr: t_r50 - t_in_dn
+    record: true
+  - name: tp
+    label: average propagation delay tP = (tPHL + tPLH)/2
+    units: s
+    expr: (tphl + tplh) / 2
+    record: true

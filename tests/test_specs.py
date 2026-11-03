@@ -467,3 +467,20 @@ def test_corners_and_objective_parse():
     with pytest.raises(S.SpecError):
         S.parse({"corners": [{"label": "x"}], "measurements": [{"name": "a", "expr": "1",
                                                                "informational": True}]})
+
+
+def test_record_is_a_reading_with_no_limit():
+    raw = {"analyses": {"op": {"command": "op", "vectors": ["v(out)"]}},
+           "measurements": [
+               {"name": "tr", "units": "s", "extract": {"kind": "max", "of": "v(out)"},
+                "record": True},
+               {"name": "scratch", "extract": {"kind": "max", "of": "v(out)"},
+                "informational": True}]}
+    spec = specs.parse(raw)
+    tr, scratch = spec.measurements
+    assert tr.record and tr.informational          # recorded, never a pass/fail check
+    assert not scratch.record
+    assert spec.specs == []
+    bad = dict(raw, measurements=[dict(raw["measurements"][0], max=1)])
+    with pytest.raises(specs.SpecError, match="record"):
+        specs.parse(bad)

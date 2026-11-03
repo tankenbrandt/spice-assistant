@@ -175,10 +175,13 @@ def extract_params(netlist: str, *, vary_temp: bool = True,
     in_control = _control_mask(lines)
     owner = _subckt_owner(lines)
     params: list[Param] = []
+    # A deck's first line is its title, whatever it says: "CMOS inverter
+    # driving 0.1 uF" is not a capacitor named CMOS.
+    title = next((i for i, ln in enumerate(lines) if ln.strip()), None)
 
     for i, ln in enumerate(lines):
         s = ln.strip()
-        if not s or s.startswith(("*", ".", "+")) or in_control[i]:
+        if i == title or not s or s.startswith(("*", ".", "+")) or in_control[i]:
             continue
         m = _COMP_RE.match(s)
         if not m:

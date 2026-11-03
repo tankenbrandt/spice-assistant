@@ -1,0 +1,63 @@
+# EE 347 Exp. 3 pre-lab, parts 1 and 2 only (the BiCMOS inverter, part 3 and
+# Figure 3.6, is omitted on purpose):
+#   python labreport.py --lab labs/ee347_exp3/lab.yaml --out runs/ee347_exp3
+title: EE 347 Experiment 3 — CMOS Logic and Speed (pre-lab, parts 1 and 2)
+
+notes:
+  - >
+    Scope: parts 1 and 2 only, at CL = 0.1 uF. The BiCMOS inverter (part 3,
+    Figure 3.6, and its column of pre-lab 1) is omitted, and so is part 4
+    (the same inverters at CL = 50 pF): the handout's "Simulated Data" table
+    asks for 0.1 uF only.
+  - >
+    Pre-lab 1 (simulate Figures 2.2d and 3.4 into 0.1 uF; compare tR, tF,
+    tPLH, tPHL, tP) is the Simulation table of each part; together they fill
+    the CMOS and 4001B columns of the handout's "Simulated Data" table.
+    Pre-lab 2 (why different pulse frequencies?) is for you to answer; the
+    numbers it rests on are each part's tR and tF beside its pulse width.
+  - >
+    ASSUMED: Figure 2.2d is in the Exp. 2 handout, which is not in the repo.
+    It is taken to be the one-PMOS / one-NMOS CD4007 inverter (P body at VDD,
+    N body at ground). Replace with the real Figure 2.2d if it differs.
+  - >
+    ASSUMED: CD4007 transistor sizes, NMOS W/L = 30/5 and PMOS W/L = 60/5
+    (no handout gives them; same as the Exp. 4 pre-lab). Figure 2.2d's
+    timing scales directly with these: a CD4007 datasheet or a measured
+    drain current would replace them.
+  - >
+    ASSUMED: transistor models are level 1 with the handout's TOX = 0.1 um
+    and Figure 3.4's W/L ratios for the 4001B. The handout gives no
+    threshold, mobility, body-effect or capacitance values, so VTO = ±1.5 V,
+    UO = 600/250, GAMMA, PHI, LAMBDA and the overlap/junction capacitances
+    are typical metal-gate CD4000-series values, the same cards as the Exp. 4
+    pre-lab. Rise and fall times depend mainly on UO, VTO and W/L.
+  - >
+    CHOSEN (pre-lab 1 says "select appropriate pulse parameters" for Figure
+    3.4): 0-5 V, 1 ns edges, 0.5 ms wide, 1 ms period (1 kHz square wave).
+    A first run at Figure 2.2d's 250 Hz showed the 4001B's edges about four
+    times faster (tR about 0.2 ms), so the frequency is raised fourfold and
+    each half period is still more than twice tR, so the output settles.
+  - >
+    Interpretation, not an added requirement: the handout gives no numeric
+    limits for tR, tF or the delays, so they are recorded, not checked. The
+    one check is that VOH / VOL (the "final value", read just before the input
+    switches back) are logic levels, >= 90% and <= 10% of VDD: the handout's
+    10%/90%-of-final-value definitions need the output to settle.
+  - >
+    Edges are read in the second input period, so the numbers are the
+    steady-state square-wave response the scope shows. Propagation delays
+    start at Vin's 50% point, which with 1 ns edges is the input change
+    (Figure 3.3 note).
+  - >
+    Hand calculations (step 2 of the ten-step method) are not automated; the
+    report sets them beside simulation.
+
+parts:
+  - title: Part 1 — CMOS inverter, Figure 2.2d (VDD = 5 V, CL = 0.1 uF)
+    deck: fig2_2d.cir
+    spec: fig2_2d.yaml
+    fix: [CL]
+  - title: Part 2 — 4001B buffered NOR as an inverter, Figure 3.4 (VDD = 5 V, CL = 0.1 uF)
+    deck: fig3_4.cir
+    spec: fig3_4.yaml
+    fix: [CL]

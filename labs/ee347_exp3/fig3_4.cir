@@ -1,0 +1,40 @@
+EE 347 Exp. 3, part 2 (Figure 3.4) -- 4001B double-buffered NOR as an inverter driving 0.1 uF
+* One gate of the CD4001B (Figure 3.5) with both inputs tied together, as
+* pre-lab 1 says. VDD = 5 V (part 2).
+VDD vdd 0 DC 5
+* Input: pre-lab 1 says "select appropriate pulse parameters" for this gate.
+* 0-5 V, rise/fall 1 ns like the other inverters; width and period chosen so
+* the output settles inside each half period: a 1 kHz square wave (0.5 ms
+* high, 1 ms period), delayed 0.25 ms so the output starts settled high.
+* CHOSEN, see lab.yaml notes.
+Vin in 0 PULSE(0 5 0.25m 1n 1n 0.5m 1m)
+XU1 in in out vdd 0 CD4001B
+* Load: 100 nF (0.1 uF), part 1 and pre-lab 1.
+CL out 0 0.1u
+* --- Transistor models (same cards as Exp. 4) ----------------------------------
+* Level 1 with TOX = 0.1 um, as the handout specifies (Exp. 3 part 2). The
+* handout gives no threshold, mobility, body-effect or capacitance values;
+* VTO = +/-1.5 V, UO, GAMMA, PHI, LAMBDA and the overlap/junction
+* capacitances (CGSO, CGDO, CBD, CBS) are ASSUMED typical metal-gate
+* CD4000-series values, the same ones the Exp. 4 pre-lab uses.
+.model NM NMOS (LEVEL=1 TOX=0.1u VTO=1.5 GAMMA=0.8 PHI=0.6 LAMBDA=0.02 UO=600
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+.model PM PMOS (LEVEL=1 TOX=0.1u VTO=-1.5 GAMMA=0.6 PHI=0.6 LAMBDA=0.02 UO=250
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+* --- CD4001B: one double-buffered 2-input NOR, W/L from Exp. 3 Figure 3.4 -----
+* (pin numbers for gate A: inputs 1, 2; output 3; VDD 14; VSS 7 -- Figure 3.5)
+.subckt CD4001B a b j vdd vss
+Mp1 n1 a vdd vdd PM W=50u L=5u
+Mp2 nor b n1 vdd PM W=50u L=5u
+Mn1 nor a vss vss NM W=10u L=5u
+Mn2 nor b vss vss NM W=10u L=5u
+Mp3 inv1 nor vdd vdd PM W=100u L=5u
+Mn3 inv1 nor vss vss NM W=40u L=5u
+Mp4 j inv1 vdd vdd PM W=250u L=5u
+Mn4 j inv1 vss vss NM W=100u L=5u
+.ends CD4001B
+.options method=gear
+.control
+tran 0.5u 2.25m
+.endc
+.end

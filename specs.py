@@ -189,11 +189,15 @@ def limits_from(d: dict, units: str) -> Limits:
                   lsl=None if lsl is None else float(lsl),
                   usl=None if usl is None else float(usl),
                   units=units)
-    if not lims.bounded and not d.get("informational"):
+    if not lims.bounded and not d.get("informational") and not d.get("record"):
         raise SpecError(
             "a measurement needs an acceptance band: give target+tol, "
             "target+abs_tol, or min/max -- or mark it 'informational: true' "
-            "if it only exists to be referenced by another measurement")
+            "if it only exists to be referenced by another measurement, or "
+            "'record: true' if the handout only asks for the reading")
+    if d.get("record") and lims.bounded:
+        raise SpecError("a 'record: true' reading has no limit; drop min/max/target "
+                        "or drop 'record'")
     return lims
 
 
@@ -224,6 +228,7 @@ class Measurement:
     extract: dict = field(default_factory=dict)
     expr: str = ""            # derived measurements only
     informational: bool = False   # measured and reported, but not a spec
+    record: bool = False      # a reading the handout asks for with no limit: tabulated
     bench: str = ""           # how to take this reading at the bench (lab reports)
     maximize_margin: bool = False   # design mode: headroom on this decides the build
 
@@ -337,7 +342,8 @@ def parse(data: dict, source: Path | None = None) -> CircuitSpec:
         measurements.append(Measurement(
             name=name, label=str(raw.get("label", "")), units=units,
             analysis=analysis, extract=dict(extract), expr=expr,
-            informational=bool(raw.get("informational", False)),
+            informational=bool(raw.get("informational", False) or raw.get("record", False)),
+            record=bool(raw.get("record", False)),
             bench=" ".join(str(raw.get("bench", "")).split()),
             maximize_margin=bool(raw.get("maximize_margin", False)),
             limits=limits_from(raw, units)))

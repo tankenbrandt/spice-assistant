@@ -52,7 +52,7 @@ measurements:
     label: input needed (Vi p-p)
     units: V
     extract: {kind: peak_to_peak, of: v(in), window: last 50%}
-    informational: true
+    record: true             # the handout asks: "What Vi p-p produces 10 Vp-p?"
     bench: >
       Set the generator so CH1 (Vi) reads this p-p value; it is what makes
       the output 10 Vp-p for this design's gain.
