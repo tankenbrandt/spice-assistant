@@ -52,9 +52,11 @@ common-emitter amplifier (R<sub>L</sub> = 4.7 kΩ given) so that:
 - with a **gain of at least 2**, **V<sub>CC</sub> ≤ 20 V**, standard resistor
   values, and power ratings for each resistor.
 
-That becomes a [spec file](labs/ee346_exp8/ce_amp.yaml) of checks at two
-corners. The input is set from each design's measured gain, so every design
-is tested at exactly 10 Vp-p out.
+I turn that into a netlist and a [spec file](labs/ee346_exp8/ce_amp.yaml)
+of checks at each extreme, plus a third at the β I measured in the previous
+lab. That step is done by hand with Claude for now: the tool doesn't read
+handouts yet. The input is set from each design's measured gain, so every
+design is tested at exactly 10 Vp-p out.
 
 ### The hand design, simulated
 
