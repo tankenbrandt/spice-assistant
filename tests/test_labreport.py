@@ -175,7 +175,9 @@ def test_design_lab_report_compares_both_designs_at_the_extremes(tmp_path):
     assert "Both designs at the extremes" in md and "✗" in md and "✓" in md
     assert "Q-point at the extremes" in md and "Resistor power ratings" in md
     qp = r.study["qpoints"]
-    assert len(qp) == 2 and all(2 < vce < 15 for _, _, _, _, vce, _, _ in qp)
+    # Datasheet beta min and max, plus the beta measured in Exp. 7.
+    assert len(qp) == 3 and all(2 < vce < 15 for _, _, _, _, vce, _, _ in qp)
+    assert [beta for _, _, beta, *_ in qp] == [75, 325, 116]
 
 
 def test_a_lab_part_can_carry_its_ltspice_schematic(tmp_path):

@@ -15,7 +15,11 @@ notes:
     2N2222 model parameters are the handout's (part B). The specified beta
     range, 75-325, is the datasheet's hFE at IC = 1 mA, VCE = 10 V (Microsemi
     2N2222A), the row nearest this circuit's ~2 mA bias. The handout also asks
-    for a run at the beta measured in Exp. 7: set it in ce_amp.yaml's corners.
+    for a run at the beta measured in Exp. 7: 116 at IC = 1.7 mA (the
+    measured point nearest this Q-point), the third condition below. Exp. 7
+    computed IB assuming VBE = 0.7 V; a real VBE nearer 0.65 V puts IB about
+    5% higher and beta near 110, well inside the range the design is checked
+    over.
   - >
     "No distortion" is checked as headroom: V_CE stays at least 1 V out of
     saturation and the voltage across RL at least 1 V out of cutoff, over the

@@ -110,6 +110,10 @@ part of every cycle. The kit build (solid) never comes close:
 
 - **LTspice agrees** to within 0.002% on every check. The `.asc` above
   netlists to the same circuit in LTspice itself.
+- **With my own transistor:** I measured β = 116 at 1.7 mA in the previous
+  lab (Exp. 7). At that β the hand design still clips (V<sub>CE</sub>
+  bottoms at 0.05 V), while the kit build sits at V<sub>CE</sub> = 9.9 V,
+  I<sub>C</sub> = 1.77 mA, gain 4.58: the numbers to expect at the bench.
 - **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.7 mW,
   so a 1/8 W part covers it with 2× margin. Every kit part is 1/4 W.
 - **Layout:** the 2N2222 is pin 1 emitter, 2 base, 3 collector in both the
