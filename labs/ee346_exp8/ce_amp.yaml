@@ -11,8 +11,11 @@
 # The handout pairs the extremes: low beta with low temperature, high beta
 # with high temperature ("both beta and ICO increase with temperature").
 #
-# BETA RANGE: 100-300 is a PLACEHOLDER pending the 2N2222 datasheet / your
-# Exp. 7 measurements -- the handout says to use both. Change it here.
+# BETA RANGE: 75-325 is the datasheet ("specified") range: Microsemi 2N2222A
+# hFE at IC = 1 mA, VCE = 10 V. That is the row nearest this circuit's ~2 mA
+# Q-point, and wider than the ON PN2222 sheet's 100-300 (at 150 mA), so it is
+# the conservative pick. The handout also wants a run with the beta you
+# measured in Exp. 7: put it in a copy of this file's corners.
 
 circuit: ee346_exp8_ce_amp
 description: >
@@ -22,8 +25,8 @@ description: >
 objective: margin
 
 corners:
-  - {label: "25 C, beta min", temp: 25, model: {Q2N2222.BF: 100}}
-  - {label: "100 C, beta max", temp: 100, model: {Q2N2222.BF: 300}}
+  - {label: "25 C, beta min", temp: 25, model: {Q2N2222.BF: 75}}
+  - {label: "100 C, beta max", temp: 100, model: {Q2N2222.BF: 325}}
 
 analyses:
   swing:

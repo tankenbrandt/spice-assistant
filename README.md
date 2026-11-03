@@ -29,9 +29,10 @@ pre-lab.
 5. **Designs from your kit.** It searches the parts you actually own
    (quantities and power ratings included) for the build with the most
    margin.
-6. **Writes the pre-lab.** It produces the Simulation, Design and Test Plan
-   sections as a Word file: plots, schematic, test-set block diagram,
-   expected bench readings and a blank *Measured* column.
+6. **Writes the pre-lab.** It produces the Simulation, Design, Layout and
+   Test Plan sections as a Word file: plots, schematic, pin assignments,
+   test-set block diagram, expected bench readings and a blank *Measured*
+   column.
 
 Only step 1 calls the AI. Hand it a netlist and everything else is free and
 runs locally.
@@ -45,7 +46,8 @@ common-emitter amplifier (R<sub>L</sub> = 4.7 kΩ given) so that:
 
 - the output swings **10 Vp-p with no distortion** (no clipping near
   saturation or cutoff),
-- from **25 °C at β<sub>min</sub> to 100 °C at β<sub>max</sub>**,
+- from **25 °C at β<sub>min</sub> to 100 °C at β<sub>max</sub>** (75 and
+  325, the 2N2222 datasheet's range near this circuit's bias current),
 - with a **gain of at least 2**, **V<sub>CC</sub> ≤ 20 V**, standard resistor
   values, and power ratings for each resistor.
 
@@ -74,17 +76,17 @@ Q1  out b e Q2N2222      ; handout's 2N2222 parameters
 peak against V<sub>C</sub> = 6.8 V but left out the 2.7 V across
 R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
 
-| | 25 °C, β = 100 | 100 °C, β = 300 |
+| | 25 °C, β = 75 | 100 °C, β = 325 |
 |---|---|---|
-| Output (need 10 Vp-p) | 9.14 Vp-p ✗ | 7.97 Vp-p ✗ |
-| Lowest V<sub>CE</sub> in the swing (need ≥ 1 V) | 0.05 V ✗ | 0.04 V ✗ |
+| Output (need 10 Vp-p) | 9.43 Vp-p ✗ | 7.95 Vp-p ✗ |
+| Lowest V<sub>CE</sub> in the swing (need ≥ 1 V) | 0.06 V ✗ | 0.04 V ✗ |
 
 ### Designing from the kit
 
 The tool tried every combination of resistors from my lab kit (the course's
 3306L parts list, with its quantities: one 47k, two 10k, one 4.7k already
 taken by R<sub>L</sub>) within 4× of the hand values. That's **96 buildable
-combinations, and only 9 pass at both extremes.** The pick moves one
+combinations, and only 7 pass at both extremes.** The pick moves one
 resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else:
 
 <p align="center">
@@ -98,22 +100,22 @@ resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else:
 Dashed is the hand design; its V<sub>CE</sub> (OUT − E) sits flat at 0 V for
 part of every cycle. The kit build (solid) never comes close:
 
-| Kit build, R<sub>B1</sub> = 68k | 25 °C, β = 100 | 100 °C, β = 300 |
+| Kit build, R<sub>B1</sub> = 68k | 25 °C, β = 75 | 100 °C, β = 325 |
 |---|---|---|
 | Output | 9.98 Vp-p ✓ | 9.98 Vp-p ✓ |
-| Gain | 4.57 ✓ | 4.60 ✓ |
-| Lowest V<sub>CE</sub> | 3.92 V ✓ | 2.59 V ✓ |
-| Q-point (V<sub>CE</sub>, I<sub>C</sub>) | 10.0 V, 1.75 mA | 8.66 V, 1.99 mA |
+| Gain | 4.56 ✓ | 4.60 ✓ |
+| Lowest V<sub>CE</sub> | 4.19 V ✓ | 2.56 V ✓ |
+| Q-point (V<sub>CE</sub>, I<sub>C</sub>) | 10.3 V, 1.70 mA | 8.64 V, 1.99 mA |
 | Monte Carlo, ±10% resistors | 100% pass | 100% pass |
 
 - **LTspice agrees** to within 0.002% on every check. The `.asc` above
   netlists to the same circuit in LTspice itself.
-- **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.6 mW,
+- **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.7 mW,
   so a 1/8 W part covers it with 2× margin. Every kit part is 1/4 W.
-- The runner-up on raw headroom (150k/10k/270 Ω) had 3% more, but changed
-  all three parts and breaks the stiff-divider rule (R<sub>B</sub> ≤
-  0.1·β·R<sub>E</sub>) by 3.5×. Each change off the hand design has to earn
-  real margin to be worth making.
+- **Layout:** the 2N2222 is pin 1 emitter, 2 base, 3 collector in both the
+  plastic and the metal-can package (checked against both datasheets), and
+  the wiring list says which way round the 10 µF electrolytic goes: + lead
+  on the base, which sits at 2.5 V.
 
 ### The test plan
 
@@ -137,7 +139,7 @@ python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # abo
 | 1. Specify | The spec file is the specification: requirements, limits and the extremes they hold at. |
 | 2. Design (hand calculations) | **Not automated, on purpose.** The hand design is the starting point, and the report shows where it holds and where it doesn't. |
 | 3. Simulate | ngspice and LTspice, every requirement at every extreme, waveforms, and the `.asc` file to hand in. |
-| 4. Layout | Not yet: pin assignments are next. |
+| 4. Layout | Generated: every package pin, unused pins included, and a wiring list by node. CMOS assignments are re-simulated as wired. |
 | 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
 | 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
 | 7–9. Build, test, parasitics | At the bench. |
@@ -149,8 +151,17 @@ Five circuits from CD4007 transistors and 4001B gates, with truth tables as
 specs. **All 37 rows simulate as expected and LTspice agrees on all five.**
 Two of the handout's questions come back as numbers: the NMOS pass-gate mux
 only pulls X to **5.19 V** from an 8 V supply (threshold plus body effect),
-while the transmission-gate version reaches the full **8.0 V**. Pre-lab 2's
-timing diagram comes out the way the handout draws it:
+while the transmission-gate version reaches the full **8.0 V**.
+
+**Layout is a real problem here.** A CD4007 holds six transistors that share
+gate pins, a drain and the supply pins. So the tool *assigns* each circuit's
+transistors to package slots: one chip for most figures, two for Fig. 4.5's
+five NMOS. It then re-simulates the circuit rebuilt pin by pin, idle
+transistors included. That check caught an idle P-channel left floating on
+Fig. 4.4's precharged node: with breadboard-grade leakage on its free pin, the
+node sagged to 2.15 V. The pin table now ties that pin back to the node.
+
+Pre-lab 2's timing diagram comes out the way the handout draws it:
 
 <p align="center">
   <img src="docs/ee347-domino-timing.png" width="560" alt="Timing diagram: clock, inputs A to D, dynamic node X and output Y = AB + CD over four clock periods">
@@ -187,5 +198,5 @@ python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_A
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 668 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 684 tests, no API calls,
 CI on Linux and Windows.

@@ -411,6 +411,7 @@ class LabResult:
     schematic: Path | None = None     # rendered .asc (ten-step method, step 3)
     asc: Path | None = None           # the LTspice file itself, copied for hand-in
     mc_corners: dict = field(default_factory=dict)   # corner label -> MC yield
+    layout: object = None             # layout.Layout: pin assignments (ten-step method, step 4)
 
 
 def _percentile(xs: list, q: float) -> float:
@@ -546,11 +547,18 @@ def analyse(spec, netlist: str, *, title: str, out: Path, kit=None, fixed=(),
     # A DC checkpoint means "input off". With stepped logic inputs or a pulse
     # train there is no such state; the truth-table rows are the checkpoints.
     stepped = re.search(r"(?i)\b(pwl|pulse)\s*\(", _deck_body(kit_deck))
+    op_kit = None if stepped else _nodes(kit_deck)
+    try:
+        import layout as layoutmod
+        lay = layoutmod.place(kit_deck, op_kit)
+        lay.check = layoutmod.verify(spec, kit_deck, lay)
+    except Exception:                      # noqa: BLE001 - optional section
+        lay = None
     return LabResult(spec=spec, title=title, pick=p, kit_deck=kit_deck, mc=mc,
                      op_ideal=None if stepped else _nodes(netlist),
-                     op_kit=None if stepped else _nodes(kit_deck),
+                     op_kit=op_kit,
                      figures=figs, supplies=supplies, test_set=test_set,
-                     study=study, mc_corners=mc_corners)
+                     study=study, mc_corners=mc_corners, layout=lay)
 
 
 # ---------------------------------------------------------------- the report
@@ -753,6 +761,9 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         blocks += [B("p", "Netlist of the kit build:"),
                    B("code", text=_deck_body(r.kit_deck))]
 
+    if r.layout is not None:
+        blocks += _layout_blocks(r.layout, H, h)
+
     # ---- Test plan
     blocks += [B(H, "Test Plan"), B(h, "Equipment")]
     kinds = {s["kind"] for s in r.supplies}
@@ -827,6 +838,43 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                B("table", header=["Measurement", "Expected", "Expected range "
                                   "(90% of builds)", "Requirement", "Measured",
                                   "Pass?"], rows=res)]
+    return blocks
+
+
+def _layout_blocks(lay, H: str, h: str) -> list:
+    """Step 4: every package pin, and the wiring list a breadboard is built from."""
+    import layout as layoutmod
+    B = Block
+    blocks = [B(H, "Layout")]
+    if lay.packages:
+        sources = sorted({pl.package.source for pl in lay.packages})
+        blocks.append(B("p", "Pin numbers are written m.n: package m, pin n. Pinouts "
+                             "from " + "; ".join(sources) + "."))
+        if any(len(pl.package.slots) > 1 for pl in lay.packages):
+            blocks.append(B("table", header=["Device", "Package", "Unit", "Pins"],
+                            rows=layoutmod.device_rows(lay)))
+        noted = set()
+        for pl in lay.packages:
+            blocks.append(B(h, f"Package {pl.number}: {pl.package.name}"
+                               + (f" ({pl.refdes})" if pl.refdes else "")))
+            if pl.package.note and pl.package.name not in noted:
+                noted.add(pl.package.name)
+                blocks.append(B("p", pl.package.note))
+            blocks.append(B("table", header=["Pin", "Function", "Connects to"],
+                            rows=layoutmod.pin_rows(pl, lay.vss, (lay.vdd, lay.vss))))
+        if lay.check:
+            blocks.append(B("p", lay.check))
+    first = [n for n in (lay.vdd, lay.vss) if n in lay.wiring]
+    order = first + [n for n in lay.wiring if n not in first]
+    blocks += [B(h, "Wiring list"),
+               B("p", "Every connection on the board, by node. Build one node at a "
+                      "time and tick it off."),
+               B("table", header=["Node", "Connects"],
+                 rows=[("ground (0)" if n == "0" else n, ", ".join(lay.wiring[n]))
+                       for n in order])]
+    if lay.unplaced:
+        blocks.append(B("bullets", items=[f"{ref}: not packaged ({why})."
+                                          for ref, why in lay.unplaced]))
     return blocks
 
 
