@@ -32,6 +32,11 @@ meta:
     Uniform across the band is LTspice's own default and the most defensible
     choice absent measured data for a specific part. Whether real parts are
     Gaussian, uniform or bimodal is genuinely unsettled -- see `binning`.
+    NOTE: robustness.py's Monte Carlo defaults to gaussian (3 sigma at the
+    tolerance limit), and every published yield (ROBUSTNESS.md, the
+    benchmark's CE-amp yields) was drawn that way. The choice moves yield a
+    lot: the recentred CE amp is 92% gaussian vs 74% uniform. Quote a yield
+    with its distribution; ab_tolerance.py reports both.
 
 # --------------------------------------------------------------- resistors
 
