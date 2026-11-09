@@ -1,0 +1,23 @@
+circuit: noninv_opamp
+description: Non-inverting op-amp amplifier, gain 11 (1 + Rf/Rg)
+
+analyses:
+  tran:
+    command: tran 5u 10m
+    vectors: [v(in), v(out)]
+
+measurements:
+  - name: in_pp
+    units: V
+    extract: {kind: peak_to_peak, of: v(in), window: last 20%}
+    informational: true
+  - name: out_pp
+    units: V
+    extract: {kind: peak_to_peak, of: v(out), window: last 20%}
+    informational: true
+  - name: gain
+    label: gain
+    units: V/V
+    expr: out_pp / in_pp
+    target: 11
+    tol: 2%

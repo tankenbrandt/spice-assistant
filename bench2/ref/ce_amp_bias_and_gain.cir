@@ -1,0 +1,17 @@
+* CE amplifier, 12 V: Vce ~ 6 V and |gain| ~ 80. Ve ~ 2 V (bypassed Re2) keeps
+* the bias stiff against Vbe drift; a small unbypassed Re1 shares the gain-setting
+* with re so the thermal voltage sets only part of it.
+Vcc vcc 0 DC 12
+Vin in 0 DC 0 AC 1
+Cin in base 10u
+R1 vcc base 33k
+R2 base 0 10k
+Rc vcc coll 2.2k
+Re1 emit e2 12
+Re2 e2 0 1.1k
+Ce e2 0 470u
+Cout coll out 10u
+RL out 0 100k
+Q1 coll base emit 0 QNPN
+.model QNPN NPN(IS=1e-14 BF=200 VAF=100)
+.end

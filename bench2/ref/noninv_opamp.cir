@@ -1,0 +1,6 @@
+* Non-inverting amplifier, ideal op-amp (VCVS, A = 1e6): gain = 1 + 10k/1k = 11
+Vin in 0 DC 0 SIN(0 0.1 1k)
+Eop out 0 in fb 1e6
+Rf out fb 10k
+Rg fb 0 1k
+.end

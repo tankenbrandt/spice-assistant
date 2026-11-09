@@ -1,0 +1,7 @@
+* Series RLC band-pass, output across R. f0 = 1/(2*pi*sqrt(3.3m*75n)) = 10.12 kHz,
+* Q = sqrt(L/C)/R = 209.8/42.2 = 4.97
+Vin in 0 DC 0 AC 1
+L1 in a 3.3m
+C1 a out 75n
+R1 out 0 42.2
+.end

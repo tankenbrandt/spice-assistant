@@ -1,0 +1,5 @@
+* Divider from a regulated 12 V rail: 12 * 5.23k/(13.7k+5.23k) = 3.315 V (+0.47%)
+Vcc vcc 0 DC 12
+R1 vcc out 13.7k
+R2 out 0 5.23k
+.end

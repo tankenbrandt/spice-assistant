@@ -1,0 +1,16 @@
+* Common-source NMOS amplifier, 12 V. Partly bypassed source resistor:
+* Rs1 (unbypassed) sets |gain| ~ Rd / (1/gm + Rs1); Rs2 (bypassed) stiffens the bias.
+Vdd vdd 0 DC 12
+Vin in 0 DC 0 AC 1
+Cin in g 1u
+R1 vdd g 220k
+R2 g 0 100k
+Rd vdd d 12k
+M1 d g s s NMOD W=100u L=10u
+Rs1 s s2 910
+Rs2 s2 0 3.3k
+Cs s2 0 100u
+Cout d out 1u
+RL out 0 1meg
+.model NMOD NMOS(LEVEL=1 VTO=1.5 KP=2m LAMBDA=0.01)
+.end

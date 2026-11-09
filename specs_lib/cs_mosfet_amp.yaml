@@ -1,0 +1,15 @@
+circuit: cs_mosfet_amp
+description: Common-source NMOS amplifier, mid-band |gain| = 10
+
+analyses:
+  ac:
+    command: ac dec 20 10 10meg
+    vectors: [vm(out)]
+
+measurements:
+  - name: gain
+    label: "|gain|"
+    units: V/V
+    extract: {kind: max, of: vm(out)}
+    target: 10
+    tol: 10%

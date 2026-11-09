@@ -1,0 +1,19 @@
+* BJT differential pair, +/-12 V. Emitter degeneration (Re >> re) sets
+* Ad = Rc / (2 (re + Re)) with little temperature dependence; the tail is a
+* degenerated BJT current source (~2 mA), so Acm = Rc / (2 Rtail) is tiny.
+Vcc vcc 0 DC 12
+Vee vee 0 DC -12
+Vinp inp 0 DC 0 AC 1
+Vinn inn 0 DC 0 AC 1
+Q1 c1 inp e1 QNPN
+Q2 out inn e2 QNPN
+Rc1 vcc c1 7.5k
+Rc2 vcc out 7.5k
+Re1 e1 tail 120
+Re2 e2 tail 120
+Q3 tail b3 e3 QNPN
+Rb1 0 b3 30k
+Rb2 b3 vee 10k
+Re3 e3 vee 1.2k
+.model QNPN NPN(IS=1e-14 BF=200 VAF=100)
+.end

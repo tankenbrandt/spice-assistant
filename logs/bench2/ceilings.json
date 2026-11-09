@@ -1,0 +1,297 @@
+{
+ "rc_lowpass": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "f3db": 997.9473532214564
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 0.944
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "rc_highpass": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "f3db": 2005.2521128819665
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.904,
+   "uniform": 0.636
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "rlc_bandpass": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "f0": 10115.7945,
+   "f_lo": 9149.831765866904,
+   "f_hi": 11185.504796939358,
+   "q": 4.969262914816282
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.954,
+   "uniform": 0.828
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "voltage_divider": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "vout": 3.31537242
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 0.97
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "halfwave_rectifier": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "peak_in": 9.99999495,
+   "peak_out": 9.4013293,
+   "drop": 0.5986656499999992,
+   "vmin": -1.09999949e-08
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 1.0
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "ce_bjt_amp": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "gain": 50.3777273,
+   "f_mid": 7943.28235,
+   "phase": -179.993427,
+   "inversion": 179.993427
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.916,
+   "uniform": 0.716
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "inv_active_lowpass": {
+  "violations": [],
+  "merges": [],
+  "snaps": [
+   "Cf 1.5915e-09 -> 1.6e-09"
+  ],
+  "nominal": {
+   "gain": 19.9990721,
+   "fc": 982.5770728420677,
+   "phase": 179.417714,
+   "inversion": 179.417714
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.978,
+   "uniform": 0.826
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "noninv_opamp": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "in_pp": 0.1999922622,
+   "out_pp": 2.19989068,
+   "gain": 10.999878974317639
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 1.0
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "inv_opamp_gbw": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "gain": 19.9957998,
+   "f3db": 94983.85885155658
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 1.0
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "cs_mosfet_amp": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "gain": 10.3466151
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.98,
+   "uniform": 0.894
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "buck_converter": {
+  "violations": [],
+  "merges": [],
+  "snaps": [
+   "Rload 5 -> 5.1"
+  ],
+  "nominal": {
+   "vout": 5.085578642780745,
+   "ripple": 0.008505809999999947
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.988,
+   "uniform": 0.95
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "boost_converter": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "vout": 11.766053910194266
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.988,
+   "uniform": 0.94
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "bjt_diffamp": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "ad": 24.9746169,
+   "f_mid": 10.0,
+   "acm": 0.00246550202,
+   "cmrr": 80.11186944738446
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 1.0,
+   "uniform": 0.996
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ },
+ "ce_amp_bias_and_gain": {
+  "violations": [],
+  "merges": [],
+  "snaps": [],
+  "nominal": {
+   "v_coll": 7.95533491,
+   "v_emit": 2.05410812,
+   "vce": 5.901226790000001,
+   "gain": 80.7358276,
+   "f_mid": 501187.234,
+   "phase": -179.997949,
+   "inversion": 179.997949
+  },
+  "nominal_pass": true,
+  "yield": {
+   "gaussian": 0.872,
+   "uniform": 0.72
+  },
+  "nominal_error": null,
+  "sim_fail": {
+   "gaussian": 0,
+   "uniform": 0
+  },
+  "admitted": true
+ }
+}

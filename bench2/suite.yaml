@@ -1,0 +1,170 @@
+# Benchmark v2: circuits whose specs a competent design can actually meet.
+#
+# Every circuit here is graded as built (asbuilt.py: buyable values, merged
+# chains, no ideal shortcuts) and must clear a ceiling gate before any model
+# is run: its reference design, graded the same way, must yield >= 85% over
+# 500 gaussian Monte Carlo builds. A spec no design can meet measures the
+# spec, not the model (the voltage divider's old +/-1% window against a +/-5%
+# supply capped every design at 31%).
+#
+# Fields
+#   prompt_from  benchmark.py circuit whose description is the task
+#   spec         specs_lib file the design is measured against
+#   profile      tolerances.yaml BOM profile (commodity | precision)
+#   tol          per-kind overrides, each a grade tolerances.yaml lists
+#   supply_tol   DC supply tolerance (default 5%, robustness.SUPPLY_TOL)
+#   allow        element letters beyond r c l d q m v x
+#   supplies     DC sources the prompt provides
+#   reference    hand design that sets the ceiling
+#   why          every departure from the v1 benchmark, and its reason
+
+circuits:
+  - id: rc_lowpass
+    prompt_from: rc_lowpass
+    spec: specs_lib/rc_lowpass.yaml
+    profile: precision
+    supplies: 1
+    reference: bench2/ref/rc_lowpass.cir
+    why: >
+      Precision parts (1% thin film, 5% C0G). With 10% X7R the cutoff's
+      spread alone (sigma 3.4%) fills the +/-5% window.
+
+  - id: rc_highpass
+    prompt_from: rc_highpass
+    spec: specs_lib/rc_highpass.yaml
+    profile: precision
+    supplies: 1
+    reference: bench2/ref/rc_highpass.cir
+    why: >
+      Precision parts. The prompt's +/-3% window is unreachable with 10%
+      capacitors (v1 ceiling 58%).
+
+  - id: rlc_bandpass
+    prompt_from: rlc_bandpass
+    spec: specs_lib/rlc_bandpass.yaml
+    profile: precision
+    tol: {l: 0.05}
+    supplies: 1
+    reference: bench2/ref/rlc_bandpass.cir
+    why: >
+      Precision parts and a 5% inductor (tolerances.yaml lists 5% among the
+      standard inductor grades). f0 depends on L and C at half weight each;
+      with the profile's 10% inductor, +/-3% on f0 leaves no room to centre.
+
+  - id: voltage_divider
+    prompt_from: voltage_divider
+    spec: bench2/specs/voltage_divider.yaml
+    profile: precision
+    supply_tol: 0.01
+    supplies: 1
+    reference: bench2/ref/voltage_divider.cir
+    why: >
+      V(out) scales 1:1 with the supply, so v1's +/-1% window against a +/-5%
+      rail was impossible (ceiling 31%). v2 feeds it from a +/-1% regulated
+      rail and widens the window to +/-2%; the prompt never stated a window.
+
+  - id: halfwave_rectifier
+    prompt_from: halfwave_rectifier
+    spec: specs_lib/halfwave_rectifier.yaml
+    profile: commodity
+    supplies: 1
+    reference: repaired/halfwave_rectifier.cir
+    why: Unchanged from v1.
+
+  - id: ce_bjt_amp
+    prompt_from: ce_bjt_amp
+    spec: specs_lib/ce_bjt_amp.yaml
+    profile: commodity
+    supplies: 1
+    reference: bench2/ref/ce_bjt_amp.cir
+    why: >
+      Unchanged spec. The reference is re-centred on E24 values (v1's 59 ohm
+      can't be bought).
+
+  - id: inv_active_lowpass
+    prompt_from: inv_active_lowpass
+    spec: specs_lib/inv_active_lowpass.yaml
+    profile: precision
+    allow: [e, g]
+    supplies: 2
+    reference: reference/inv_active_lowpass.cir
+    why: >
+      Precision parts; the prompt asks for an op-amp macro-model, which needs
+      controlled sources inside its subcircuit.
+
+  - id: noninv_opamp
+    prompt_from: noninv_opamp
+    spec: specs_lib/noninv_opamp.yaml
+    profile: precision
+    allow: [e]
+    supplies: 1
+    reference: bench2/ref/noninv_opamp.cir
+    why: >
+      New to the Monte Carlo suite (v1 had only a nominal checker). The prompt
+      grants an ideal VCVS op-amp. Gain is a resistor ratio; 1% parts.
+
+  - id: inv_opamp_gbw
+    prompt_from: inv_opamp_gbw
+    spec: specs_lib/inv_opamp_gbw.yaml
+    profile: precision
+    allow: [e, g]
+    supplies: 1
+    reference: bench2/ref/inv_opamp_gbw.cir
+    why: New to the Monte Carlo suite. The prompt grants a single-pole op-amp model.
+
+  - id: cs_mosfet_amp
+    prompt_from: cs_mosfet_amp
+    spec: specs_lib/cs_mosfet_amp.yaml
+    profile: commodity
+    supplies: 1
+    reference: bench2/ref/cs_mosfet_amp.cir
+    why: New to the Monte Carlo suite.
+
+  - id: buck_converter
+    prompt_from: buck_converter
+    spec: specs_lib/buck_converter.yaml
+    profile: commodity
+    supply_tol: 0.01
+    allow: [s]
+    supplies: 1
+    reference: repaired/buck_converter.cir
+    why: >
+      An open-loop buck's output tracks its input (sensitivity 1.08), so the
+      prompt's +/-3% was unreachable from a +/-5% rail (v1 ceiling 72%). v2
+      feeds it from a +/-1% regulated rail. The prompt names a voltage-
+      controlled switch.
+
+  - id: boost_converter
+    prompt_from: boost_converter
+    spec: specs_lib/boost_converter.yaml
+    profile: commodity
+    supply_tol: 0.01
+    allow: [s]
+    supplies: 1
+    reference: repaired/round2/boost_converter.cir
+    why: Same reasoning as the buck (v1 ceiling 76%).
+
+  - id: bjt_diffamp
+    prompt_from: bjt_diffamp
+    spec: specs_lib/bjt_diffamp.yaml
+    profile: commodity
+    supplies: 2
+    reference: bench2/ref/bjt_diffamp.cir
+    why: >
+      The tail current source must be built from transistors: an ideal
+      current source is not a part you can buy.
+
+  - id: ce_amp_bias_and_gain
+    prompt_from: ce_amp_bias_and_gain
+    spec: specs_lib/ce_amp_bias_and_gain.yaml
+    profile: commodity
+    supplies: 1
+    reference: bench2/ref/ce_amp_bias_and_gain.cir
+    marginal: true
+    why: >
+      Unchanged spec; reference redesigned. MARGINAL: admitted at 87.2% over
+      500 builds, but 84% over 200, so the 95% interval (+/-3 points) straddles
+      the gate. The physics is tight: Vce = 6 V from 12 V leaves ~4-5 V across
+      Rc, so a gain of 80 needs re + Re1 of only ~55-60 mV / Ic, and the
+      thermal voltage, which drifts about -22%..+19% over -40..85 C, sets
+      half the gain. Report model yields here against this ceiling, not 100%.

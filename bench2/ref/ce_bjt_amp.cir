@@ -1,0 +1,37 @@
+* CE amplifier re-centred on E24 values: Rc 8.2k, Re1 62 (unbypassed), RL 10k -> |gain| 50.4
+* Common-Emitter BJT Amplifier (2N2222-style), Gain ~ -50, Vcc=12V -- re-centred
+* repaired/ce_bjt_amp.cir with one change: Re1 56 -> 59 ohm (a standard E96
+* 1% value). The repaired deck passes at nominal (|gain| 51.5) but sits near
+* the top of the 47.5..52.5 window, so a third of Monte Carlo builds miss it.
+* 59 ohm puts nominal gain at 49.7 and yield goes 69% -> 92% (500 samples).
+*   python report.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml --out runs/recentred --mc 500
+
+.model QN2222 NPN(IS=14.34f BF=200 VAF=100 IKF=0.3 RB=10 CJE=25p CJC=8p TF=0.4n TR=60n)
+
+Vcc vcc 0 DC 12
+Vin in 0 DC 0 AC 1
+
+Cin in base 10u
+
+R1 vcc base 68k
+R2 base 0 11k
+
+Rc vcc coll 8.2k
+
+Re1 emit e2 62
+Re2 e2 0 910
+Ce e2 0 220u
+
+Cout coll out 10u
+RL out 0 10k
+
+Q1 coll base emit 0 QN2222
+
+.control
+op
+print v(base) v(coll) v(emit)
+ac dec 20 1 1meg
+print vm(out)
+.endc
+
+.end

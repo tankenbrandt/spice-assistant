@@ -1,0 +1,5 @@
+* RC low-pass, fc = 1/(2*pi*4.42k*36n) = 1000.2 Hz (E96 resistor, E24 C0G capacitor)
+Vin in 0 DC 5 AC 1
+R1 in out 4.42k
+C1 out 0 36n
+.end

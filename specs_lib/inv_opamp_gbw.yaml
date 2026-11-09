@@ -1,0 +1,24 @@
+circuit: inv_opamp_gbw
+description: Inverting op-amp, |gain| = 20 with a finite-GBW op-amp, bandwidth >= 50 kHz
+
+analyses:
+  ac:
+    command: ac dec 50 10 100meg
+    vectors: [vm(out), vdb(out)]
+
+measurements:
+  - name: gain
+    label: "|gain|"
+    units: V/V
+    extract: {kind: max, of: vm(out)}
+    target: 20
+    tol: 5%
+  - name: f3db
+    label: f(-3dB)
+    units: Hz
+    extract:
+      kind: crossing
+      of: vdb(out)
+      level: max - 3
+      direction: falling
+    min: 50000

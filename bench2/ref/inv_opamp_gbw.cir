@@ -1,0 +1,13 @@
+* Inverting amplifier, |gain| = 20.0k/1.00k = 20, around a single-pole op-amp:
+* A0 = 1e5, dominant pole 20 Hz, GBW = 2 MHz -> closed-loop bandwidth ~95 kHz
+Vin in 0 DC 0 AC 1
+R1 in inv 1k
+R2 inv out 20k
+Xop 0 inv out OPAMP1P
+.subckt OPAMP1P inp inn out
+Gin 0 p inp inn 1
+Rp p 0 7.96k
+Cp p 0 1u
+Eout out 0 p 0 12.56
+.ends
+.end

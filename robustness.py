@@ -158,7 +158,8 @@ def _subckt_owner(lines: list[str]) -> list[str]:
 
 
 def extract_params(netlist: str, *, vary_temp: bool = True,
-                   passive_tol: dict | None = None) -> tuple[list[str], list[Param]]:
+                   passive_tol: dict | None = None,
+                   supply_tol: float | None = None) -> tuple[list[str], list[Param]]:
     """Find every perturbable parameter in a deck.
 
     `passive_tol` overrides the default {"r":.., "c":.., "l":..} spreads --
@@ -171,6 +172,7 @@ def extract_params(netlist: str, *, vary_temp: bool = True,
     sources, model references) are skipped rather than guessed at.
     """
     tol_for_passive = PASSIVE_TOL if passive_tol is None else passive_tol
+    tol_for_supply = SUPPLY_TOL if supply_tol is None else supply_tol
     lines = netlist.splitlines()
     in_control = _control_mask(lines)
     owner = _subckt_owner(lines)
@@ -221,7 +223,7 @@ def extract_params(netlist: str, *, vary_temp: bool = True,
                 continue
             if dc == 0:
                 continue
-            params.append(Param(refdes, "supply", dc, SUPPLY_TOL, i, ti))
+            params.append(Param(refdes, "supply", dc, tol_for_supply, i, ti))
 
     for name, mtype, i, j in _model_spans(lines):
         card = "\n".join(lines[i:j + 1])
@@ -517,23 +519,28 @@ def _map(fn, jobs: list, workers: int) -> list:
         return list(ex.map(fn, jobs))
 
 
-def nominal(circuit: str, netlist: str, *, passive_tol: dict | None = None) -> dict:
+def nominal(circuit: str, netlist: str, *, passive_tol: dict | None = None,
+            supply_tol: float | None = None) -> dict:
     metric_fn, _ = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol)
+    _, params = extract_params(netlist, vary_temp=True, passive_tol=passive_tol,
+                               supply_tol=supply_tol)
     vals = {p.key: (TEMP_NOM if p.kind == "temp" else p.nominal) for p in params}
     return _evaluate(metric_fn, netlist, params, vals)
 
 
 def monte_carlo(circuit: str, netlist: str, n: int, *, seed: int = 0,
                 dist: str = "gaussian", vary_temp: bool = True,
-                workers: int = 8, passive_tol: dict | None = None) -> dict:
+                workers: int = 8, passive_tol: dict | None = None,
+                supply_tol: float | None = None) -> dict:
     metric_fn, specs = resolve(circuit)
-    _, params = extract_params(netlist, vary_temp=vary_temp, passive_tol=passive_tol)
+    _, params = extract_params(netlist, vary_temp=vary_temp, passive_tol=passive_tol,
+                               supply_tol=supply_tol)
     rng = random.Random(seed)
     draws = [{p.key: p.sample(rng, dist) for p in params} for _ in range(n)]
     samples = _map(lambda v: _evaluate(metric_fn, netlist, params, v), draws, workers)
     res = summarize(samples, specs)
     res.update({"passive_tol": dict(passive_tol) if passive_tol else None,
+                "supply_tol": supply_tol,
                 "dist": dist, "seed": seed, "vary_temp": vary_temp,
                 "params": [p.label() for p in params], "samples": samples})
     return res

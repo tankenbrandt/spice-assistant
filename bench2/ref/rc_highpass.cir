@@ -1,0 +1,5 @@
+* RC high-pass, fc = 1/(2*pi*2.21k*36n) = 2000.4 Hz (E96 resistor, E24 C0G capacitor)
+Vin in 0 DC 0 AC 1
+C1 in out 36n
+R1 out 0 2.21k
+.end
