@@ -85,12 +85,13 @@ circuits:
     prompt_from: inv_active_lowpass
     spec: specs_lib/inv_active_lowpass.yaml
     profile: precision
-    allow: [e, g]
+    subckts: [UA741]
     supplies: 2
     reference: reference/inv_active_lowpass.cir
     why: >
-      Precision parts; the prompt asks for an op-amp macro-model, which needs
-      controlled sources inside its subcircuit.
+      Precision parts. The grader supplies the 741 macro-model (bench2/
+      devices.yaml) instead of letting the design write one: a design-written
+      op-amp can have any gain and bandwidth it likes.
 
   - id: noninv_opamp
     prompt_from: noninv_opamp
@@ -118,7 +119,12 @@ circuits:
     profile: commodity
     supplies: 1
     reference: bench2/ref/cs_mosfet_amp.cir
-    why: New to the Monte Carlo suite.
+    excluded: true
+    why: >
+      EXCLUDED until the repo has a sourced discrete NMOS model (e.g. a 2N7000
+      card from a datasheet or course handout). The prompt lets the design
+      write its own .model card, so it can choose KP and VTO freely and look
+      robust by designing for a part that doesn't exist.
 
   - id: buck_converter
     prompt_from: buck_converter
@@ -126,6 +132,7 @@ circuits:
     profile: commodity
     supply_tol: 0.01
     allow: [s]
+    models: [npn]
     supplies: 1
     reference: repaired/buck_converter.cir
     why: >
@@ -140,9 +147,14 @@ circuits:
     profile: commodity
     supply_tol: 0.01
     allow: [s]
+    models: [npn]
     supplies: 1
     reference: repaired/round2/boost_converter.cir
-    why: Same reasoning as the buck (v1 ceiling 76%).
+    why: >
+      Same reasoning as the buck (v1 ceiling 76%). KNOWN GAP (buck too): the
+      design's own diode card is kept. The only sourced diode, the 1N4001,
+      recovers in ~5.7 us, longer than the 10 us switching period, so forcing
+      it would make both converters unbuildable. Needs a sourced Schottky.
 
   - id: bjt_diffamp
     prompt_from: bjt_diffamp
@@ -160,11 +172,12 @@ circuits:
     profile: commodity
     supplies: 1
     reference: bench2/ref/ce_amp_bias_and_gain.cir
-    marginal: true
+    excluded: true
     why: >
-      Unchanged spec; reference redesigned. MARGINAL: admitted at 87.2% over
-      500 builds, but 84% over 200, so the 95% interval (+/-3 points) straddles
-      the gate. The physics is tight: Vce = 6 V from 12 V leaves ~4-5 V across
-      Rc, so a gain of 80 needs re + Re1 of only ~55-60 mV / Ic, and the
-      thermal voltage, which drifts about -22%..+19% over -40..85 C, sets
-      half the gain. Report model yields here against this ceiling, not 100%.
+      EXCLUDED: fails the gate. With the handout's 2N2222 the best of 81
+      E24 designs reached ~81% (200 builds); with a design-chosen transistor
+      it had scraped 87%. The physics is tight: Vce = 6 V from 12 V leaves
+      ~4-5 V across Rc, so a gain of 80 needs re + Re1 of only ~55-60 mV / Ic,
+      and the thermal voltage, which drifts about -22%..+19% over -40..85 C,
+      sets half the gain. Narrowing the temperature range or the window would
+      admit it; either changes the task.

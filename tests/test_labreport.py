@@ -248,3 +248,41 @@ def test_a_lab_without_a_kit_keeps_every_given_part(tmp_path):
     (r,) = results
     assert r.pick.params == []                     # nothing searched, nothing swapped
     assert "R1 in out 1.5k" in r.kit_deck and "C1 out 0 0.1u" in r.kit_deck
+
+
+# ------------------------------------------------------------- bench readings
+
+def test_in_range_allows_for_the_instruments_accuracy():
+    br = (9.97, 9.987)                           # a range the procedure pins down
+    assert lr.in_range(10.0, br, tol=0.0) == "NO"
+    assert lr.in_range(10.0, br) == "yes"        # a scope can't resolve 0.1%
+    assert lr.in_range(9.0, br) == "NO"
+    assert lr.in_range(-1.02, (-1.0, -0.9), tol=0.03) == "yes"
+    assert lr.in_range(None, br) == ""
+    assert lr.in_range(1.0, None) == "—"
+
+
+def test_measured_sheet_drops_blanks(tmp_path):
+    f = tmp_path / "m.yaml"
+    f.write_text("date: \nparts:\n  amp:\n    readings:\n      gain: 4.5\n      vce_min:\n"
+                 "    dc:\n      b: 2.47\n      e:\n", encoding="utf-8")
+    assert lr.load_measured(f) == {"amp": {"readings": {"gain": 4.5}, "dc": {"b": 2.47}}}
+
+
+@needs_ngspice
+def test_bench_readings_fill_the_results_table_and_round_trip_the_template(tmp_path):
+    pytest.importorskip("matplotlib")
+    lab, results = lr.run_lab(PROJECT_DIR / "labs" / "ee346_exp8" / "lab.yaml",
+                              tmp_path, mc_n=40)
+    r = results[0]
+    sheet = tmp_path / "measured.yaml"
+    sheet.write_text(lr.measured_template(lab, results), encoding="utf-8")
+    assert lr.load_measured(sheet) == {r.spec.name: {"readings": {}, "dc": {}}}
+    lo, hi = lr.bench_range(r.mc, "gain")
+    r.measured = {"readings": {"gain": (lo + hi) / 2, "vce_min": 0.5},
+                  "dc": {"b": r.op_kit["b"] * 1.02}}
+    md = lr.write_lab(lab, results, tmp_path, docx=False)["md"].read_text(encoding="utf-8")
+    assert "In predicted range?" in md
+    assert "Bench check: 1 of 2 readings landed inside" in md
+    assert "Outside the predicted range: lowest V_CE in the swing" in md
+    assert "| b |" in md and "+2.0%" in md

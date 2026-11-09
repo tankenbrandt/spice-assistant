@@ -1,0 +1,18 @@
+# Bench readings: EE 346 Experiment 8 — Design of a Common-Emitter Biasing Circuit (pre-lab)
+# Fill in at the bench; leave anything you didn't measure blank.
+# Then: python labreport.py --lab labs/ee346_exp8/lab.yaml --measured labs/ee346_exp8/measured.yaml --out runs/ee346_exp8
+date: 
+parts:
+  ee346_exp8_ce_amp:   # CE amplifier with emitter feedback (Figure 1)
+    readings:
+      vin_pp:   # input needed (Vi p-p), V; expect 2.17 V, 90% of builds 2.019 to 2.33 V
+      vout_pp:   # output swing, Vpp; expect 9.981 Vpp, 90% of builds 9.97 to 9.987 Vpp
+      gain:   # gain |dVo/dVi|, V/V; expect 4.6 V/V, 90% of builds 4.282 to 4.945 V/V
+      vce_min:   # lowest V_CE in the swing, V; expect 3.47 V, 90% of builds 2.383 to 4.792 V
+      vrl_min:   # lowest V across RL (cutoff margin), V; expect 3.638 V, 90% of builds 2.532 to 4.648 V
+    dc:          # input off, volts
+      b:   # expect 2.49 V
+      e:   # expect 1.84 V
+      in:   # expect 0 V
+      out:   # expect 11.4 V
+      vcc:   # expect 20 V

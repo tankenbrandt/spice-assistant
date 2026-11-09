@@ -96,8 +96,39 @@ def test_violations_name_ideal_sources_and_extra_supplies():
 
 def test_violations_look_inside_subcircuits():
     deck = "t\nX1 a b OA\n.subckt OA p q\nG1 p 0 q 0 1\n.ends\n.end\n"
-    assert asbuilt.violations(deck) == ["G1: ideal controlled source not allowed"]
-    assert asbuilt.violations(deck, asbuilt.BASE_ELEMENTS | {"g"}) == []
+    assert asbuilt.violations(deck, allow_subckt=True) == ["G1: ideal controlled source not allowed"]
+    assert asbuilt.violations(deck, asbuilt.BASE_ELEMENTS | {"g"}, allow_subckt=True) == []
+    # Wrapping a design in a subcircuit hid it from snapping and merging.
+    assert asbuilt.violations(deck, asbuilt.BASE_ELEMENTS | {"g"}) == [
+        "OA: subcircuit definitions not allowed"]
+
+
+def test_expression_values_are_violations():
+    deck = "t\nVcc vcc 0 DC 12\nRc vcc c {8.2k}\nC1 c 0 1u\nR2 c 0 rval\n.end\n"
+    assert asbuilt.violations(deck) == ["Rc: value '{8.2k}' must be a plain number",
+                                        "R2: value 'rval' must be a plain number"]
+
+
+def test_device_cards_are_replaced_by_the_real_part():
+    models = bench2.load_devices()["models"]
+    deck = ("t\nQ1 c b e QX\n.model QX NPN(BF=5000 VAF=1e6\n+ IS=1e-15)\n"
+            "D1 a b DX\n.model DX D(IS=1e-20 N=0.5)\n.end\n")
+    out, swapped = asbuilt.substitute_models(deck, models)
+    assert swapped == ["DX -> 1N4001", "QX -> 2N2222"]
+    assert "BF=5000" not in out and "+ IS=1e-15" not in out
+    assert f".model QX NPN({models['npn']['params']})" in out.splitlines()
+
+
+def test_grader_subckt_replaces_the_designs_copy_and_is_exempt_from_rules():
+    subckts = bench2.load_devices()["subckts"]
+    deck = ("t\nX1 0 m vcc vee out UA741\n.subckt UA741 a b c d e\nE1 e 0 a b 1e9\n.ends\n"
+            "Vcc vcc 0 DC 15\nVee vee 0 DC -15\n.end\n")
+    p = asbuilt.prepare(deck, specs.load("specs_lib/inv_active_lowpass.yaml"), PRECISION,
+                        supplies=2, subckts=subckts)
+    assert p["violations"] == []
+    assert "E1 e 0 a b 1e9" not in p["deck"]
+    assert "Egain gain 0 plus minus 200k" in p["deck"]
+    assert p["deck"].rstrip().endswith(".end")
 
 
 def test_probed_nodes_come_from_the_spec_vectors():
@@ -130,9 +161,29 @@ def test_prompts_state_what_the_grader_enforces():
 def test_split_resistors_earn_nothing_and_ideal_sources_score_zero():
     e = bench2.entry("ce_bjt_amp")
     ref = (bench2.PROJECT_DIR / e["reference"]).read_text(encoding="utf-8")
-    split = ref.replace("Rc vcc coll 8.2k", "RcA vcc c1 3.9k\nRcB c1 coll 4.3k")
+    split = ref.replace("Rc vcc coll 9.1k", "RcA vcc c1 1.6k\nRcB c1 coll 7.5k")
+    assert split != ref
     g = bench2.grade(e, split, n=20, dists=("gaussian",))
-    assert g["merges"] == ["RcA+RcB in series -> 8200"]
+    assert g["merges"] == ["RcA+RcB in series -> 9100"]
     assert g["yield"]["gaussian"] == bench2.grade(e, ref, n=20, dists=("gaussian",))["yield"]["gaussian"]
     bad = bench2.grade(e, ref.replace("Vin in 0", "Ibias vcc coll 1u\nVin in 0"), n=20)
     assert bad["violations"] and bad["yield"]["gaussian"] == 0.0
+
+
+@needs_ngspice
+def test_a_fantasy_transistor_card_scores_the_same_as_the_real_part():
+    e = bench2.entry("ce_bjt_amp")
+    ref = (bench2.PROJECT_DIR / e["reference"]).read_text(encoding="utf-8")
+    fantasy = ref.replace("BF=200 VAF=100", "BF=5000 VAF=1e6")
+    assert fantasy != ref
+    a = bench2.grade(e, ref, n=20, dists=("gaussian",))
+    b = bench2.grade(e, fantasy, n=20, dists=("gaussian",))
+    assert b["models"] == ["QN2222 -> 2N2222"]
+    assert a["nominal"]["gain"] == pytest.approx(b["nominal"]["gain"])
+    assert a["yield"] == b["yield"]
+
+
+def test_excluded_circuits_say_why():
+    for e in bench2.load_suite():
+        if e.get("excluded"):
+            assert e["why"].startswith("EXCLUDED")

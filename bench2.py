@@ -25,6 +25,7 @@ import tolerances
 
 PROJECT_DIR = Path(__file__).resolve().parent
 SUITE_PATH = PROJECT_DIR / "bench2" / "suite.yaml"
+DEVICES_PATH = PROJECT_DIR / "bench2" / "devices.yaml"
 OUT_DIR = PROJECT_DIR / "logs" / "bench2"
 GATE = 0.85                     # reference yield, gaussian, that admits a circuit
 MC_N, MC_SEED = 500, 1
@@ -38,6 +39,21 @@ _LETTERS = {"r": "resistors", "c": "capacitors", "l": "inductors", "d": "diodes"
 
 def load_suite(path: Path = SUITE_PATH) -> list:
     return yaml.safe_load(path.read_text(encoding="utf-8"))["circuits"]
+
+
+def load_devices(path: Path = DEVICES_PATH) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def models_for(e: dict) -> dict:
+    """Device types the grader replaces with real parts (default: BJTs and diodes)."""
+    allm = load_devices()["models"]
+    return {t: allm[t] for t in e.get("models", ["npn", "d"])}
+
+
+def subckts_for(e: dict) -> dict:
+    alls = load_devices()["subckts"]
+    return {n: alls[n] for n in e.get("subckts", [])}
 
 
 def entry(cid: str, suite: list | None = None) -> dict:
@@ -84,7 +100,15 @@ def rules_text(e: dict) -> str:
         f"- Every part is rounded to the nearest value you can buy before testing: "
         f"{asbuilt.series_for('r', t['r'])} resistors, {asbuilt.series_for('c', t['c'])} "
         f"capacitors, {asbuilt.series_for('l', t['l'])} inductors.\n"
-        "- Parts in series or parallel are tested as the single part they make up."
+        "- Parts in series or parallel are tested as the single part they make up.\n"
+        "- Component values are plain numbers (no .param or {expressions}); no .subckt "
+        "definitions."
+        + "".join(f"\n- Every {kind.upper()} .model card is replaced by the grader's "
+                  f"{m['part']}: {kind.upper()}({' '.join(m['params'].split())}). Include a "
+                  ".model card for it; its parameters will be overwritten."
+                  for kind, m in models_for(e).items())
+        + "".join(f"\n- The grader supplies .subckt {name} (pins: {s['pins']}). Call it; "
+                  "don't define it." for name, s in subckts_for(e).items())
     )
 
 
@@ -116,9 +140,11 @@ def grade(e: dict, deck: str, n: int = MC_N, dists=DISTS, seed: int = MC_SEED,
     or misses at nominal."""
     spec = spec_for(e)
     tol, st = tol_for(e), supply_tol(e)
-    prep = asbuilt.prepare(deck, spec, tol, allowed(e), e.get("supplies", 1))
+    prep = asbuilt.prepare(deck, spec, tol, allowed(e), e.get("supplies", 1),
+                           models=models_for(e), subckts=subckts_for(e))
     out = {"violations": prep["violations"], "merges": prep["merges"],
-           "snaps": prep["snaps"], "nominal": None, "nominal_pass": False,
+           "snaps": prep["snaps"], "models": prep["models"],
+           "nominal": None, "nominal_pass": False,
            "yield": {d: 0.0 for d in dists}}
     if prep["violations"]:
         return out
@@ -141,7 +167,7 @@ def validate(n: int = MC_N, only: str | None = None, log=print) -> dict:
     """Grade every reference design; a circuit is admitted if it clears GATE."""
     results = {}
     for e in load_suite():
-        if only and e["id"] != only:
+        if (only and e["id"] != only) or e.get("excluded"):
             continue
         deck = (PROJECT_DIR / e["reference"]).read_text(encoding="utf-8")
         g = grade(e, deck, n)

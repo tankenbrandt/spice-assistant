@@ -1,0 +1,35 @@
+# Real parts the grader substitutes for whatever device models a design writes.
+# A model left to write its own transistor card can design for a part that
+# doesn't exist (beta 5000, VAF 1e6) and still pass; the grader overwrites
+# every card of these types with the part below, keeping the design's model
+# name, and the prompt states the part and its parameters.
+
+models:
+  npn:
+    part: 2N2222
+    source: EE 346 Exp. 8 handout, part B (labs/ee346_exp8/ce_amp.cir)
+    params: >-
+      BF=200 BR=3.9 IS=2.7E-14 RB=30 RC=1.9 RE=0.1 VAF=317 TF=0.3n TR=144n
+      CJE=23.6p VJE=0.88 CJC=9.44p VJC=0.56 EG=1.11
+  d:
+    part: 1N4001
+    source: the lab handouts' 1N4001 card (reference/lab_halfwave.cir)
+    params: >-
+      IS=14.11n N=1.984 RS=33.89m IKF=94.81 XTI=3 EG=1.11 CJO=25.89p M=.44
+      VJ=.3245 FC=.5 BV=75 IBV=10u TT=5.7u
+
+subckts:
+  UA741:
+    pins: in+ in- V+ V- out
+    source: >
+      741 datasheet typicals (open-loop gain 200k, GBW 1 MHz, Rin 2 Mohm,
+      Rout 75 ohm); the macro-model reference/inv_active_lowpass.cir uses
+    text: |
+      .subckt UA741 plus minus vcc vee out
+      Rin plus minus 2meg
+      Egain gain 0 plus minus 200k
+      Rp gain pole 1k
+      Cp pole 0 31.83u
+      Eout outi 0 pole 0 1
+      Rout outi out 75
+      .ends UA741

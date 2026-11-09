@@ -526,6 +526,7 @@ class LabResult:
     mc_corners: dict = field(default_factory=dict)   # corner label -> MC yield
     layout: object = None             # layout.Layout: pin assignments (ten-step method, step 4)
     lt: dict | None = None            # lt_simulation(): LTspice's own run at every condition
+    measured: dict | None = None      # bench readings: {"readings": {name: v}, "dc": {node: v}}
 
 
 def _percentile(xs: list, q: float) -> float:
@@ -956,14 +957,111 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         blocks += [B(h, "DC checkpoints (input off)"),
                    B("table", header=cols, rows=rows)]
 
-    res = [(m.title, num((p.best.values or {}).get(m.name), m.units),
-            _range(bench_range(r.mc, m.name), m.units), theory(m), "", "")
-           for m in shown(spec)]
+    bench = r.measured or {}
+    readings = bench.get("readings") or {}
+    if not readings:
+        res = [(m.title, num((p.best.values or {}).get(m.name), m.units),
+                _range(bench_range(r.mc, m.name), m.units), theory(m), "", "")
+               for m in shown(spec)]
+        blocks += [B(h, "Results"),
+                   B("table", header=["Measurement", "Expected", "Expected range "
+                                      "(90% of builds)", "Requirement", "Measured",
+                                      "Pass?"], rows=res)]
+        return blocks
+    res = []
+    for m in shown(spec):
+        v, br = readings.get(m.name), bench_range(r.mc, m.name)
+        res.append((m.title, num((p.best.values or {}).get(m.name), m.units),
+                    _range(br, m.units), theory(m), num(v, m.units) if v is not None else "",
+                    in_spec(m, v) if v is not None else "",
+                    in_range(v, br, bench.get("meter_tol", METER_TOL))))
     blocks += [B(h, "Results"),
                B("table", header=["Measurement", "Expected", "Expected range "
                                   "(90% of builds)", "Requirement", "Measured",
-                                  "Pass?"], rows=res)]
+                                  "Pass?", "In predicted range?"], rows=res)]
+    blocks.append(B("p", bench_summary(spec, r.mc, readings,
+                                       bench.get("meter_tol", METER_TOL))))
+    if bench.get("dc") and r.op_kit:
+        drows = [(n, num(r.op_kit[n], "V", 3), num(bench["dc"].get(n), "V", 3),
+                  _pct_off(bench["dc"].get(n), r.op_kit[n]))
+                 for n in sorted(r.op_kit) if bench["dc"].get(n) is not None]
+        blocks += [B(h, "DC checkpoints, measured"),
+                   B("table", header=["Node", "Expected", "Measured", "Difference"],
+                     rows=drows)]
     return blocks
+
+
+# A bench instrument's own error, added to each side of the predicted range: a
+# scope that reads 10.0 Vpp can't tell 9.99 from 10.01. About +/-3% is typical
+# vertical (DC gain) accuracy for an entry-level scope; set your own with
+# --meter-tol.
+METER_TOL = 0.03
+
+
+def in_range(v, br, tol: float = METER_TOL) -> str:
+    """Did a bench reading land where 90% of simulated builds do, give or take
+    the instrument's accuracy?"""
+    if v is None or not br:
+        return "" if v is None else "—"
+    lo, hi = br[0] - abs(br[0]) * tol, br[1] + abs(br[1]) * tol
+    return "yes" if lo <= v <= hi else "NO"
+
+
+def _pct_off(v, expected) -> str:
+    if v is None or not expected:
+        return "—"
+    return f"{(v - expected) / abs(expected) * 100:+.1f}%"
+
+
+def bench_summary(spec, mc: dict | None, readings: dict, tol: float = METER_TOL) -> str:
+    """One sentence: how the build compared with the prediction."""
+    ms = [m for m in shown(spec) if readings.get(m.name) is not None]
+    ranged = [m for m in ms if bench_range(mc, m.name)]
+    inside = [m for m in ranged
+              if in_range(readings[m.name], bench_range(mc, m.name), tol) == "yes"]
+    limited = [m for m in ms if not m.informational]
+    met = [m for m in limited if m.limits.ok(readings[m.name])]
+    out = (f"Bench check: {len(inside)} of {len(ranged)} readings landed inside the "
+           f"range 90% of simulated builds predicted (widened by ±{tol:.0%} for the "
+           f"instrument); {len(met)} of {len(limited)} met their requirement.")
+    missed = [m.title for m in ranged if m not in inside]
+    if missed:
+        out += (" Outside the predicted range: " + ", ".join(missed) + ". A reading "
+                "outside it points at the build (wiring, a wrong part, the meter) or "
+                "at something the simulation leaves out; find which before "
+                "trusting either.")
+    return out
+
+
+def measured_template(lab, results: list) -> str:
+    """A YAML sheet to fill in at the bench: every reading, its expected range."""
+    lines = [f"# Bench readings: {lab.title}",
+             "# Fill in at the bench; leave anything you didn't measure blank.",
+             "# Then: python labreport.py --lab <lab.yaml> --measured <this file> --out <dir>",
+             "date: ", "parts:"]
+    for part, r in zip(lab.parts, results, strict=True):
+        lines += [f"  {r.spec.name}:   # {part['title']}", "    readings:"]
+        for m in shown(r.spec):
+            br = bench_range(r.mc, m.name)
+            exp = num((r.pick.best.values or {}).get(m.name), m.units)
+            lines.append(f"      {m.name}:   # {m.title}, {m.units or 'no unit'}; expect "
+                         f"{exp}" + (f", 90% of builds {_range(br, m.units)}" if br else ""))
+        if r.op_kit:
+            lines.append("    dc:          # input off, volts")
+            lines += [f"      {n}:   # expect {num(v, 'V', 3)}" for n, v in sorted(r.op_kit.items())]
+    return "\n".join(lines) + "\n"
+
+
+def load_measured(path) -> dict:
+    """{spec name: {"readings": {...}, "dc": {...}}} with blanks dropped."""
+    import yaml
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    out = {}
+    for name, part in (data.get("parts") or {}).items():
+        part = part or {}
+        out[name] = {k: {n: float(v) for n, v in (part.get(k) or {}).items() if v is not None}
+                     for k in ("readings", "dc")}
+    return out
 
 
 def _lt_blocks(r: LabResult, h: str) -> list:
@@ -1199,6 +1297,12 @@ def _cli(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--no-docx", action="store_true", help="Markdown only")
+    ap.add_argument("--measured", help="bench readings YAML: fills Measured / Pass? and "
+                                       "checks each against the predicted range (--lab)")
+    ap.add_argument("--meter-tol", type=float, default=METER_TOL,
+                    help="instrument accuracy added to each predicted range (default 0.03)")
+    ap.add_argument("--measured-template", metavar="PATH",
+                    help="write a blank bench-readings sheet for this lab (--lab)")
     a = ap.parse_args(argv)
     if bool(a.lab) == bool(a.deck and a.spec):
         ap.error("give either a deck with --spec, or --lab")
@@ -1210,6 +1314,19 @@ def _cli(argv=None) -> int:
     if a.lab:
         lab, results = run_lab(a.lab, out, kit=kit, mc_n=a.mc, seed=a.seed,
                                workers=a.workers)
+        if a.measured:
+            bench = load_measured(a.measured)
+            unknown = set(bench) - {r.spec.name for r in results}
+            if unknown:
+                ap.error(f"--measured names parts this lab doesn't have: {sorted(unknown)}")
+            for r in results:
+                r.measured = bench.get(r.spec.name)
+                if r.measured is not None:
+                    r.measured["meter_tol"] = a.meter_tol
+        if a.measured_template:
+            Path(a.measured_template).write_text(measured_template(lab, results),
+                                                 encoding="utf-8")
+            print(f"wrote {a.measured_template}")
         paths = write_lab(lab, results, out, docx=not a.no_docx)
         for part, r in zip(lab.parts, results, strict=True):
             # Judge what will be built: the kit build, at every corner it must meet.

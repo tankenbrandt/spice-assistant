@@ -1,4 +1,4 @@
-* CE amplifier re-centred on E24 values: Rc 8.2k, Re1 62 (unbypassed), RL 10k -> |gain| 50.4
+* CE amplifier re-centred on E24 values for the handout 2N2222: Rc 9.1k, Re1 68 (unbypassed), RL 10k -> |gain| 50.4
 * Common-Emitter BJT Amplifier (2N2222-style), Gain ~ -50, Vcc=12V -- re-centred
 * repaired/ce_bjt_amp.cir with one change: Re1 56 -> 59 ohm (a standard E96
 * 1% value). The repaired deck passes at nominal (|gain| 51.5) but sits near
@@ -16,9 +16,9 @@ Cin in base 10u
 R1 vcc base 68k
 R2 base 0 11k
 
-Rc vcc coll 8.2k
+Rc vcc coll 9.1k
 
-Re1 emit e2 62
+Re1 emit e2 68
 Re2 e2 0 910
 Ce e2 0 220u
 

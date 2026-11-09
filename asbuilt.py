@@ -24,7 +24,7 @@ import math
 import re
 
 import kit
-from robustness import _control_mask, _subckt_owner
+from robustness import _control_mask, _model_spans, _subckt_owner
 from speccheck import spice_value
 
 BASE_ELEMENTS = frozenset("rcldqmvx")      # passives, diodes, BJTs, MOSFETs, sources, subckt calls
@@ -186,11 +186,23 @@ def dc_supplies(deck: str) -> int:
     return n
 
 
-def violations(deck: str, allow: frozenset = BASE_ELEMENTS, supplies: int = 1) -> list:
+def violations(deck: str, allow: frozenset = BASE_ELEMENTS, supplies: int = 1,
+               allow_subckt: bool = False) -> list:
     lines = deck.splitlines()
     out = []
+    if not allow_subckt:
+        out += [f"{ln.split()[1] if len(ln.split()) > 1 else '?'}: subcircuit definitions "
+                "not allowed" for ln in lines if ln.strip().lower().startswith(".subckt")]
     for i in _all_elements(lines):
         letter = lines[i].strip()[0].lower()
+        toks = lines[i].split()
+        # A value the grader can't read as a number is a value it can't vary:
+        # `R1 a b {8.2k}` escaped every tolerance draw.
+        if letter in "rcl" and len(toks) >= 4:
+            try:
+                spice_value(toks[3])
+            except ValueError:
+                out.append(f"{toks[0]}: value {toks[3]!r} must be a plain number")
         if letter not in allow:
             what = {"i": "ideal current source", "b": "behavioral source",
                     "e": "ideal controlled source", "g": "ideal controlled source",
@@ -202,14 +214,60 @@ def violations(deck: str, allow: frozenset = BASE_ELEMENTS, supplies: int = 1) -
     return out
 
 
+def substitute_models(deck: str, models: dict) -> tuple:
+    """Overwrite every .model card of a listed type with the real part's
+    parameters, keeping the design's model name. Returns (deck, swapped)."""
+    lines = deck.splitlines()
+    swapped = []
+    for name, mtype, i, j in reversed(_model_spans(lines)):
+        if mtype in models:
+            lines[i:j + 1] = [f".model {name} {mtype.upper()}({models[mtype]['params']})"]
+            swapped.append(f"{name} -> {models[mtype]['part']}")
+    return "\n".join(lines) + "\n", sorted(swapped)
+
+
+def strip_subckts(deck: str, names) -> str:
+    """Remove the design's own definitions of these subcircuits."""
+    names = {n.lower() for n in names}
+    out, skip = [], False
+    for ln in deck.splitlines():
+        toks = ln.split()
+        if len(toks) > 1 and toks[0].lower() == ".subckt" and toks[1].lower() in names:
+            skip = True
+            continue
+        if skip:
+            skip = not (toks and toks[0].lower() == ".ends")
+            continue
+        out.append(ln)
+    return "\n".join(out) + "\n"
+
+
+def supply_subckts(deck: str, subckts: dict) -> str:
+    """The grader's subcircuits replace any copy the design wrote."""
+    out = strip_subckts(deck, subckts).splitlines()
+    end = next((k for k in range(len(out) - 1, -1, -1) if out[k].strip().lower() == ".end"),
+               len(out))
+    texts = [subckts[n]["text"].rstrip() for n in subckts]
+    return "\n".join(out[:end] + texts + out[end:]) + "\n"
+
+
 def prepare(deck: str, spec, tol: dict, allow: frozenset = BASE_ELEMENTS,
-            supplies: int = 1) -> dict:
+            supplies: int = 1, models: dict | None = None,
+            subckts: dict | None = None, allow_subckt: bool = False) -> dict:
     """The deck as built, plus everything that was changed or is disallowed."""
-    v = violations(deck, allow, supplies)
+    subckts = subckts or {}
+    # Rules apply to what the design wrote, not to the grader's own subcircuits
+    # (a 741 macro-model is built from controlled sources the design may not use).
+    v = violations(strip_subckts(deck, subckts), allow, supplies, allow_subckt)
+    clean = supply_subckts(deck, subckts) if subckts else deck
+    swapped = []
+    if models:
+        clean, swapped = substitute_models(clean, models)
     # Snap each part first: every resistor in a chain must be one you can buy.
     # Then merge: two E96 parts in series may hit a value no single part does
     # (a fair technique), but the chain varies as one part, so it buys no
     # tolerance.
-    snapped, snaps = snap_deck(deck, tol)
+    snapped, snaps = snap_deck(clean, tol)
     built, merges = merge_passives(snapped, probed_nodes(spec))
-    return {"deck": built, "violations": v, "merges": merges, "snaps": snaps}
+    return {"deck": built, "violations": v, "merges": merges, "snaps": snaps,
+            "models": swapped}
