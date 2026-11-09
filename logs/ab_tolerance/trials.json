@@ -1,0 +1,704 @@
+{
+ "trials": [
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 0,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, Av approx -50, 12V supply\n.model Q2N2222 NPN (IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NC=2 RB=10 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 CJE=22.01p MJE=0.377 VJE=0.75 TF=411.1p XTF=3 VTF=1.7 ITF=0.6 TR=46.91n)\n\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCin src b 10u\nR1 vcc b 33k\nR2 b 0 5.1k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 68\nRE2 e2 0 910\nCE e2 0 220u\nCout c out 10u\nRL out 0 100k\n\n.control\nop\nprint v(b) v(c) v(e)\nac dec 20 10 10meg\nlet gain_db = vdb(out)\nlet gain_mag = vm(out)\nmeas ac midgain max gain_mag\nmeas ac midgain_db max gain_db\nprint gain_mag[40] gain_db[40]\nprint vm(out)[40] vp(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 46.18 (-7.6%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 0,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, gain approx -50, 12V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 10u\nR1 vcc b 60.7k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e 0 66\nRE2 e e2 934\nCE e2 0 1000u\nCOUT c out 10u\nRL out 0 10meg\n.model Q2N2222 NPN(IS=1e-14 BF=200 VAF=100 CJE=22p CJC=8p TF=400p)\n.control\nop\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 2.58 (-94.8%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 0,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, 2N2222-style NPN, 12V supply, gain about -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCin in b 10u\nR1 vcc b 47k\nR2 b 0 7.5k\nRc vcc c 6.9k\nQ1 c b e Q2N2222\nRe1 e e2 100\nRe2 e2 0 900\nCe e2 0 220u\nCout c out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN (IS=14.34f BF=200 VAF=74 NF=1 RB=10 RE=0.5 RC=0.3 CJE=22p CJC=7p TF=400p TR=40n XTB=1.5)\n.control\nop\nac dec 20 10 10meg\nprint vm(out)\nprint vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 52.71 (+5.4%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 0,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier, gain about -50, 12V supply\n* Expected mid-band gain: about -(4.7k||100k)/(68 + re), roughly -48 to -50\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nC1 in b 10u\nR1 vcc b 47k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 68\nRE2 e2 0 1k\nCE e2 0 220u\nC2 c out 10u\nRL out 0 100k\n.control\nop\nprint v(b) v(e) v(c) i(VCC)\nac dec 20 10 100Meg\nmeas ac gain_mag find vm(out) at=1k\nmeas ac gain_db find vdb(out) at=1k\nmeas ac gain_phase find vp(out) at=1k\nprint frequency vm(out) vdb(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.80 (-0.4%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.938,
+     "uniform": 0.74
+    },
+    "gain_mean": {
+     "gaussian": 49.913850523,
+     "uniform": 50.035104004
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 0,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier (2N2222 model), 12 V supply, mid-band gain about -50\n* Bias: R1/R2 divider gives about 2.1 V at the base, so Ic is about 1 mA.\n* Gain is set by Rc||RL over (re + RE1): 4.49k / (about 26 + 62) ohms, roughly 50.\n* RE2 is bypassed by CE. Large coupling caps keep the response flat from 10 Hz.\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 100u\nR1 vcc b 47k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 62\nRE2 e2 0 1.3k\nCE e2 0 1000u\nCOUT c out 100u\nRL out 0 100k\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=.3416 VJC=.75 FC=.5 CJE=22.01p MJE=.377 VJE=.75 TR=46.91n TF=411.1p ITF=.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.32 (+0.6%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.876,
+     "uniform": 0.696
+    },
+    "gain_mean": {
+     "gaussian": 50.4817099732,
+     "uniform": 50.6127668602
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 0,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier, gain about -50, 12 V supply\n* Bias: Ve is about 0.55 V, close to the PTAT point, so Ic rises roughly with\n* absolute temperature and re = VT/Ic stays nearly constant over -40 to 85 C.\n* Gain is about alpha*Rc/(Re_ac + re).\n* Rc, Re_ac and the divider resistors are built from equal resistors in series.\n* Independent tolerances then partly average out, which tightens the ratios.\n* The divider is stiff (about 500 uA) so beta changes barely move the bias.\n* Gain was set by hand calculation, not by simulation.\n\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\n\n* Input coupling\nCIN in b 100u\n\n* Base bias divider (about 21.6k over 2.4k)\nR1A vcc d1 7.2k\nR1B d1 d2 7.2k\nR1C d2 b 7.2k\nR2A b d3 1.2k\nR2B d3 0 1.2k\n\n* Collector resistor (about 9.1k, 4 x 2275)\nRC1 vcc c1 2275\nRC2 c1 c2 2275\nRC3 c2 c3 2275\nRC4 c3 c 2275\n\nQ1 c b e Q2N2222\n\n* Unbypassed emitter resistor (about 152 ohm, 4 x 38)\nRE1 e e1 38\nRE2 e1 e2 38\nRE3 e2 e3 38\nRE4 e3 ex 38\n\n* Bypassed emitter resistor (about 398 ohm)\nRE5 ex e4 199\nRE6 e4 0 199\nCE ex 0 10m\n\n* Output coupling and light load\nCOUT c out 10u\nRL out 0 10Meg\n\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n\n.control\nop\nprint v(b) v(e) v(c) i(VCC)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.74 (-0.5%), phase = 180 deg",
+    "resistors": 16,
+    "yield": {
+     "gaussian": 1.0,
+     "uniform": 0.95
+    },
+    "gain_mean": {
+     "gaussian": 49.7162609518,
+     "uniform": 49.35898907582
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 1,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain approx -50, 12V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1 SIN(0 10m 10k)\nCIN in b 10u\nR1 vcc b 51k\nR2 b 0 10k\nRC vcc c 5k\nQ1 c b e Q2N2222\nRE1 e e2 75\nRE2 e2 0 1.1k\nCE e2 0 100u\nCOUT c out 10u\nRL out 0 100k\n.model Q2N2222 NPN(IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 VAR=28 IKR=0 RB=10 RC=1 RE=0 CJE=22.01p VJE=0.75 MJE=0.377 CJC=7.306p VJC=0.75 MJC=0.3416 TF=411.1p XTF=3 VTF=1.7 ITF=0.6 TR=46.91n)\n.control\nop\nprint v(b) v(c) v(out)\nac dec 20 10 100Meg\nmeas ac midgain_mag find vm(out) at=10k\nmeas ac midgain_db find vdb(out) at=10k\nprint vdb(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 46.92 (-6.2%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 1,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, gain approx -50, Vcc = 12V\n.model Q2N2222 NPN (Is=14.34f Bf=255 Vaf=74 Ikf=0.28 Ne=1.307 Ise=14.34f Br=6 Rb=10 Rc=1 Cje=22p Cjc=7.3p Tf=411p Tr=46n)\nVcc vcc 0 DC 12\nVin src 0 DC 0 AC 1\nCin src b 10u\nCin2 b b2 1n\nR1 vcc b 20k\nR2 b 0 3.3k\nQ1 c b e Q2N2222\nRc vcc c 4.7k\nRe1 e e2 64\nRe2 e2 0 910\nCe e2 0 470u\nCout c out 10u\nRL out 0 1meg\n* tie in node to the source node\nRin in src 0.001\nRb2 in b2 0.001\n.control\nop\nac dec 20 10 10meg\nprint vm(out)[40] vp(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 51.64 (+3.3%), phase = -180 deg",
+    "resistors": 8,
+    "yield": {
+     "gaussian": 0.708,
+     "uniform": 0.618
+    },
+    "gain_mean": {
+     "gaussian": 51.7050500188,
+     "uniform": 51.6461603454
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 1,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, 2N2222-style NPN, 12V supply, gain about -50\n.model Q2N2222 NPN(IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NC=2 RB=10 RC=1 CJE=22.01p CJC=7.306p TF=411.1p TR=46.91n)\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCIN src b 10u\nR1 vcc b 56k\nR2 b 0 6.8k\nRC vcc c 7k\nQ1 c b e Q2N2222\nRE1 e ee 115\nRE2 ee 0 470\nCE ee 0 100u\nCOUT c out 10u\nRL out 0 1meg\n* input node alias\nRIN in src 1m\nVIN2 in 0 DC 0\n.control\nop\nac dec 20 10 10meg\nprint vm(out)[40] vp(out)[40]\nmeas ac gain_midband MAX vm(out) from=1k to=100k\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 48.57 (-2.9%), phase = 180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.838,
+     "uniform": 0.692
+    },
+    "gain_mean": {
+     "gaussian": 48.594626059599996,
+     "uniform": 48.671941622
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 1,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier (2N2222 model), 12V supply, mid-band gain about -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nRS in src 50\nCIN src base 10u\nR1 vcc base 47k\nR2 base 0 12k\nRC vcc coll 4.7k\nQ1 coll base emit Q2N2222\nRE1 emit e2 68\nRE2 e2 0 1.5k\nCE e2 0 100u\nCOUT coll out 10u\nRL out 0 100k\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(base) v(emit) v(coll) i(VCC)\nac dec 20 10 100meg\nlet gain = v(out)/v(in)\nmeas ac gain_mag_10k find vm(out) at=10k\nmeas ac gain_db_10k find vdb(out) at=10k\nmeas ac gain_ph_10k find vp(out) at=10k\nprint mag(gain)[60] db(gain)[60] ph(gain)[60]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 47.51 (-5.0%), phase = -180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.534,
+     "uniform": 0.474
+    },
+    "gain_mean": {
+     "gaussian": 47.652034756,
+     "uniform": 47.5124179006
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 1,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain ~ -50, 12V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in base 10u\nR1 vcc base 47k\nR2 base 0 10k\nRC vcc coll 4.7k\nQ1 coll base emit Q2N2222\nRE1 emit e2 72\nRE2 e2 0 930\nCE e2 0 470u\nCOUT coll out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(Is=14.34f Xti=3 Eg=1.11 Vaf=74.03 Bf=255.9 Ne=1.307 Ise=14.34f Ikf=.2847 Xtb=1.5 Br=6.092 Nc=2 Isc=0 Ikr=0 Rc=1 Cjc=7.306p Mjc=.3416 Vjc=.75 Fc=.5 Cje=22.01p Mje=.377 Vje=.75 Tr=46.91n Tf=411.1p Itf=.6 Vtf=1.7 Xtf=3 Rb=10)\n.control\nop\nprint v(base) v(emit) v(e2) v(coll)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.26 (+0.5%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.944,
+     "uniform": 0.724
+    },
+    "gain_mean": {
+     "gaussian": 50.355187023999996,
+     "uniform": 50.479425747200004
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 1,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter 2N2222-style amplifier, gain about -50 at mid-band, 12 V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 100u\nR1A vcc d1 1400\nR1B d1 d2 1400\nR1C d2 d3 1400\nR1D d3 b 1400\nR2A b d4 150\nR2B d4 d5 150\nR2C d5 d6 150\nR2D d6 0 150\nRCA vcc c1 675\nRCB c1 c2 675\nRCC c2 c3 675\nRCD c3 c 675\nQ1 c b e Q2N2222\nRE1A e e1 10.55\nRE1B e1 e2 10.55\nRE1C e2 e3 10.55\nRE1D e3 ex 10.55\nRE2A ex e4 75.3\nRE2B e4 0 75.3\nCE ex 0 2200u\nCOUT c out 10u\nRL out 0 1meg\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.99 (-0.0%), phase = -180 deg",
+    "resistors": 19,
+    "yield": {
+     "gaussian": 1.0,
+     "uniform": 0.952
+    },
+    "gain_mean": {
+     "gaussian": 49.9524768378,
+     "uniform": 49.7906473624
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 2,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, 12V supply, gain approx -50\n.model Q2N2222 NPN(IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 VAR=100 IKR=0 RB=10 RE=0 RC=1 CJE=22.01p VJE=0.75 MJE=0.377 CJC=7.306p VJC=0.75 MJC=0.3416 TF=411.1p TR=46.91n XTB=1.5 ISC=0)\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1 SIN(0 1m 1k)\nCIN src in 10u\nRS in b 0.01\nR1 vcc b 27k\nR2 b 0 4.7k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 62\nRE2 e2 0 1k\nCE e2 0 220u\nCOUT c out 10u\nRL out 0 100k\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 10meg\nmeas ac midgain_mag FIND vm(out) AT=1k\nmeas ac midgain_db FIND vdb(out) AT=1k\nmeas ac peakgain MAX vm(out)\nprint vdb(out)[20] vm(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.44 (+0.9%), phase = -180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.874,
+     "uniform": 0.72
+    },
+    "gain_mean": {
+     "gaussian": 50.593824980600004,
+     "uniform": 50.464931193
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 2,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, 2N2222-style NPN, gain about -50\n.model Q2N2222 NPN(Is=14.34f Xti=3 Eg=1.11 Vaf=74.03 Bf=255.9 Ne=1.307 Ise=14.34f Ikf=0.2847 Xtb=1.5 Br=6.092 Nc=2 Isc=0 Ikr=0 Rc=1 Cjc=7.306p Mjc=0.3416 Vjc=0.75 Fc=0.5 Cje=22.01p Mje=0.377 Vje=0.75 Tr=46.91n Tf=411.1p Itf=0.6 Vtf=1.7 Xtf=3 Rb=10)\nVcc vcc 0 DC 12\nVin in 0 DC 0 AC 1\nCin in b 10u\nR1 vcc b 56k\nR2 b 0 10k\nQ1 c b e Q2N2222\nRc vcc c 5.1k\nRe1 e e2 75\nRe2 e2 0 1k\nCe e2 0 100u\nCout c out 10u\nRl out 0 1meg\n.control\nop\nac dec 20 10 10meg\nprint vm(out)[40] vp(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.57 (-0.9%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.914,
+     "uniform": 0.746
+    },
+    "gain_mean": {
+     "gaussian": 49.6769585926,
+     "uniform": 49.7871140946
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 2,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain about -50, 12 V supply\n.model Q2N2222 NPN (IS=1e-14 BF=200 NF=1 VAF=100 IKF=0.3 RB=10 RC=1 CJE=22p CJC=8p TF=400p XTB=1.5)\nVCC vcc 0 DC 12\nVin in 0 DC 0 AC 1\nCin in b 10u\nR1 vcc b 33k\nR2 b 0 6.2k\nQ1 c b e Q2N2222\nRC vcc c 2.2k\nRE1 e e2 32\nRE2 e2 0 360\nCE e2 0 100u\nCout c out 10u\nRL out 0 10Meg\n.control\nop\nac dec 20 10 10meg\nprint vm(out)[40] vp(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 52.65 (+5.3%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 2,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier, Av about -50, 12V supply, with AC analysis of the mid-band gain\n* Bias: R1/R2 divider sets VB at about 1.75V, giving IC of about 1mA and re of about 26 ohm\n* Gain is roughly -(RC||ro)/(re+RE1) = -4.44k/88, which is about -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 10u\nR1 vcc b 47k\nR2 b 0 8.2k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 62\nRE2 e2 0 1k\nCE e2 0 100u\nCOUT c out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(b) v(e) v(c) i(VCC)\nac dec 20 1 100Meg\nmeas ac gain_mag FIND vm(out) AT=10k\nmeas ac gain_db FIND vdb(out) AT=10k\nmeas ac gain_phase FIND vp(out) AT=10k\nprint frequency vm(out) vdb(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 52.34 (+4.7%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.51,
+     "uniform": 0.484
+    },
+    "gain_mean": {
+     "gaussian": 52.4787150168,
+     "uniform": 52.5966178448
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 2,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier with partially bypassed emitter resistor\n.model Q2N2222 NPN(IS=1e-14 BF=200 VAF=100)\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 10u\nR1 vcc b 47k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 71\nRE2 e2 0 1k\nCE e2 0 470u\nCOUT c out 10u\nRL out 0 1Meg\n.control\nop\nprint v(b) v(c) v(e)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.56 (+1.1%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.878,
+     "uniform": 0.698
+    },
+    "gain_mean": {
+     "gaussian": 50.7069046118,
+     "uniform": 50.84311167640001
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 2,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter BJT amplifier with feedback, closed-loop gain about -50, 12 V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in s0 100u\nRS1 s0 s1 167\nRS2 s1 s2 167\nRS3 s2 s3 167\nRS4 s3 s4 167\nRS5 s4 s5 167\nRS6 s5 inv 167\nRF1 out f1 8.42k\nRF2 f1 f2 8.42k\nRF3 f2 f3 8.42k\nRF4 f3 f4 8.42k\nRF5 f4 f5 8.42k\nRF6 f5 inv 8.42k\nCF out inv 1p\nRB1 vcc ref 10k\nRB2 ref 0 10k\nCREF ref 0 100u\nQA ca ref tail Q2N2222\nQB vcc inv tail Q2N2222\nRTAIL tail 0 5.1k\nRC1 vcc ca 5k\nQ2 c2 ca e2 Q2N2907\nRE2 vcc e2 1.95k\nCE2 vcc e2 470u\nRC2 c2 0 6.8k\nQ3 vcc c2 out Q2N2222\nRE3 out 0 3k\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n.model Q2N2907 PNP(IS=650.6E-18 XTI=3 EG=1.11 VAF=115.7 BF=231.7 NE=1.829 ISE=54.81f IKF=1.079 XTB=1.5 BR=3.563 NC=2 ISC=0 IKR=0 RC=0.715 CJC=14.76p MJC=0.5383 VJC=0.75 FC=0.5 CJE=19.82p MJE=0.3357 VJE=0.75 TR=111.3n TF=603.7p ITF=0.65 VTF=5 XTF=1.7 RB=10)\n.control\nop\nprint v(out) v(ca) v(tail) v(inv)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.01 (+0.0%), phase = 180 deg",
+    "resistors": 19,
+    "yield": {
+     "gaussian": 1.0,
+     "uniform": 0.996
+    },
+    "gain_mean": {
+     "gaussian": 50.0026749882,
+     "uniform": 49.967640731799996
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 3,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, 2N2222-style NPN, 12V supply, gain about -50\n.model Q2N2222 NPN (IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 VAR=100 IKR=0 RB=10 RC=1 RE=0 CJE=22.01p VJE=0.75 MJE=0.377 CJC=7.306p VJC=0.75 MJC=0.3416 TF=411.1p XTF=3 VTF=2 ITF=0.6 TR=46.91n)\n\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\n\n* Input coupling and bias divider\nCIN in b 10u\nR1 vcc b 47k\nR2 b 0 8.2k\n\n* Transistor\nQ1 c b e Q2N2222\nRC vcc c 4.7k\nRE1 e e2 62\nRE2 e2 0 1.1k\nCE e2 0 220u\n\n* Output coupling and load\nCOUT c out 10u\nRL out 0 100k\n\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 100meg\nmeas ac gain_mid find vm(out) at=1k\nmeas ac gain_mid_db find vdb(out) at=1k\nprint gain_mid gain_mid_db\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.02 (-2.0%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.84,
+     "uniform": 0.682
+    },
+    "gain_mean": {
+     "gaussian": 49.2123165662,
+     "uniform": 49.3388284132
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 3,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, gain approx -50, 12V supply\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCin src in 10u\nRs_dummy in b 1m\nR1 vcc b 47k\nR2 b 0 7.5k\nQ1 c b e QN2222\nRc vcc c 4.7k\nRe1 e e2 65\nRe2 e2 0 910\nCe e2 0 100u\nCout c out 10u\nRL out 0 1meg\n.model QN2222 NPN (IS=1e-14 BF=200 VAF=100 RB=10 CJE=22p CJC=8p TF=400p TR=40n)\n.control\nop\nac dec 20 10 10meg\nprint vm(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.45 (+0.9%), phase = 180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.87,
+     "uniform": 0.698
+    },
+    "gain_mean": {
+     "gaussian": 50.6137158128,
+     "uniform": 50.473936703
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 3,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain about -50, 12V supply\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCin src in 10u\n* Note: node \"in\" is driven through Cin to the base node\nRin_dummy in b 1\nR1 vcc b 22k\nR2 b 0 4.7k\nRc vcc c 2.35k\nQ1 c b e Q2N2222\nRe1 e e2 39\nRe2 e2 0 360\nCe e2 0 100u\nCout c out 10u\nRload out 0 1Meg\n.model Q2N2222 NPN(IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 VAR=100 RB=10 RC=1 CJE=22.01p MJE=0.377 VJE=0.75 CJC=7.306p MJC=0.3416 VJC=0.75 TF=411.1p TR=46.91n XTB=1.5 EG=1.11 XTI=3)\n.control\nop\nprint v(b) v(c) v(e)\nac dec 20 10 10meg\nprint vm(out)\nprint vp(out)\n.endc\n.control\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 48.95 (-2.1%), phase = 180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.878,
+     "uniform": 0.71
+    },
+    "gain_mean": {
+     "gaussian": 49.0318496478,
+     "uniform": 48.906288106
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 3,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier (2N2222-style), 12V supply, mid-band gain about -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in base 10u\nR1 vcc base 47k\nR2 base 0 10k\nRC vcc coll 4.7k\nQ1 coll base emit Q2N2222\nRE1 emit e2 68\nRE2 e2 0 1.3k\nCE e2 0 100u\nCOUT coll out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(IS=1e-14 BF=200 VAF=100 BR=3 RB=10 RC=1 RE=0.2 CJE=25p CJC=8p TF=0.4n TR=50n)\n.control\nop\nprint v(base) v(emit) v(coll) v(e2)\nac dec 20 10 10Meg\nlet gain = v(out)/v(in)\nlet gainmag = mag(gain)\nlet gaindb = db(gain)\nmeas ac gain_mag_1k find gainmag at=1e3\nmeas ac gain_db_1k find gaindb at=1e3\nmeas ac gain_mag_10k find gainmag at=1e4\nprint gainmag gaindb\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.26 (-1.5%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.856,
+     "uniform": 0.712
+    },
+    "gain_mean": {
+     "gaussian": 49.4480045772,
+     "uniform": 49.5876576876
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 3,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier (2N2222 model) on 12 V, gain about -50\n* Bias: R1/R2 divider; Ie is about 1 mA, so re is about 25.5 ohm\n* Gain is about -Rc/(re+Re1) = -4.7k/(25.5+68), roughly -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 10u\nR1 vcc b 47k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 68\nRE2 e2 0 1.33k\nCE e2 0 470u\nCOUT c out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(Is=14.34f Xti=3 Eg=1.11 Vaf=74.03 Bf=255.9 Ne=1.307 Ise=14.34f Ikf=.2847 Xtb=1.5 Br=6.092 Nc=2 Isc=0 Ikr=0 Rc=1 Cjc=7.306p Mjc=.3416 Vjc=.75 Fc=.5 Cje=22.01p Mje=.377 Vje=.75 Tr=46.91n Tf=411.1p Itf=.6 Vtf=1.7 Xtf=3 Rb=10)\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 10meg\nlet gain = vm(out)\nlet phase = vp(out)*180/pi\nmeas ac gmid find gain at=1k\nmeas ac pmid find phase at=1k\nprint gain[60] phase[60]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 48.77 (-2.5%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.794,
+     "uniform": 0.668
+    },
+    "gain_mean": {
+     "gaussian": 48.9064845248,
+     "uniform": 49.0377303156
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 3,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter NPN amplifier, gain ~ -50, 12V supply, shunt-feedback stabilized\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nRsrc src in 1\nCin in n1 1000u\nRs1 n1 n2 25\nRs2 n2 n3 25\nRs3 n3 n4 25\nRs4 n4 b1 24\nI1 vcc c1 DC 1m\nQ1 c1 b1 0 Q2N2222\nCcomp c1 0 100p\nQ2 vcc c1 e2 Q2N2222\nRE2 e2 0 3.3k\nRf1 e2 f1 1.275k\nRf2 f1 f2 1.275k\nRf3 f2 f3 1.275k\nRf4 f3 b1 1.275k\nCout e2 out 10u\nRL out 0 100k\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=0.3416 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(b1) v(c1) v(e2)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.80 (-0.4%), phase = -180 deg",
+    "resistors": 11,
+    "yield": {
+     "gaussian": 1.0,
+     "uniform": 0.99
+    },
+    "gain_mean": {
+     "gaussian": 49.8069513038,
+     "uniform": 49.7523795504
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, 12V supply, midband gain about -50\n.model Q2N2222 NPN(IS=1e-14 BF=200 VAF=100 IKF=0.3 RB=10 RE=0.3 RC=0.3 CJE=22p CJC=8p TF=0.4n)\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in b 10u\nR1 vcc b 62k\nR2 b 0 10k\nRC vcc c 4.7k\nQ1 c b e Q2N2222\nRE1 e e2 62\nRE2 e2 0 1k\nCE e2 0 100u\nCOUT c out 10u\nRL out 0 100k\n.control\nop\nac dec 20 10 10meg\nmeas ac midgain_db find vdb(out) at=10k\nmeas ac midgain_mag find vm(out) at=10k\nprint vdb(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 48.75 (-2.5%), phase = 180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.798,
+     "uniform": 0.658
+    },
+    "gain_mean": {
+     "gaussian": 48.9103699984,
+     "uniform": 49.0095929112
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain approx -50, 12V supply\nVcc vcc 0 DC 12\nVin src 0 DC 0 AC 1\nCin src b 10u\nR1 vcc b 47k\nR2 b 0 8.2k\nRc vcc c 5k\nRe1 e re2n 68\nRe2 re2n 0 1.1k\nCe re2n 0 220u\nQ1 c b e Q2N2222\nCout c out 10u\nRl out 0 1meg\n.model Q2N2222 NPN(IS=1e-14 BF=200 NF=1 VAF=100 IKF=0.3 RB=10 RC=1 RE=0.2 CJE=20p CJC=8p TF=400p TR=40n)\n.control\nop\nprint v(b) v(c) v(e)\nac dec 20 10 10meg\nprint vm(out)[40] vp(out)[40]\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 51.01 (+2.0%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.792,
+     "uniform": 0.624
+    },
+    "gain_mean": {
+     "gaussian": 51.1893434026,
+     "uniform": 51.3156415832
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, gain approx -50, 12V supply\n.model Q2N2222 NPN(IS=14.34f BF=255.9 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 ISC=0 IKR=0 RC=1 RB=10 CJE=22.01p MJE=0.377 VJE=0.75 TF=411.1p CJC=7.306p MJC=0.3416 VJC=0.75 TR=46.91n XTB=1.5 EG=1.11 XTI=3)\nVcc vcc 0 DC 12\nVin in 0 DC 0 AC 1\nCin in b 10u\nR1 vcc b 36k\nR2 b 0 4.7k\nRc vcc c 4k\nQ1 c b e Q2N2222\nRe1 e e2 62\nRe2 e2 0 390\nCe e2 0 470u\nCout c out 10u\nRl out 0 1Meg\n.control\nop\nprint v(b) v(e) v(c) v(out)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.26 (-1.5%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.916,
+     "uniform": 0.726
+    },
+    "gain_mean": {
+     "gaussian": 49.26006258939999,
+     "uniform": 49.3255610326
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "Common-emitter NPN amplifier, ~-50 mid-band gain, 12 V supply\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nRS in src 50\nC1 src base 10u\nR1 vcc base 47k\nR2 base 0 10k\nQ1 col base emit Q2N2222\nRC vcc col 4.7k\nRE1 emit e2 68\nRE2 e2 0 1.1k\nCE e2 0 100u\nC2 col out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=.3416 VJC=.75 FC=.5 CJE=22.01p MJE=.377 VJE=.75 TR=46.91n TF=411.1p ITF=.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(base) v(emit) v(col) i(VCC)\nac dec 20 10 100Meg\nmeas ac gain_mag_1k find vm(out) at=1k\nmeas ac gain_db_1k find vdb(out) at=1k\nmeas ac gain_ph_1k find vp(out) at=1k\nlet gain = v(out)/v(in)\nprint vm(out) vdb(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 50.41 (+0.8%), phase = -180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.888,
+     "uniform": 0.748
+    },
+    "gain_mean": {
+     "gaussian": 50.536864263000005,
+     "uniform": 50.386428
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "2N2222 common-emitter amplifier, 12V supply, mid-band gain about -50\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\nCIN in base 10u\nR1 vcc base 47k\nR2 base 0 10k\nRC vcc coll 5.6k\nQ1 coll base emit Q2N2222\nRE1 emit e2 80\nRE2 e2 0 1120\nCE e2 0 470u\nCOUT coll out 10u\nRL out 0 1Meg\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=.3416 VJC=.75 FC=.5 CJE=22.01p MJE=.377 VJE=.75 TR=46.91n TF=411.1p ITF=.6 VTF=1.7 XTF=3 RB=10)\n.control\nop\nprint v(base) v(emit) v(coll)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 53.08 (+6.2%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 4,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter NPN amplifier, gain about -50, 12V supply, bias stabilized\nVCC vcc 0 DC 12\nVIN in 0 DC 0 AC 1\n\n* Input coupling capacitor\nCIN in b 100u\n\n* Base bias divider\nRB1 vcc b 100k\nRB2 b 0 12.4k\n\n* Collector load: 4 x 2k in series (8k total)\nRC1 vcc c1 2k\nRC2 c1 c2 2k\nRC3 c2 c3 2k\nRC4 c3 c 2k\n\n* Transistor\nQ1 c b e Q2N2222\n\n* Unbypassed emitter degeneration: 4 x 32.7 ohm in series\nRE1 e e1 32.7\nRE2 e1 e2 32.7\nRE3 e2 e3 32.7\nRE4 e3 e4 32.7\n\n* Bypassed emitter resistor (DC bias only)\nRE5 e4 0 470\nCE e4 0 4.7m\n\n* Output coupling capacitor and light load\nCOUT c out 100u\nRL out 0 10Meg\n\n.model Q2N2222 NPN(IS=14.34f XTI=3 EG=1.11 VAF=74.03 BF=255.9 NE=1.307 ISE=14.34f IKF=.2847 XTB=1.5 BR=6.092 NC=2 ISC=0 IKR=0 RC=1 CJC=7.306p MJC=.3416 VJC=.75 FC=.5 CJE=22.01p MJE=.377 VJE=.75 TR=46.91n TF=411.1p ITF=.6 VTF=1.7 XTF=3 RB=10)\n\n.control\nop\nprint v(b) v(e) v(c)\nac dec 20 10 10meg\nprint vm(out) vp(out)\n.endc\n\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 49.85 (-0.3%), phase = -180 deg",
+    "resistors": 12,
+    "yield": {
+     "gaussian": 1.0,
+     "uniform": 0.936
+    },
+    "gain_mean": {
+     "gaussian": 49.823563550799996,
+     "uniform": 49.7144904186
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 5,
+   "attempts": 2,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter BJT amplifier, 2N2222, Vcc=12V, midband gain about -50\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCIN src in 10u\nRIN in b 1m\nR1 vcc b 33k\nR2 b 0 6.8k\nQ1 c b e Q2N2222\nRC vcc c 4.7k\nRE1 e e2 68\nRE2 e2 0 1.1k\nCE e2 0 100u\nCOUT c out 10u\nRL out 0 100k\n.model Q2N2222 NPN (IS=14.34f BF=255 NF=1 VAF=74.03 IKF=0.2847 ISE=14.34f NE=1.307 BR=6.092 NR=1 VAR=28 RB=10 RC=1 CJE=22.01p VJE=0.75 MJE=0.377 CJC=7.306p VJC=0.75 MJC=0.3416 TF=411.1p TR=46.91n XTF=3 VTF=4 ITF=0.6)\n.control\nop\nprint v(b) v(e) v(c) v(out)\nac dec 20 10 100meg\nmeas ac midgain_mag find vm(out) at=10k\nmeas ac midgain_db find vdb(out) at=10k\nprint vdb(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 48.53 (-2.9%), phase = -180 deg",
+    "resistors": 7,
+    "yield": {
+     "gaussian": 0.762,
+     "uniform": 0.638
+    },
+    "gain_mean": {
+     "gaussian": 48.697464669599995,
+     "uniform": 48.5760673866
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 5,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, gain approx -50, 12V supply\n.model Q2N2222 NPN(Is=14.34f Xti=3 Eg=1.11 Vaf=74.03 Bf=255.9 Ne=1.307 Ise=14.34f Ikf=0.2847 Xtb=1.5 Br=6.092 Nc=2 Isc=0 Ikr=0 Rc=1 Cjc=7.306p Mjc=0.3416 Vjc=0.75 Fc=0.5 Cje=22.01p Mje=0.377 Vje=0.75 Tr=46.91n Tf=411.1p Itf=0.6 Vtf=1.7 Xtf=3 Rb=10)\nVcc vcc 0 DC 12\nVin in 0 DC 0 AC 1\nCin in b 10u\nR1 vcc b 18k\nR2 b 0 3.9k\nRc vcc c 5.1k\nQ1 c b e Q2N2222\nRe1 e e2 68\nRe2 e2 0 1.43k\nCe e2 0 470u\nCout c out 10u\nRl out 0 1meg\n.control\nop\nac dec 20 10 10meg\nprint vm(out)\nprint vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": true,
+    "gain": "|gain| = 52.47 (+4.9%), phase = -180 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.466,
+     "uniform": 0.45
+    },
+    "gain_mean": {
+     "gaussian": 52.6542510472,
+     "uniform": 52.8151873956
+    }
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 5,
+   "attempts": 1,
+   "simulated": true,
+   "harness_error": null,
+   "deck": "* Common-emitter amplifier, gain approx -50, 12V supply\n.model Q2N2222 NPN (IS=14.34f BF=255.9 VAF=74.03 NE=1.307 ISE=14.34f IKF=0.2847 XTB=1.5 BR=6.092 NC=2 RC=1 CJC=7.306p MJC=0.4776 VJC=0.75 FC=0.5 CJE=22.01p MJE=0.377 VJE=0.75 TR=46.91n TF=411.1p ITF=0.6 VTF=1.7 XTF=3 RB=10)\nVCC vcc 0 DC 12\nVIN src 0 DC 0 AC 1\nCIN src in 10u\nR1 vcc b 54k\nR2 b 0 6.5k\nQ1 c b e Q2N2222\nRC vcc c 5k\nRE1 e e2 70\nRE2 e2 0 530\nCE e2 0 1000u\nCOUT c out 10u\nRL out 0 10meg\n.control\nop\nac dec 20 10 10meg\nprint vm(out)\nprint vp(out)\n.endc\n.end\n",
+   "grade": {
+    "nominal_pass": false,
+    "gain": "|gain| = 0.00 (-100.0%), phase = 0 deg",
+    "resistors": 6,
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    }
+   }
+  }
+ ],
+ "spent": 1.815892,
+ "cap": 2.0
+}

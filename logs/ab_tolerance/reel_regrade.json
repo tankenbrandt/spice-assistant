@@ -1,0 +1,503 @@
+{
+ "ceiling": {
+  "gaussian": 0.912,
+  "uniform": 0.706
+ },
+ "rows": [
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 0,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 0,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 0,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 0,
+   "independent": {
+    "gaussian": 0.938,
+    "uniform": 0.74
+   },
+   "reel": {
+    "gaussian": 0.93,
+    "uniform": 0.732
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 0,
+   "independent": {
+    "gaussian": 0.876,
+    "uniform": 0.696
+   },
+   "reel": {
+    "gaussian": 0.864,
+    "uniform": 0.694
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 0,
+   "independent": {
+    "gaussian": 1.0,
+    "uniform": 0.95
+   },
+   "reel": {
+    "gaussian": 0.962,
+    "uniform": 0.746
+   },
+   "resistors": 16,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 1,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 1,
+   "independent": {
+    "gaussian": 0.708,
+    "uniform": 0.618
+   },
+   "reel": {
+    "gaussian": 0.686,
+    "uniform": 0.58
+   },
+   "resistors": 8,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 1,
+   "independent": {
+    "gaussian": 0.838,
+    "uniform": 0.692
+   },
+   "reel": {
+    "gaussian": 0.824,
+    "uniform": 0.652
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 1,
+   "independent": {
+    "gaussian": 0.534,
+    "uniform": 0.474
+   },
+   "reel": {
+    "gaussian": 0.512,
+    "uniform": 0.51
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 1,
+   "independent": {
+    "gaussian": 0.944,
+    "uniform": 0.724
+   },
+   "reel": {
+    "gaussian": 0.906,
+    "uniform": 0.738
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 1,
+   "independent": {
+    "gaussian": 1.0,
+    "uniform": 0.952
+   },
+   "reel": {
+    "gaussian": 0.962,
+    "uniform": 0.738
+   },
+   "resistors": 19,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 2,
+   "independent": {
+    "gaussian": 0.874,
+    "uniform": 0.72
+   },
+   "reel": {
+    "gaussian": 0.854,
+    "uniform": 0.628
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 2,
+   "independent": {
+    "gaussian": 0.914,
+    "uniform": 0.746
+   },
+   "reel": {
+    "gaussian": 0.936,
+    "uniform": 0.738
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 2,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 2,
+   "independent": {
+    "gaussian": 0.51,
+    "uniform": 0.484
+   },
+   "reel": {
+    "gaussian": 0.492,
+    "uniform": 0.472
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 2,
+   "independent": {
+    "gaussian": 0.878,
+    "uniform": 0.698
+   },
+   "reel": {
+    "gaussian": 0.856,
+    "uniform": 0.688
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 2,
+   "independent": {
+    "gaussian": 1.0,
+    "uniform": 0.996
+   },
+   "reel": {
+    "gaussian": 0.97,
+    "uniform": 0.732
+   },
+   "resistors": 19,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 3,
+   "independent": {
+    "gaussian": 0.84,
+    "uniform": 0.682
+   },
+   "reel": {
+    "gaussian": 0.844,
+    "uniform": 0.664
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 3,
+   "independent": {
+    "gaussian": 0.87,
+    "uniform": 0.698
+   },
+   "reel": {
+    "gaussian": 0.856,
+    "uniform": 0.686
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 3,
+   "independent": {
+    "gaussian": 0.878,
+    "uniform": 0.71
+   },
+   "reel": {
+    "gaussian": 0.882,
+    "uniform": 0.732
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 3,
+   "independent": {
+    "gaussian": 0.856,
+    "uniform": 0.712
+   },
+   "reel": {
+    "gaussian": 0.878,
+    "uniform": 0.686
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 3,
+   "independent": {
+    "gaussian": 0.794,
+    "uniform": 0.668
+   },
+   "reel": {
+    "gaussian": 0.83,
+    "uniform": 0.66
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 3,
+   "independent": {
+    "gaussian": 1.0,
+    "uniform": 0.99
+   },
+   "reel": {
+    "gaussian": 0.988,
+    "uniform": 0.84
+   },
+   "resistors": 11,
+   "ideal_isrc": 1
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 4,
+   "independent": {
+    "gaussian": 0.798,
+    "uniform": 0.658
+   },
+   "reel": {
+    "gaussian": 0.818,
+    "uniform": 0.65
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 4,
+   "independent": {
+    "gaussian": 0.792,
+    "uniform": 0.624
+   },
+   "reel": {
+    "gaussian": 0.78,
+    "uniform": 0.634
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 4,
+   "independent": {
+    "gaussian": 0.916,
+    "uniform": 0.726
+   },
+   "reel": {
+    "gaussian": 0.946,
+    "uniform": 0.732
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 4,
+   "independent": {
+    "gaussian": 0.888,
+    "uniform": 0.748
+   },
+   "reel": {
+    "gaussian": 0.892,
+    "uniform": 0.718
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 4,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 4,
+   "independent": {
+    "gaussian": 1.0,
+    "uniform": 0.936
+   },
+   "reel": {
+    "gaussian": 0.972,
+    "uniform": 0.768
+   },
+   "resistors": 12,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 5,
+   "independent": {
+    "gaussian": 0.762,
+    "uniform": 0.638
+   },
+   "reel": {
+    "gaussian": 0.764,
+    "uniform": 0.644
+   },
+   "resistors": 7,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 5,
+   "independent": {
+    "gaussian": 0.466,
+    "uniform": 0.45
+   },
+   "reel": {
+    "gaussian": 0.47,
+    "uniform": 0.436
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 5,
+   "independent": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "reel": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "resistors": 6,
+   "ideal_isrc": 0
+  }
+ ]
+}

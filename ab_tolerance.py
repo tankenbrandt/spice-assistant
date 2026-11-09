@@ -333,6 +333,81 @@ def run(n: int, cap: float, out: Path, mc_n: int = MC_N, dry_run: bool = False,
     return state
 
 
+# ------------------------------------------------------------------ post hoc
+
+# NOT pre-registered. Added after the run, when every Opus A2 deck turned out
+# to split its resistors into equal series pieces. The pre-registered grader
+# varies each resistor independently, so splitting one into k pieces divides
+# its spread by about sqrt(k). Resistors of one value usually come off one
+# reel and drift together, so this grader draws ONE factor per resistor value:
+# a split chain varies like the single part it replaces.
+
+def ideal_current_sources(deck: str) -> int:
+    """Independent current sources: the grader never varies them."""
+    return sum(1 for ln in deck.splitlines() if re.match(r"(?i)^\s*i\w*\s", ln))
+
+
+def reel_monte_carlo(deck: str, n: int = MC_N, dist: str = "gaussian",
+                     seed: int = MC_SEED, workers: int = 8) -> float:
+    metric_fn, specs = robustness.resolve(CIRCUIT)
+    _, params = robustness.extract_params(deck, vary_temp=True)
+    groups = {}
+    for p in params:
+        if p.kind == "passive" and p.key.lower().startswith("r"):
+            groups.setdefault(round(p.nominal, 9), []).append(p)
+    unit = {v: robustness.Param(f"reel:{v}", "passive", 1.0, ps[0].tol)
+            for v, ps in groups.items()}
+    rng = random.Random(seed)
+    draws = []
+    for _ in range(n):
+        f = {v: u.sample(rng, dist) for v, u in unit.items()}
+        draw = {}
+        for p in params:
+            if p.kind == "passive" and p.key.lower().startswith("r"):
+                draw[p.key] = p.nominal * f[round(p.nominal, 9)]
+            else:
+                draw[p.key] = p.sample(rng, dist)
+        draws.append(draw)
+    samples = robustness._map(
+        lambda v: robustness._evaluate(metric_fn, deck, params, v), draws, workers)
+    return robustness.summarize(samples, specs)["yield"]
+
+
+def reel_regrade(out: Path, mc_n: int = MC_N) -> str:
+    state = _load(out / "trials.json")
+    rows, by = [], {}
+    ref = CEILING_DECK.read_text(encoding="utf-8")
+    ceil = {d: reel_monte_carlo(ref, mc_n, d) for d in DISTS}
+    for t in state["trials"]:
+        g, deck = t["grade"], t["deck"]
+        if g["nominal_pass"]:
+            y = {d: reel_monte_carlo(deck, mc_n, d) for d in DISTS}
+        else:
+            y = {d: 0.0 for d in DISTS}
+        isrc = ideal_current_sources(deck) if deck else 0
+        rows.append({"model": t["model"], "arm": t["arm"], "i": t["i"],
+                     "independent": g["yield"], "reel": y,
+                     "resistors": g["resistors"], "ideal_isrc": isrc})
+        by.setdefault((t["model"], t["arm"]), []).append(rows[-1])
+    (out / "reel_regrade.json").write_text(json.dumps({"ceiling": ceil, "rows": rows}, indent=1),
+                                           encoding="utf-8")
+    lines = ["## Post hoc: same-value resistors drift together (not pre-registered)", "",
+             f"Reference deck: gaussian {_f(ceil['gaussian'])}, uniform {_f(ceil['uniform'])}.", "",
+             "| Model | Arm | n | Gaussian: independent → same-reel | Uniform: independent → same-reel "
+             "| Decks with ideal current sources |", "|---|---|---|---|---|---|"]
+    for (model, arm), rs in sorted(by.items()):
+        gi = statistics.fmean(r["independent"]["gaussian"] for r in rs)
+        gr = statistics.fmean(r["reel"]["gaussian"] for r in rs)
+        ui = statistics.fmean(r["independent"]["uniform"] for r in rs)
+        ur = statistics.fmean(r["reel"]["uniform"] for r in rs)
+        lines.append(f"| {model} | {arm} | {len(rs)} | {_f(gi)} → {_f(gr)} | {_f(ui)} → {_f(ur)} "
+                     f"| {sum(r['ideal_isrc'] > 0 for r in rs)} |")
+    md = "\n".join(lines) + "\n"
+    with (out / "report.md").open("a", encoding="utf-8") as fh:
+        fh.write("\n" + md)
+    return md
+
+
 def report(out: Path, mc_n: int = MC_N) -> str:
     state = _load(out / "trials.json")
     summary = summarize(state["trials"], ceiling(mc_n))

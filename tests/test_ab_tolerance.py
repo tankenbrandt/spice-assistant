@@ -101,3 +101,22 @@ def test_summary_pools_models_and_reports_contrasts_and_ceiling():
     assert s["contrasts"]["pooled|gaussian|A2-A0"]["diff"] == pytest.approx(-0.15)
     assert s["groups"]["claude-opus-5-5|gaussian|A0"]["mean_yield"] == pytest.approx(0.7)
     assert "A1" not in {k.split("|")[2] for k in s["groups"] if s["groups"][k]["n"]}
+
+
+def test_ideal_current_sources_counts_only_i_elements():
+    deck = "title\nI1 vcc c 1m\n* I2 a b 1m\nibias x 0 2m\nR1 a b 1k\n.include x\n"
+    assert ab.ideal_current_sources(deck) == 2
+
+
+def test_reel_draws_give_same_value_resistors_one_factor(monkeypatch):
+    """A resistor split into equal pieces must vary like the one part it replaces."""
+    deck = ("t\nVCC vcc 0 DC 12\nRA vcc m 1k\nRB m out 1k\nRC out 0 2k\n"
+            "Q1 a b c QN\n.model QN NPN(BF=200)\n.end\n")
+    seen = []
+    monkeypatch.setattr(ab.robustness, "_evaluate",
+                        lambda fn, nl, params, v: seen.append(v) or {"metrics": {}})
+    ab.reel_monte_carlo(deck, n=20, workers=1)
+    assert len(seen) == 20
+    assert all(v["RA"] == v["RB"] for v in seen)            # one reel
+    assert any(v["RC"] / 2 != v["RA"] for v in seen)        # another value, another reel
+    assert len({v["RA"] for v in seen}) > 1                 # it does vary
