@@ -120,3 +120,22 @@ def test_reel_draws_give_same_value_resistors_one_factor(monkeypatch):
     assert all(v["RA"] == v["RB"] for v in seen)            # one reel
     assert any(v["RC"] / 2 != v["RA"] for v in seen)        # another value, another reel
     assert len({v["RA"] for v in seen}) > 1                 # it does vary
+
+
+def _row(model, arm, ab_y, ys, nominal=True, merges=0, viol=()):
+    return {"model": model, "arm": arm, "i": 0, "a_b": {"gaussian": ab_y},
+            "a_b_nominal": nominal, "resistors": 3,
+            **{k: {"yield": {"gaussian": y}, "nominal_pass": nominal,
+                   "violations": list(viol), "merges": merges}
+               for k, y in zip(ab.ASBUILT_VARIANTS, ys, strict=True)}}
+
+
+def test_asbuilt_report_shows_every_variant_and_contrast():
+    rows = [_row(m, "A0", 0.7, (0.7, 0.7, 0.6)) for m in ab.MODELS]
+    rows += [_row(m, "A1", 0.7, (0.7, 0.7, 0.6)) for m in ab.MODELS]
+    rows += [_row(m, "A2", 1.0, (0.5, 0.4, 0.4), merges=6, viol=["I1"]) for m in ab.MODELS]
+    ceil = {k: {"gaussian": 0.9} for k in ab.ASBUILT_VARIANTS}
+    md = ab.render_asbuilt(ceil, rows, mc_n=500)
+    assert "500 builds, seed 1, gaussian draws" in md
+    assert "| claude-opus-5-5 | A2 | 1 | 100% | 50% | 40% | 40% | 1, 1, 1, 1 of 1 | 1 | 1 |" in md
+    assert "| pooled | A2-A0 | +30 pts (+30 to +30) | -20 pts (-20 to -20) | " in md

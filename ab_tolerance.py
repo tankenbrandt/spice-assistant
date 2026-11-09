@@ -408,6 +408,98 @@ def reel_regrade(out: Path, mc_n: int = MC_N) -> str:
     return md
 
 
+ASBUILT_VARIANTS = {
+    # Series/parallel chains vary as the one part they make; ideal current
+    # sources refused. Values are NOT rounded, so this isolates splitting.
+    "merge-only": {"models": False, "snap": False},
+    # Snap to buyable values, merge series/parallel chains, refuse ideal current
+    # sources -- but keep each deck's own transistor model, as the A/B graded it.
+    "structural": {"models": False},
+    # Everything benchmark v2 does, including the handout 2N2222 card.
+    "v2": {"models": True},
+}
+
+
+def asbuilt_regrade(out: Path, mc_n: int = MC_N, workers: int = 8) -> str:
+    """Post hoc: every A/B deck through benchmark v2's as-built grader.
+
+    The A/B's informed arm gamed the grader (split resistors, an ideal current
+    source). This asks whether its yield gain survives a grader where neither
+    trick pays. Nothing is re-generated, so it costs no API.
+    """
+    import bench2   # bench2 imports benchmark; keep it off ab_tolerance's import path
+    e = bench2.entry(CIRCUIT)
+    state = _load(out / "trials.json")
+    ref = (PROJECT_DIR / e["reference"]).read_text(encoding="utf-8")
+    ceil, rows = {}, []
+    for name, kw in ASBUILT_VARIANTS.items():
+        ceil[name] = bench2.grade(e, ref, mc_n, workers=workers, **kw)["yield"]
+    for t in state["trials"]:
+        row = {"model": t["model"], "arm": t["arm"], "i": t["i"],
+               "a_b": t["grade"]["yield"], "a_b_nominal": t["grade"]["nominal_pass"],
+               "resistors": t["grade"]["resistors"]}
+        for name, kw in ASBUILT_VARIANTS.items():
+            if t["deck"]:
+                g = bench2.grade(e, t["deck"], mc_n, workers=workers, **kw)
+            else:
+                g = {"violations": ["no deck"], "merges": [], "nominal_pass": False,
+                     "yield": {d: 0.0 for d in DISTS}}
+            row[name] = {"yield": g["yield"], "nominal_pass": g["nominal_pass"],
+                         "violations": g["violations"], "merges": len(g["merges"])}
+        rows.append(row)
+    (out / "asbuilt_regrade.json").write_text(
+        json.dumps({"ceiling": ceil, "rows": rows}, indent=1), encoding="utf-8")
+    md = render_asbuilt(ceil, rows, mc_n=mc_n)
+    (out / "asbuilt_regrade.md").write_text(md, encoding="utf-8")
+    return md
+
+
+def render_asbuilt(ceil: dict, rows: list, dist: str = "gaussian", mc_n: int = MC_N) -> str:
+    lines = ["# Post hoc: the A/B decks graded as built (not pre-registered)", "",
+             "Every deck from the A/B, unchanged, through benchmark v2's as-built "
+             "grader (`asbuilt.py`): values snapped to E24 resistors / E12 capacitors, "
+             "series and parallel chains merged into the one part they make, ideal "
+             "current sources scored 0. *merge-only* skips the rounding, isolating the "
+             "resistor splitting. *structural* rounds too and keeps each deck's own transistor "
+             "model; *v2* also swaps in the handout 2N2222. The A/B prompts never stated "
+             f"these rules. {mc_n} builds, seed {MC_SEED}, {dist} draws.", "",
+             "Reference deck (`bench2/ref/ce_bjt_amp.cir`): "
+             + ", ".join(f"{k} {_f(v[dist])}" for k, v in ceil.items()) + ".", "",
+             "| Model | Arm | n | A/B grader | merge-only | structural | v2 | Nominal pass: "
+             "A/B, merge-only, structural, v2 | Decks with merges | Rule violations |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    by = {}
+    for r in rows:
+        by.setdefault((r["model"], r["arm"]), []).append(r)
+    for (model, arm), rs in sorted(by.items()):
+        cells = [_f(statistics.fmean(r[k]["yield"][dist] if k != "a_b" else r[k][dist]
+                                     for r in rs)) for k in ("a_b", *ASBUILT_VARIANTS)]
+        lines.append(
+            f"| {model} | {arm} | {len(rs)} | " + " | ".join(cells)
+            + f" | {sum(r['a_b_nominal'] for r in rs)}, "
+            + f"{sum(r['merge-only']['nominal_pass'] for r in rs)}, "
+            + f"{sum(r['structural']['nominal_pass'] for r in rs)}, "
+            + f"{sum(r['v2']['nominal_pass'] for r in rs)} of {len(rs)}"
+            + f" | {sum(r['v2']['merges'] > 0 for r in rs)}"
+            + f" | {sum(bool(r['v2']['violations']) for r in rs)} |")
+    lines += ["", "| Model | Contrast | A/B grader | merge-only | structural | v2 |",
+              "|---|---|---|---|---|---|"]
+
+    def ys(model, arm, k):
+        return [r[k][dist] if k == "a_b" else r[k]["yield"][dist]
+                for r in rows if r["arm"] == arm and (model == "pooled" or r["model"] == model)]
+    for model in ("pooled", *MODELS):
+        for a, b in (("A2", "A0"), ("A2", "A1"), ("A1", "A0")):
+            cells = []
+            for k in ("a_b", *ASBUILT_VARIANTS):
+                x, y = ys(model, a, k), ys(model, b, k)
+                lo, hi = bootstrap_diff_ci(x, y)
+                cells.append(f"{(statistics.fmean(x) - statistics.fmean(y)) * 100:+.0f} pts "
+                             f"({lo * 100:+.0f} to {hi * 100:+.0f})")
+            lines.append(f"| {model} | {a}-{b} | " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
 def report(out: Path, mc_n: int = MC_N) -> str:
     state = _load(out / "trials.json")
     summary = summarize(state["trials"], ceiling(mc_n))
@@ -424,10 +516,14 @@ def _cli(argv=None) -> int:
     r.add_argument("--n", type=int, default=10, help="runs per arm per model")
     r.add_argument("--cap", type=float, default=2.00, help="hard API spend cap, $")
     r.add_argument("--dry-run", action="store_true", help="no API: the model returns the reference deck")
-    for p in (r, sub.add_parser("report"), sub.add_parser("prompts")):
+    for p in (r, sub.add_parser("report"), sub.add_parser("prompts"),
+              sub.add_parser("asbuilt", help="free: re-grade the logged decks as built")):
         p.add_argument("--out", type=Path, default=DEFAULT_OUT)
         p.add_argument("--mc", type=int, default=MC_N)
     a = ap.parse_args(argv)
+    if a.cmd == "asbuilt":
+        print(asbuilt_regrade(a.out, a.mc))
+        return 0
     if a.cmd == "prompts":
         for arm, text in arm_prompts().items():
             print(f"===== {arm} =====\n{text}\n")

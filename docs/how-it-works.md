@@ -29,18 +29,28 @@ model is the CE amplifier landing just under the 47.5 V/V floor (47.2, 47.0),
 not at 107. Sonnet 5.5 still needs a simulator-error repair on about half its
 first drafts.
 
-The gap moved to the third question. Monte Carlo over 500 builds (5% resistors,
-beta ±50%, supply ±5%, -40 to 85 °C) on each CE amplifier those runs produced
-(`logs/ce_amp_current_models_mc.json`):
+The third question needs more care than this page first gave it. Monte Carlo
+over 500 builds (5% resistors, beta ±50%, supply ±5%, -40 to 85 °C) on each CE
+amplifier those runs produced (`logs/ce_amp_current_models_mc.json`):
 
 | Model | Nominal gains | Met spec | Real-build yield |
 |---|---|---|---|
 | Sonnet 5.5 | 47.2, 47.8, 50.6, 48.5 | 3 of 4 | 43%, 63%, 85%, 70% |
 | Opus 5.5 | 49.0, 49.6, 50.6, 47.0 | 3 of 4 | 86%, 85%, 91%, 37% |
 
-The amplifiers that *passed* hold spec in 63-91% of real builds. A design
-centred at 47.8 passes a 47.5-52.5 window at nominal and fails about one
-build in three. Nominal pass/fail can't see that; the tolerance check can.
+This page used to read that as "the amplifiers that passed hold spec in 63-91%
+of real builds". **That claim is retired.** The prompt asked for a gain of
+"approximately 50" and never stated the ±5% window or the tolerances, and the
+best design (91%) sat at about 99% of what the hand-recentred reference
+achieves (92%). The point that survives: a design centred at 47.8 passes a
+47.5-52.5 window at nominal and fails about one build in three. Nominal
+pass/fail can't see that; the tolerance check can.
+
+What happens when the model *is* told the tolerance test, and how it gamed the
+grader, is the pre-registered A/B in `ab_tolerance.py` (`logs/ab_tolerance/report.md`)
+and its as-built re-grade (`python ab_tolerance.py asbuilt`,
+`logs/ab_tolerance/asbuilt_regrade.md`), summarised in the
+[README](../README.md#holding-spec-across-real-parts-the-model-gamed-the-grader).
 
 | Layer | Question | Cost |
 |-------|----------|------|

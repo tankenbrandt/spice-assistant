@@ -253,8 +253,10 @@ def supply_subckts(deck: str, subckts: dict) -> str:
 
 def prepare(deck: str, spec, tol: dict, allow: frozenset = BASE_ELEMENTS,
             supplies: int = 1, models: dict | None = None,
-            subckts: dict | None = None, allow_subckt: bool = False) -> dict:
-    """The deck as built, plus everything that was changed or is disallowed."""
+            subckts: dict | None = None, allow_subckt: bool = False,
+            snap: bool = True) -> dict:
+    """The deck as built, plus everything that was changed or is disallowed.
+    snap=False skips rounding to buyable values (merge and rules only)."""
     subckts = subckts or {}
     # Rules apply to what the design wrote, not to the grader's own subcircuits
     # (a 741 macro-model is built from controlled sources the design may not use).
@@ -267,7 +269,7 @@ def prepare(deck: str, spec, tol: dict, allow: frozenset = BASE_ELEMENTS,
     # Then merge: two E96 parts in series may hit a value no single part does
     # (a fair technique), but the chain varies as one part, so it buys no
     # tolerance.
-    snapped, snaps = snap_deck(clean, tol)
+    snapped, snaps = snap_deck(clean, tol) if snap else (clean, [])
     built, merges = merge_passives(snapped, probed_nodes(spec))
     return {"deck": built, "violations": v, "merges": merges, "snaps": snaps,
             "models": swapped}

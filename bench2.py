@@ -135,13 +135,15 @@ def tolerance_text(e: dict, n: int = MC_N) -> str:
 # ------------------------------------------------------------------ grading
 
 def grade(e: dict, deck: str, n: int = MC_N, dists=DISTS, seed: int = MC_SEED,
-          workers: int = 8) -> dict:
+          workers: int = 8, models: bool = True, snap: bool = True) -> dict:
     """As-built nominal check, then Monte Carlo. Zero yield if it breaks a rule
-    or misses at nominal."""
+    or misses at nominal. models=False keeps the deck's own device cards (for
+    re-grading decks whose prompt never said they would be replaced)."""
     spec = spec_for(e)
     tol, st = tol_for(e), supply_tol(e)
     prep = asbuilt.prepare(deck, spec, tol, allowed(e), e.get("supplies", 1),
-                           models=models_for(e), subckts=subckts_for(e))
+                           models=models_for(e) if models else None,
+                           subckts=subckts_for(e), snap=snap)
     out = {"violations": prep["violations"], "merges": prep["merges"],
            "snaps": prep["snaps"], "models": prep["models"],
            "nominal": None, "nominal_pass": False,

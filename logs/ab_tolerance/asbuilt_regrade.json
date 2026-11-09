@@ -1,0 +1,1278 @@
+{
+ "ceiling": {
+  "merge-only": {
+   "gaussian": 0.93,
+   "uniform": 0.736
+  },
+  "structural": {
+   "gaussian": 0.93,
+   "uniform": 0.736
+  },
+  "v2": {
+   "gaussian": 0.924,
+   "uniform": 0.714
+  }
+ },
+ "rows": [
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 0,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 0,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 0,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.662,
+     "uniform": 0.556
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 0,
+   "a_b": {
+    "gaussian": 0.938,
+    "uniform": 0.74
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.938,
+     "uniform": 0.74
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.938,
+     "uniform": 0.74
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.874,
+     "uniform": 0.686
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 0,
+   "a_b": {
+    "gaussian": 0.876,
+    "uniform": 0.696
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.876,
+     "uniform": 0.696
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.876,
+     "uniform": 0.696
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.722,
+     "uniform": 0.594
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 0,
+   "a_b": {
+    "gaussian": 1.0,
+    "uniform": 0.95
+   },
+   "a_b_nominal": true,
+   "resistors": 16,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.962,
+     "uniform": 0.716
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 10
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 10
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 10
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 1,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.608,
+     "uniform": 0.592
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.81,
+     "uniform": 0.672
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 1,
+   "a_b": {
+    "gaussian": 0.708,
+    "uniform": 0.618
+   },
+   "a_b_nominal": true,
+   "resistors": 8,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.642,
+     "uniform": 0.608
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 1
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 1
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 1
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 1,
+   "a_b": {
+    "gaussian": 0.838,
+    "uniform": 0.692
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.838,
+     "uniform": 0.692
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 1,
+   "a_b": {
+    "gaussian": 0.534,
+    "uniform": 0.474
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.534,
+     "uniform": 0.474
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.532,
+     "uniform": 0.474
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.72,
+     "uniform": 0.604
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 1,
+   "a_b": {
+    "gaussian": 0.944,
+    "uniform": 0.724
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.944,
+     "uniform": 0.724
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.844,
+     "uniform": 0.708
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.922,
+     "uniform": 0.73
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 1,
+   "a_b": {
+    "gaussian": 1.0,
+    "uniform": 0.952
+   },
+   "a_b_nominal": true,
+   "resistors": 19,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.962,
+     "uniform": 0.728
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 13
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 13
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.678,
+     "uniform": 0.586
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 13
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 2,
+   "a_b": {
+    "gaussian": 0.874,
+    "uniform": 0.72
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.874,
+     "uniform": 0.72
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.874,
+     "uniform": 0.72
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.746,
+     "uniform": 0.654
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 2,
+   "a_b": {
+    "gaussian": 0.914,
+    "uniform": 0.746
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.914,
+     "uniform": 0.746
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.914,
+     "uniform": 0.746
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.892,
+     "uniform": 0.686
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 2,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.782,
+     "uniform": 0.628
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.624,
+     "uniform": 0.538
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 2,
+   "a_b": {
+    "gaussian": 0.51,
+    "uniform": 0.484
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.51,
+     "uniform": 0.484
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.51,
+     "uniform": 0.484
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 2,
+   "a_b": {
+    "gaussian": 0.878,
+    "uniform": 0.698
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.878,
+     "uniform": 0.698
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.514,
+     "uniform": 0.482
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 2,
+   "a_b": {
+    "gaussian": 1.0,
+    "uniform": 0.996
+   },
+   "a_b_nominal": true,
+   "resistors": 19,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.956,
+     "uniform": 0.744
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 10
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.914,
+     "uniform": 0.71
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 10
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.914,
+     "uniform": 0.71
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 10
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 3,
+   "a_b": {
+    "gaussian": 0.84,
+    "uniform": 0.682
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.84,
+     "uniform": 0.682
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.84,
+     "uniform": 0.682
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.904,
+     "uniform": 0.696
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 3,
+   "a_b": {
+    "gaussian": 0.87,
+    "uniform": 0.698
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.87,
+     "uniform": 0.698
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.828,
+     "uniform": 0.646
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.89,
+     "uniform": 0.712
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 3,
+   "a_b": {
+    "gaussian": 0.878,
+    "uniform": 0.71
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.878,
+     "uniform": 0.71
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.936,
+     "uniform": 0.772
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.86,
+     "uniform": 0.742
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 3,
+   "a_b": {
+    "gaussian": 0.856,
+    "uniform": 0.712
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.856,
+     "uniform": 0.712
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.856,
+     "uniform": 0.712
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.894,
+     "uniform": 0.69
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 3,
+   "a_b": {
+    "gaussian": 0.794,
+    "uniform": 0.668
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.794,
+     "uniform": 0.668
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.852,
+     "uniform": 0.704
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.894,
+     "uniform": 0.69
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 3,
+   "a_b": {
+    "gaussian": 1.0,
+    "uniform": 0.99
+   },
+   "a_b_nominal": true,
+   "resistors": 11,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [
+     "I1: ideal current source not allowed"
+    ],
+    "merges": 6
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [
+     "I1: ideal current source not allowed"
+    ],
+    "merges": 6
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [
+     "I1: ideal current source not allowed"
+    ],
+    "merges": 6
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 4,
+   "a_b": {
+    "gaussian": 0.798,
+    "uniform": 0.658
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.798,
+     "uniform": 0.658
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.798,
+     "uniform": 0.658
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.9,
+     "uniform": 0.71
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 4,
+   "a_b": {
+    "gaussian": 0.792,
+    "uniform": 0.624
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.792,
+     "uniform": 0.624
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.56,
+     "uniform": 0.506
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 4,
+   "a_b": {
+    "gaussian": 0.916,
+    "uniform": 0.726
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.916,
+     "uniform": 0.726
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.702,
+     "uniform": 0.592
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.87,
+     "uniform": 0.704
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A0",
+   "i": 4,
+   "a_b": {
+    "gaussian": 0.888,
+    "uniform": 0.748
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.888,
+     "uniform": 0.748
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.888,
+     "uniform": 0.748
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.754,
+     "uniform": 0.678
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A1",
+   "i": 4,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.544,
+     "uniform": 0.506
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-opus-5-5",
+   "arm": "A2",
+   "i": 4,
+   "a_b": {
+    "gaussian": 1.0,
+    "uniform": 0.936
+   },
+   "a_b_nominal": true,
+   "resistors": 12,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.968,
+     "uniform": 0.748
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 6
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.894,
+     "uniform": 0.724
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 6
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.972,
+     "uniform": 0.738
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 6
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A0",
+   "i": 5,
+   "a_b": {
+    "gaussian": 0.762,
+    "uniform": 0.638
+   },
+   "a_b_nominal": true,
+   "resistors": 7,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.762,
+     "uniform": 0.638
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.762,
+     "uniform": 0.638
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.886,
+     "uniform": 0.724
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A1",
+   "i": 5,
+   "a_b": {
+    "gaussian": 0.466,
+    "uniform": 0.45
+   },
+   "a_b_nominal": true,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.466,
+     "uniform": 0.45
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.584,
+     "uniform": 0.534
+    },
+    "nominal_pass": true,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "arm": "A2",
+   "i": 5,
+   "a_b": {
+    "gaussian": 0.0,
+    "uniform": 0.0
+   },
+   "a_b_nominal": false,
+   "resistors": 6,
+   "merge-only": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "structural": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   },
+   "v2": {
+    "yield": {
+     "gaussian": 0.0,
+     "uniform": 0.0
+    },
+    "nominal_pass": false,
+    "violations": [],
+    "merges": 0
+   }
+  }
+ ]
+}

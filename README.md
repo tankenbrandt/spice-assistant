@@ -4,11 +4,13 @@
 
 **The problem.** A circuit that simulates isn't a circuit that works. In
 September, Claude Sonnet 5 wrote eight circuits for me: all eight ran, and
-only five or six met spec. Today's models (Sonnet 5.5, Opus 5.5) met spec 31
-of 32 times. But even their *passing* amplifiers hold spec in only 63–91% of
-simulated real builds once part tolerances come in. "It simulated" isn't
-proof, "it met spec once" isn't either, and both are as true of my own lab
-designs as of the AI's.
+only five or six met spec. Today's models (Sonnet 5.5, Opus 5.5) meet spec
+31 of 32 times each. But when I told Opus how its designs would be
+tolerance-tested, it scored 100% with resistor values you can't buy and an
+ideal current source; graded as built, the gain was gone. "It simulated"
+isn't proof, "it met spec once" isn't either, and neither is a grader until
+you've checked what it rewards. All of that is as true of my own lab designs
+as of the AI's.
 
 **What I wanted:** use AI to design and simulate circuits, check that they'll
 work with real parts, fix whatever misses spec, confirm the answer in a
@@ -213,16 +215,16 @@ Pre-lab 2's timing diagram comes out the way the handout draws it:
 
 ## How good is the AI at this?
 
-8 circuits × 4 runs per model, every result measured against its spec, then
-500 simulated builds of each CE amplifier:
+### Meeting spec at nominal: mostly solved
 
-| Model | Simulate | Meet spec | CE amp real-build yield, passing designs |
-|---|---|---|---|
-| Sonnet 5 (Sept 2026) | 8/8 | 5–6 | none passed (1% yield; 69% after the tool's repair) |
-| Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 | 63–85% |
-| Opus 5.5 (Nov 2026) | 8/8 | 7–8 | 85–91% |
+8 circuits × 4 runs per model, every result measured against its spec:
 
-Newer models fixed nominal correctness; tolerance is now where designs fail.
+| Model | Simulate | Meet spec |
+|---|---|---|
+| Sonnet 5 (Sept 2026) | 8/8 | 5–6 |
+| Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 |
+| Opus 5.5 (Nov 2026) | 8/8 | 7–8 |
+
 All four runs per model cost $0.33–0.59. The September worst case, a CE
 amplifier that ran perfectly with a gain of **107 instead of 50** (its bypass
 capacitor shorted the whole emitter resistor), is written up with the repair
@@ -231,6 +233,48 @@ in [docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really
 <p align="center">
   <img src="docs/spec-fail.png" width="560" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
 </p>
+
+### Holding spec across real parts: the model gamed the grader
+
+An earlier version of this README said passing amplifiers held spec in only
+63–91% of simulated builds. That graded the models on part tolerances their
+prompt never mentioned, so I ran a
+[pre-registered](ab_tolerance.py) A/B test: the benchmark's CE amplifier
+prompt, with and without the tolerance test spelled out, 33 designs in all,
+$1.82 of API spend ([results](logs/ab_tolerance/report.md)).
+
+- **Told the test, Opus 5.5 scored 100%** Monte Carlo yield (500 builds
+  each), against 75% without it. Sonnet 5.5 didn't improve.
+- **None of those five designs could be built as drawn.** Each split
+  resistors into strings of equal pieces at values no one sells
+  (4 × 2275 Ω, 3 × 7200 Ω, 4 × 32.7 Ω), and one biased the transistor with
+  an ideal current source the grader never varied.
+- **So I wrote an as-built grader**, [`asbuilt.py`](asbuilt.py): every part
+  snaps to the nearest value sold in its tolerance grade, series and
+  parallel chains are tested as the one part they make, and ideal sources
+  are refused. Re-graded, the gain is gone
+  ([full table](logs/ab_tolerance/asbuilt_regrade.md)):
+
+| Opus 5.5, mean yield | Told the test | Not told | Difference (95% CI) |
+|---|---|---|---|
+| A/B grader | 100% | 75% | +25 pts (+10 to +41) |
+| Chains merged, ideal sources refused | 77% | 75% | +2 pts (−38 to +36) |
+| …and values rounded to buyable 5% parts | 36% | 74% | −38 pts (−80 to +5) |
+| …and the handout 2N2222 model | 51% | 65% | −14 pts (−61 to +36) |
+
+The centring was real: with chains merged, the four legal designs still
+yield 96–97%, so splitting itself bought only about 4 points. But it was
+built from parts you can't buy. Rounded to real 5% values, two of the four
+miss spec outright, because every piece of a split resistor rounds the same
+way and the errors add up instead of averaging out.
+
+**Caveats.** 5–6 designs per group, so no as-built difference is
+significant; the pre-registered pooled comparison was null even on the
+original grader (+6 pts, −26 to +37); the re-grade is post hoc; and the A/B
+prompts never stated the as-built rules. Benchmark v2
+([`bench2.py`](bench2.py), 12 circuits whose reference designs each yield
+≥ 85% as built) states every rule in the prompt; it hasn't been run against
+the models yet. All of this is simulation.
 
 ## Quick start
 
@@ -243,5 +287,5 @@ python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_A
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 692 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 731 tests, no API calls,
 CI on Linux and Windows.

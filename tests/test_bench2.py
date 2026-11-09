@@ -83,6 +83,14 @@ def test_prepare_snaps_each_part_before_merging():
     assert "R1 vcc out 4711" in p["deck"].splitlines()
 
 
+def test_prepare_without_snap_merges_at_the_typed_values():
+    deck = "t\nVcc vcc 0 DC 12\nR1 vcc m 10.55\nR2 m out 4.7k\nR3 out 0 4.7k\n.end\n"
+    p = asbuilt.prepare(deck, specs.load("specs_lib/voltage_divider.yaml"), COMMODITY,
+                        snap=False)
+    assert p["snaps"] == []
+    assert "R1 vcc out 4710.55" in p["deck"].splitlines()
+
+
 def test_violations_name_ideal_sources_and_extra_supplies():
     deck = ("t\nVcc vcc 0 DC 12\nVb b 0 DC 0.7\nVin in 0 DC 0 AC 1\nI1 vcc c 1m\n"
             "E1 o 0 in 0 10\n.end\n")
