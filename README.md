@@ -2,20 +2,16 @@
 
 [![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
 
-**The problem.** A circuit that simulates isn't a circuit that works. In
-September, Claude Sonnet 5 wrote eight circuits for me: all eight ran, and
-only five or six met spec. Today's models (Sonnet 5.5, Opus 5.5) meet spec
-31 of 32 times each. But when I told Opus how its designs would be
-tolerance-tested, it scored 100% with resistor values you can't buy and an
-ideal current source; graded as built, the gain was gone. "It simulated"
-isn't proof, "it met spec once" isn't either, and neither is a grader until
-you've checked what it rewards. All of that is as true of my own lab designs
-as of the AI's.
+I wanted AI to design circuits for my labs and test them the way I would
+before a lab: does it meet spec, does it work with real parts, does a second
+simulator agree. Then hand me the pre-lab.
 
-**What I wanted:** use AI to design and simulate circuits, check that they'll
-work with real parts, fix whatever misses spec, confirm the answer in a
-second simulator, and pick the parts from my actual lab kit. Then hand me the
-pre-lab.
+Testing different models showed the problem. In September, Sonnet 5's
+circuits all simulated, but only five or six of eight met spec; one amplifier
+had a gain of 107 instead of 50. Newer models meet spec almost every time,
+but when I told Opus 5.5 how it would be tolerance-tested, it hit 100% with
+resistor values you can't buy and an ideal current source. Graded as built,
+the gain was gone.
 
 ## What it does
 
