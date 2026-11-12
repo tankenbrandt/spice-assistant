@@ -28,7 +28,7 @@ the gain was gone.
 5. **Designs from your kit.** It searches the parts you actually own
    (quantities and power ratings included) for the build with the most
    margin.
-6. **Writes the pre-lab.** It produces the Simulation, Design, Layout and
+6. **Drafts the pre-lab.** It writes the Simulation, Design, Layout and
    Test Plan sections as a Word file: plots, schematic, pin assignments,
    test-set block diagram, and expected bench readings. Bring your bench
    readings back and it fills in *Measured* and says which landed inside the
@@ -53,7 +53,7 @@ the handout PDF:
 Hand calculations and "why" questions are left to me, on purpose. It runs
 on a Claude subscription, so it needs no API key. I tested it on a handout
 it had never seen (EE 347 Exp. 3, inverter speed), using a fresh agent that
-had only the skill file. It produced the full pre-lab: both circuits
+had only the skill file. It produced a complete draft: both circuits
 simulated, LTspice agreeing to 3–4 digits, and the handout's "Simulated
 Data" table fillable straight from the report. It also hit four tool bugs
 along the way, all now fixed.
@@ -95,7 +95,7 @@ Q1  out b e Q2N2222      ; handout's 2N2222 parameters
 ```
 
 **It saturates at both extremes.** The hand analysis checked the 5 V output
-peak against V<sub>C</sub> = 6.8 V but left out the 2.7 V across
+peak against V<sub>C</sub> = 6.8 V but left out the 2.8 V across
 R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
 
 | | 25 °C, β = 75 | 100 °C, β = 325 |
@@ -108,7 +108,7 @@ R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
 The tool tried every combination of resistors from my lab kit (the course's
 3306L parts list, with its quantities: one 47k, two 10k, one 4.7k already
 taken by R<sub>L</sub>) within 4× of the hand values. That's **96 buildable
-combinations, and only 7 pass at both extremes.** The pick moves one
+combinations, and only 7 pass at every condition.** The pick moves one
 resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else.
 
 The kit build as an LTspice schematic, `ce_amp.asc`, the file I hand in:
@@ -146,15 +146,14 @@ the kit build (solid) never comes close:
 | Q-point (V<sub>CE</sub>, I<sub>C</sub>) | 10.3 V, 1.70 mA | 8.64 V, 1.99 mA |
 | Monte Carlo, ±10% resistors | 100% pass | 100% pass |
 
-- **LTspice agrees.** Running the `.asc` itself at every condition, it
-  gives the same Q-points to three figures (e.g. 8.64 V, 1.99 mA hot), and
-  every check passes.
+- **LTspice agrees:** running the `.asc` at every condition, it gives the
+  same Q-points to three figures and every check passes.
 - **With my own transistor:** I measured β = 116 at 1.7 mA in the previous
   lab (Exp. 7). At that β the hand design still clips (V<sub>CE</sub>
   bottoms at 0.05 V), while the kit build sits at V<sub>CE</sub> = 9.9 V,
   I<sub>C</sub> = 1.77 mA, gain 4.58: the numbers to expect at the bench.
 - **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.7 mW,
-  so a 1/8 W part covers it with 2× margin. Every kit part is 1/4 W.
+  so even a 1/8 W part has over 6× margin; the kit's are 1/4 W.
 - **Layout:** the 2N2222 is pin 1 emitter, 2 base, 3 collector in both the
   plastic and the metal-can package (checked against both datasheets), and
   the wiring list says which way round the 10 µF electrolytic goes: + lead
@@ -172,7 +171,7 @@ builds land in.
 </p>
 
 ```bash
-python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # about 20 s
+python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # about 30 s
 ```
 
 At the bench, `--measured-template` writes a sheet listing every reading
@@ -193,7 +192,7 @@ outside the predicted range (widened by the scope's accuracy,
 | 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
 | 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
 | 7–9. Build, test, parasitics | At the bench. |
-| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in, and `--measured` reports how many bench readings landed inside it, so a result outside it means something is wrong. |
+| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in; `--measured` flags any bench reading outside it, which means something is wrong. |
 
 ## A digital lab too: CMOS gates (EE 347, Experiment 4)
 
