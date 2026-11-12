@@ -290,5 +290,5 @@ python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_A
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 731 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 736 tests, no API calls,
 CI on Linux and Windows.

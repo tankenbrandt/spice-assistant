@@ -61,11 +61,14 @@ and its as-built re-grade (`python ab_tolerance.py asbuilt`,
 Each model's numbers are four independent runs, not one. Generation is
 sampling, so a single run is an anecdote (`python repeat_summary.py --dir
 logs/repeats_<model>`). On Sonnet 5, `buck_converter` and `ce_bjt_amp` failed
-their spec in all four runs and the rectifiers failed once each.
+their spec in all four runs, the bridge rectifier in two and the half-wave
+in one.
 
 Every measurement is then cross-checked against a **second, independently
 written simulator**. The same spec is re-measured in LTspice, headlessly, and
-**9 of 10 circuits agree within 1%**, most to six significant figures. See
+**15 of 18 circuits agree within 1%**, most to six significant figures.
+The three misses are the buck converter's ripple and two readings that are
+roughly zero in both simulators. See
 [Two simulators, one spec](#two-simulators-one-spec-crosscheckpy-ltspicepy).
 
 <p align="center">
@@ -84,9 +87,9 @@ hand-built deck in `reference/` that meets it:
 | Circuit | What the spec checks | Reference deck |
 |---|---|---|
 | `lab_clipper` | clips at ±(1.5 V + V<sub>d</sub>), 1.7-2.4 V | ±1.99 V |
-| `lab_clamper` | low level near -V<sub>d</sub>, high near 9.5 V, **average near 4.5 V** | -0.67 / 9.67 / 4.47 V |
+| `lab_clamper` | low level near -V<sub>d</sub>, high near 9.5 V, **average near 4.5 V** | -0.48 / 9.60 / 4.47 V |
 | `lab_halfwave` | V<sub>dc</sub> = 2.87 V ±5%, never negative | 2.88 V |
-| `lab_bridge` | V<sub>dc</sub> = 5.12 V ±5% across the floating load | 5.19 V |
+| `lab_bridge` | V<sub>dc</sub> = 5.12 V ±8% across the floating load | 5.19 V |
 | `inv_active_lowpass` | 20 dB ±0.5, f<sub>c</sub> = 1 kHz ±5%, inverting | 20.0 dB, 988 Hz |
 
 Writing the specs caught two things worth knowing for the lab itself.
@@ -98,16 +101,16 @@ Writing the specs caught two things worth knowing for the lab itself.
   lands at 2.88 V.
 - **Peaks alone can't tell a working clamper from a broken one.** With the
   handout's R = 2.2k (RC = 0.22 ms against a 1 ms period) the output is a
-  train of decaying spikes that still hit -0.7 V and +9.9 V. The average
-  level is what separates them: 4.47 V clamped versus 1.97 V not.
+  train of decaying spikes whose peaks still look clamped. The average
+  level is what separates them: 4.47 V clamped versus 1.84 V not.
 
 Every spec is also tested against a broken version of its deck: a reversed
 diode, missing batteries, a capacitor 10x off, the op-amp wired
 non-inverting, and a changed input signal. All 10 are rejected. In LTspice,
-every DC level and gain agrees within 0.1%. The strict cross-check counts 11
-of 15 circuits within 1%. The new misses are "never negative" readings, where
-both simulators report roughly zero (a few µV against about 1 mV), and the
-clamper's edge spike at 1.008%.
+every lab DC level and gain agrees within 0.4%. The bridge and half-wave
+each miss the strict 1% cross-check on one reading only, "never negative",
+where both simulators report roughly zero (-6 µV and -231 µV against about
+-1 mV).
 
 ### What the AI did with them
 
@@ -118,7 +121,7 @@ the clamper's diode was wired backwards, so it clamped negative (-9.6 V to
 +0.5 V). That orientation is the whole point of that part of the lab, and
 the spec caught it.
 
-The first run also caught more of my mistakes than the AI's:
+The two runs also caught more of my mistakes than the AI's:
 
 - **Two specs failed correct circuits.** A bridge and a clipper wired
   exactly like the reference missed their bands only because the model
@@ -163,7 +166,8 @@ no PySpice / InSpice / other binding — raw text in, raw text out.
 - Python 3.10+
 - ngspice on your `PATH` (or reachable via `NGSPICE_PATH`, or bundled under
   `tools/Spice64/bin`)
-- An Anthropic API key **only for `spice-assistant` and the benchmark**. The
+- An Anthropic API key **only for generating circuits**: `spice-assistant`,
+  `design.py`, `report.py --describe` and the benchmark runs. The
   spec, robustness, plotting and schematic tools are ngspice-only and cost
   nothing to run.
 
@@ -191,10 +195,14 @@ That installs the CLIs on your `PATH`:
 | `spice-op` | `oppoint.py` | every node voltage and branch current in a deck |
 | `spice-kit` | `kit.py` | pick the closest parts from a lab kit |
 | `spice-labreport` | `labreport.py` | simulate / design / test-plan pre-lab, one part or a whole lab |
+| `spice-crosscheck` | `crosscheck.py` | the same spec in ngspice and LTspice |
+| `spice-ascgen` | `ascgen.py` | ngspice deck -> `.asc` schematic |
+| `spice-tolerances` | `tolerances.py` | sourced component tolerances |
+| `spice-design` | `design.py` | generate and repair until the spec passes (API) |
 
 Every example below also works as `python <module>.py ...` straight from a
-clone, with no install. Only `spice-assistant` needs an API key; everything
-else is ngspice only.
+clone, with no install. Only `spice-assistant` and `spice-design` need an
+API key; everything else is ngspice only.
 
 ### ngspice
 
@@ -290,11 +298,11 @@ Against the two circuits that always failed, two trials each
 
 | Circuit | Benchmark, first try | `design.py`, first try | After repair |
 |---|---|---|---|
-| `ce_bjt_amp` | \|gain\| 107, failed 4 of 4 | 48.2 pass, 43.7 fail | 48.4, 1 round |
+| `ce_bjt_amp` | \|gain\| 107, 36, 26, 34: failed 4 of 4 | 48.2 pass, 43.7 fail | 48.4, 1 round |
 | `buck_converter` | 4.52 V, failed 4 of 4 | 4.51 V, 4.52 V: both fail | 5.09 V, 5.07 V, 1 round each |
 
 All four end inside their spec. Stating the spec up front fixed the amplifier's
-*design* -- from twice the gain to within 13% -- and did nothing for the buck,
+*design* -- from gains of 26 to 107 to within 13% of 50 -- and did nothing for the buck,
 which still forgets the freewheeling diode's drop on every first try; one
 round of measured feedback fixes that. Two trials is a direction, not a rate.
 
@@ -315,12 +323,12 @@ python report.py --describe "a common-emitter amplifier with gain -50" `
 ```
 
 ```
-spice-report -> runsaseline
-  [1/6] netlist..................... `baseline/ce_bjt_amp.cir`
+spice-report -> runsmp
+  [1/6] netlist..................... `repaired/ce_bjt_amp.cir`
   [2/6] schematic................... 12 devices -> ce_bjt_amp.svg
   [3/6] operating point............. 7 nodes, 12 branches
-  [4/6] spec check.................. FAIL
-  [5/6] monte carlo................. yield 1% over 500 samples
+  [4/6] spec check.................. PASS
+  [5/6] monte carlo................. yield 66% over 200 samples
   [6/6] ltspice cross-check......... 4/4 agree within 1.0%
 ```
 
@@ -394,7 +402,7 @@ python kit.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml
 ```
 
 Joint search matters because parts interact. In the CE amplifier, Rc (7.5k)
-and Re2 (910) are not E12 values. Rounding each part on its own gives a gain
+and Re2 (910), among others, are not E12 values. Rounding each part on its own gives a gain
 of 48.1. The search moves both down about 9%, which keeps their ratio, and
 the gain lands at 50.04. In the active low-pass, rounding Cf gives fc =
 1047 Hz. 1.5 nF ∥ 100 pF gives 982.6 Hz.
@@ -410,8 +418,8 @@ python labreport.py reference/inv_active_lowpass.cir --spec specs_lib/inv_active
   dashed, kit build solid) and the netlist.
 - **Design:** the parts chosen and how far each is from ideal, what rounding
   alone would have given, predicted performance, and a Monte Carlo run over
-  the kit's tolerances. On the low-pass this shows that a ±10% capacitor
-  alone puts 18% of builds outside a ±5% corner-frequency requirement.
+  the kit's tolerances. On the low-pass, with a ±10% capacitor, 18% of
+  builds land outside a ±5% corner-frequency requirement.
 - **Test plan:** equipment, a DMM check for every part with its acceptable
   reading, supply settings, DC checkpoints, one bench step per measurement
   ("raise the frequency until the output falls to 0.707×…"), and a results
@@ -493,9 +501,10 @@ and intermediates that exist only to be referenced are marked
 verdict. Expressions are evaluated through an AST whitelist, so a spec file
 is data, not code.
 
-The ten specs in `specs_lib/` cover the benchmark's circuits, and the test
-suite asserts that each one reaches the same verdict *and the same measured
-number* as the hand-written checker it replaces.
+`specs_lib/` holds 18 specs: 13 benchmark circuits and 5 lab ones. The ten
+that replaced a hand-written checker are tested against it: the same verdict
+on every deck, and the published numbers (107.31, 51.53 and others)
+reproduced exactly.
 
 ## Plotting what the spec measured (`plot.py`)
 
@@ -634,7 +643,7 @@ repaired\ce_bjt_amp.cir  (spec: ce_bjt_amp.yaml)
   ok   f_mid        ngspice=8912.51       ltspice=8912.51         0.000% (informational)
   ok   inversion    ngspice=179.999       ltspice=179.999         0.000%
 
-9/10 circuits agree within 1.0% on every spec measurement
+15/18 circuits agree within 1.0% on every spec measurement
 ```
 
 Two independently written simulators agreeing on a nonlinear BJT stage's gain
@@ -649,7 +658,7 @@ The disagreements are the interesting part:
 |---|---|---|---|---|
 | buck_converter | ripple | 8.51 mV | 11.03 mV | real: ripple depends on timestep control |
 | ce_amp | `f_mid` | 1.26 MHz | 10 MHz | **not** a disagreement — see below |
-| boost_converter | vout | 11.766 V | 11.832 V | 0.56%, within tolerance |
+| boost_converter | vout | 11.766 V | 11.842 V | 0.64%, within tolerance |
 
 `f_mid` reads as an 87% gap and is not one. It is `argmax` over the gain curve,
 and *both* simulators put the gain within 0.5% of its peak across the same 85
@@ -679,7 +688,7 @@ only read as text.
 
 ```powershell
 python ascgen.py repaired/ce_bjt_amp.cir -o ce_bjt_amp.asc
-python ascgen.py repaired/ce_bjt_amp.cir --check    # round-trip the result
+python ascgen.py repaired/ce_bjt_amp.cir --check    # write <deck>.asc and round-trip it
 ```
 
 <p align="center">
@@ -689,13 +698,14 @@ python ascgen.py repaired/ce_bjt_amp.cir --check    # round-trip the result
 The layout is mechanical -- a column per net, a row per device -- and it does
 not try to be draughtsmanship. What it guarantees is connectivity: `--check`
 re-extracts the drawing and compares it device by device, and the tests
-additionally round-trip it through **LTspice's own netlister**. **All 22 of
-the repo's decks round-trip exactly**, op-amps included: a VCVS macromodel is
+additionally round-trip it through **LTspice's own netlister**. **42 of the
+repo's 46 decks round-trip exactly**, op-amps included: a VCVS macromodel is
 drawn with LTspice's `e` symbol, and a subcircuit call lands on the generic
 `opamp2` -- but only when the `.subckt`'s pin names read as In+ In- V+ V- OUT
 in that symbol's order, so a supply is never drawn as an input. Anything else
 (an undefined or non-op-amp subcircuit, F/H sources, POLY) is refused rather
-than guessed. LTspice simulating the generated schematic above measures
+than guessed; that is the other four decks, which call the CD4001B gate.
+LTspice simulating the generated schematic above measures
 |gain| = 51.5265, against 51.5266 from the deck it was written from; for the
 active low-pass op-amp example the two agree to every printed digit.
 
@@ -828,9 +838,9 @@ reference/       hand-built decks for the lab round, one per spec
 labs/            real course labs: lab.yaml, netlists, specs, .asc, bench sheets
 bench2/          benchmark v2 suite, reference decks and device models
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
-logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
+logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~30 MB)
 docs/            per-round analysis prose and the README images
-tests/           731 tests, no API calls
+tests/           736 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
