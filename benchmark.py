@@ -5,7 +5,10 @@ Runs the existing generate -> run -> fix loop (max 4 attempts per circuit)
 against a fixed test set of 8 circuits across three difficulty tiers, logs
 everything, and writes logs/run_log.json + REPORT.md.
 
-Usage:  python benchmark.py
+Usage:  python benchmark.py [--spec-repair] [--round2] [--lab] [--out PATH]
+        python benchmark.py --report-only     # free: rebuild REPORT.md from logs/
+
+Every form except --report-only calls the Anthropic API.
 """
 
 import json
@@ -792,9 +795,38 @@ def rebuild_report_only() -> int:
     return 0
 
 
+_FLAGS = {"--report-only", "--spec-repair", "--round2", "--lab"}
+
+
+def check_args(argv: list) -> int | None:
+    """Exit code for --help or a bad flag, else None. Runs before anything is
+    spent: a bare `--help` used to start a paid benchmark run."""
+    args = list(argv)
+    if any(a in ("-h", "--help") for a in args):
+        print(__doc__)
+        return 0
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--out":
+            if i + 1 >= len(args):
+                print("benchmark.py: --out needs a path", file=sys.stderr)
+                return 2
+            i += 2
+            continue
+        if a not in _FLAGS:
+            print(f"benchmark.py: unknown argument {a!r}\n{__doc__}", file=sys.stderr)
+            return 2
+        i += 1
+    return None
+
+
 def main_entry() -> int:
     import os
     global SPEC_REPAIR
+    code = check_args(sys.argv[1:])
+    if code is not None:
+        return code
     if "--report-only" in sys.argv:
         return rebuild_report_only()
     SPEC_REPAIR = "--spec-repair" in sys.argv
