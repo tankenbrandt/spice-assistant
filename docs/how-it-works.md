@@ -436,6 +436,20 @@ stimulus also surfaced a timing rule. Changing the inputs on the same clock
 edge that ends evaluation races the evaluate transistor and glitches X low,
 so the inputs change 50 µs into pre-charge.
 
+**Bench readings.** `--measured-template PATH` (with `--lab`) writes a YAML
+sheet listing every reading and DC checkpoint with its expected value and
+the range 90% of builds land in; `labs/ee346_exp8/measured.yaml` is one.
+Fill it in at the bench and rerun with `--measured PATH`. The report fills
+*Measured* and *Pass?*, adds an *In predicted range?* column, and opens the
+section with "Bench check: N of M readings landed inside…". Each range is
+widened by the instrument's accuracy (`--meter-tol`, default 0.03), so check
+your scope's vertical accuracy first.
+
+```bash
+python labreport.py --lab labs/ee346_exp8/lab.yaml --measured-template labs/ee346_exp8/measured.yaml --out runs/ee346_exp8
+python labreport.py --lab labs/ee346_exp8/lab.yaml --measured labs/ee346_exp8/measured.yaml --out runs/ee346_exp8
+```
+
 It writes `report.docx`, `report.md`, the kit-build deck and the figures. It
 needs `python-docx` and `matplotlib` (both in `requirements-dev.txt`). Like
 everything except generation, it makes no API calls.
@@ -750,6 +764,46 @@ gain sits at 51.74 against an upper spec limit of 52.5, so Cpk is 0.162 and the
 design is limited by **centring, not spread**. Re-centring is worth more here
 than any amount of money spent on 1% resistors.
 
+## Grading as built (`asbuilt.py`, `bench2.py`)
+
+The tolerance A/B (`ab_tolerance.py`, results in `logs/ab_tolerance/`) showed
+that a model told how it is graded optimises the grader: Opus split every
+resistor into series pieces at values no one sells, which independent Monte
+Carlo draws reward, and one design used an ideal current source the grader
+never varied. `asbuilt.py` grades a deck as it would be built:
+
+- **snap:** every R, C and L moves to the nearest value sold in its grade
+  (E24 for 5% resistors, E96 for 1%, E24 for C0G/film capacitors, E12
+  otherwise);
+- **merge:** series and parallel chains become the one part they stand for,
+  so a chain can hit an exact value but varies as one part;
+- **rules:** no ideal current sources or behavioral sources, no controlled
+  sources the prompt didn't grant, no extra DC supplies, no `{expression}` values or `.subckt`
+  definitions. NPN and diode models are replaced by the handout 2N2222 and
+  1N4001 (`bench2/devices.yaml`).
+
+`python ab_tolerance.py asbuilt` re-grades every A/B design this way
+(`logs/ab_tolerance/asbuilt_regrade.md`): Opus's +25-point gain from being
+told the tolerances becomes +2 with chains merged and −38 once values are
+rounded to buyable parts, every interval spanning zero.
+
+Benchmark v2 (`bench2.py`, `bench2/suite.yaml`) is built on it. A circuit is
+admitted only if its reference design, graded as built, yields at least 85%
+over 500 gaussian builds; 12 are (`logs/bench2/ceilings.md`). Two are left
+out with reasons in the suite: `cs_mosfet_amp` (no sourced MOSFET model) and
+`ce_amp_bias_and_gain` (about 81% with the real 2N2222). Every rule the
+grader checks is stated in every prompt. Stage 1 is free and done; the model
+runs (stage 2) are not.
+
+```bash
+python bench2.py validate            # ceilings for every circuit -> logs/bench2/
+python bench2.py prompt rc_lowpass   # what each arm is told
+python bench2.py grade rc_lowpass my.cir
+```
+
+Yields depend heavily on the draw distribution: under uniform draws the CE
+ceiling is 71% instead of 92%. Quote the distribution with any yield.
+
 ## Layout
 
 ```
@@ -760,18 +814,23 @@ ascgen.py                                            deck -> .asc schematic
 oppoint.py                                           whole-deck operating point
 design.py                                            generate/repair until the spec passes
 report.py                                            the end-to-end driver
+kit.py  labreport.py  layout.py  blockdiagram.py     kit parts -> pre-lab .docx
 tolerances.py  tolerances.yaml                       sourced part tolerances
 benchmark.py  robustness_study.py                   the study drivers
+ab_tolerance.py                                      the pre-registered tolerance A/B
+asbuilt.py  bench2.py                                as-built grading, benchmark v2
 repeat_summary.py                                    spread across repeat runs
 specs_lib/       declarative specs for the benchmark circuits
 examples/        an op-amp filter in every form, plus the re-centred CE amp
 baseline/        the decks the model generated, as generated
 repaired/        the same decks after spec-in-the-loop repair
 reference/       hand-built decks for the lab round, one per spec
+labs/            real course labs: lab.yaml, netlists, specs, .asc, bench sheets
+bench2/          benchmark v2 suite, reference decks and device models
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~20 MB)
 docs/            per-round analysis prose and the README images
-tests/           615 tests, no API calls
+tests/           731 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate

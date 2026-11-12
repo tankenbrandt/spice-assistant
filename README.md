@@ -34,8 +34,9 @@ pre-lab.
    margin.
 6. **Writes the pre-lab.** It produces the Simulation, Design, Layout and
    Test Plan sections as a Word file: plots, schematic, pin assignments,
-   test-set block diagram, expected bench readings and a blank *Measured*
-   column.
+   test-set block diagram, and expected bench readings. Bring your bench
+   readings back and it fills in *Measured* and says which landed inside the
+   range real builds predict.
 
 Only step 1 calls the Claude API. Hand it a netlist and everything else is
 free and runs locally.
@@ -178,6 +179,13 @@ builds land in.
 python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # about 20 s
 ```
 
+At the bench, `--measured-template` writes a sheet listing every reading
+with its expected value and predicted range
+([Exp. 8's](labs/ee346_exp8/measured.yaml)). Fill it in and rerun with
+`--measured`: the report fills *Measured* and *Pass?*, flags any reading
+outside the predicted range (widened by the scope's accuracy,
+`--meter-tol`), and checks the DC voltages too. Exp. 8 hasn't been built yet.
+
 ### Where it fits in the course's ten-step method
 
 | Step | What the tool does |
@@ -189,7 +197,7 @@ python labreport.py --lab labs/ee346_exp8/lab.yaml --out runs/ee346_exp8   # abo
 | 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
 | 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
 | 7–9. Build, test, parasitics | At the bench. |
-| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in, so a bench result outside it means something is wrong. |
+| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in, and `--measured` reports how many bench readings landed inside it, so a result outside it means something is wrong. |
 
 ## A digital lab too: CMOS gates (EE 347, Experiment 4)
 
