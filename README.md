@@ -4,7 +4,7 @@
 
 I wanted AI to design circuits for my labs and test them the way I would
 before a lab: does it meet spec, does it work with real parts, does a second
-simulator agree. Then hand me the pre-lab.
+simulator agree. Then hand me a first draft of the pre-lab.
 
 Testing different models showed the problem. In September, Sonnet 5's
 circuits all simulated, but only five or six of eight met spec; one amplifier
