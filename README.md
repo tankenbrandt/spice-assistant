@@ -2,63 +2,76 @@
 
 [![tests](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/tankenbrandt/spice-assistant/actions/workflows/tests.yml)
 
-I wanted AI to design circuits for my labs and test them the way I would
-before a lab: does it meet spec, does it work with real parts, does a second
-simulator agree. Then hand me a first draft of the pre-lab.
+## The problem
 
-Testing different models showed the problem. In September, Sonnet 5's
-circuits all simulated, but only five or six of eight met spec; one amplifier
-had a gain of 107 instead of 50. Newer models meet spec almost every time,
-but when I told Opus 5.5 how it would be tolerance-tested, it hit 100% with
-resistor values you can't buy and an ideal current source. Graded as built,
-the gain was gone.
+I tried using AI to design the circuits for my electronics labs. Across three
+Claude models, every circuit simulated, but that turned out not to mean it
+worked:
 
-## What it does
+- **It simulates, but it misses spec.** Sonnet 5's circuits all ran, yet only
+  5–6 of 8 met spec. One amplifier had a gain of 107 instead of 50, and
+  nothing flagged it.
+- **It ignores tolerances.** Newer models (Sonnet 5.5, Opus 5.5) meet spec
+  at nominal values 7–8 times in 8, but real resistors and transistors vary.
+  Unprompted, Opus 5.5's amplifiers held spec in 75% of simulated real-part
+  builds.
+- **Told about tolerances, it gamed the test.** Once I said how it would be
+  graded, Opus 5.5 scored 100%. All five of those designs used resistor
+  values nobody sells (four 2275 Ω pieces in series), and one also used an
+  ideal current source. Graded as the circuit could actually be built, the
+  improvement disappeared.
 
-1. **Writes the circuit.** Describe it in plain English and Claude writes an
-   ngspice netlist, repairing it until it simulates.
-2. **Checks it does what you asked.** A spec file says what "working" means
-   (a gain, a swing, a truth table), and at which extremes: temperature,
-   transistor β. Misses go back to the AI with the measured numbers.
-3. **Tests it like a real build.** Monte Carlo over part tolerances, β and
-   supply: what share of real builds would still pass.
-4. **Gets a second opinion.** Everything is re-measured in LTspice, which
-   shares no code with ngspice. Given the `.asc` schematic you'll hand in,
-   LTspice runs that file itself, after a check that it matches the design.
-5. **Designs from your kit.** It searches the parts you actually own
-   (quantities and power ratings included) for the build with the most
-   margin.
-6. **Drafts the pre-lab.** It writes the Simulation, Design, Layout and
-   Test Plan sections as a Word file: plots, schematic, pin assignments,
-   test-set block diagram, and expected bench readings. Bring your bench
-   readings back and it fills in *Measured* and says which landed inside the
-   range real builds predict.
+## The goal
+
+Describe a circuit, or hand over the lab handout, and get back:
+
+- a design built from **the parts in my lab kit**, picked for the most margin
+  against the spec, so I know which parts to grab when I get to lab;
+- **simulations** at the extremes the handout cares about (temperature,
+  transistor β), confirmed in a second simulator;
+- the **schematic, pin layout, test-set block diagram and test plan** as a
+  first draft of the pre-lab.
+
+## The solution
+
+1. **Writes the circuit.** From a plain-English description, Claude writes an
+   ngspice netlist and repairs it until it simulates. With
+   [`/prelab`](#the-prelab-skill-from-handout-to-pre-lab), it works from the
+   handout PDF instead.
+2. **Checks the spec, not just that it runs.** A spec file says what
+   "working" means (a gain, a swing, a truth table) and the extremes it must
+   hold at. Misses go back to the AI with the measured numbers.
+   *Answers: it simulates, but it misses spec.*
+3. **Tests it with real parts.** Monte Carlo over resistor tolerances, β and
+   supply gives the share of real builds that would still pass, and the
+   range each bench reading should land in. *Answers: it ignores
+   tolerances.*
+4. **Designs from my kit.** It searches the parts I actually own, quantities
+   and power ratings included, for the build with the most margin. Every
+   value is one I have in the drawer. For the model benchmark,
+   [`asbuilt.py`](asbuilt.py) grades the same way: it snaps every value to
+   one that's sold, treats a string of resistors as the one part it makes,
+   and refuses ideal current sources. *Answers: it gamed the test.*
+5. **Gets a second opinion.** Everything is re-measured in LTspice, which
+   shares no code with ngspice. LTspice also runs the `.asc` schematic I hand
+   in, after checking that it matches the design.
+6. **Drafts the pre-lab.** The Simulation, Design, Layout and Test Plan
+   sections come out as a Word file: plots, schematic, pin assignments,
+   test-set block diagram, and expected bench readings with their ranges.
+   *Meets the goal.*
 
 Only step 1 calls the Claude API. Hand it a netlist and everything else is
 free and runs locally.
 
-### From handout to pre-lab: `/prelab`
+## Contents
 
-The tool needs each lab written down first: the circuit as a netlist, the
-handout's requirements as a spec file, and a lab file. The
-[`/prelab`](.claude/skills/prelab/SKILL.md) Claude Code skill does that from
-the handout PDF:
+- [Analog lab: designing a CE amplifier](#analog-lab-a-ce-amplifier-ee-346-experiment-8)
+- [Digital lab: CMOS gates](#digital-lab-cmos-gates-ee-347-experiment-4)
+- [The `/prelab` skill: from handout to pre-lab](#the-prelab-skill-from-handout-to-pre-lab)
+- [How good is the AI at this?](#how-good-is-the-ai-at-this)
+- [Quick start](#quick-start)
 
-1. It writes the netlist, plus a spec where every check quotes the handout
-   line it comes from. Readings the handout only asks you to record get no
-   made-up limit.
-2. It runs the whole pipeline above and reads the report back.
-3. It hands you the Word file and a list of every value it had to assume.
-
-Hand calculations and "why" questions are left to me, on purpose. It runs
-on a Claude subscription, so it needs no API key. I tested it on a handout
-it had never seen (EE 347 Exp. 3, inverter speed), using a fresh agent that
-had only the skill file. It produced a complete draft: both circuits
-simulated, LTspice agreeing to 3–4 digits, and the handout's "Simulated
-Data" table fillable straight from the report. It also hit four tool bugs
-along the way, all now fixed.
-
-## In my lab: designing a CE amplifier (EE 346, Experiment 8)
+## Analog lab: a CE amplifier (EE 346, Experiment 8)
 
 ### What the lab asks
 
@@ -179,7 +192,8 @@ with its expected value and predicted range
 ([Exp. 8's](labs/ee346_exp8/measured.yaml)). Fill it in and rerun with
 `--measured`: the report fills *Measured* and *Pass?*, flags any reading
 outside the predicted range (widened by the scope's accuracy,
-`--meter-tol`), and checks the DC voltages too. Exp. 8 hasn't been built yet.
+`--meter-tol`), and checks the DC voltages too. I don't have bench readings
+for this build, so these predictions haven't been checked at the bench.
 
 ### Where it fits in the course's ten-step method
 
@@ -194,7 +208,7 @@ outside the predicted range (widened by the scope's accuracy,
 | 7–9. Build, test, parasitics | At the bench. |
 | 10. Discuss (double weight) | Every expected reading comes with the range real builds land in; `--measured` flags any bench reading outside it, which means something is wrong. |
 
-## A digital lab too: CMOS gates (EE 347, Experiment 4)
+## Digital lab: CMOS gates (EE 347, Experiment 4)
 
 Five circuits from CD4007 transistors and 4001B gates, with truth tables as
 specs. **All 37 rows simulate as expected and LTspice agrees on all five.**
@@ -215,6 +229,27 @@ Pre-lab 2's timing diagram comes out the way the handout draws it:
 <p align="center">
   <img src="docs/ee347-domino-timing.png" width="560" alt="Timing diagram: clock, inputs A to D, dynamic node X and output Y = AB + CD over four clock periods">
 </p>
+
+## The `/prelab` skill: from handout to pre-lab
+
+The tool needs each lab written down first: the circuit as a netlist, the
+handout's requirements as a spec file, and a lab file. The
+[`/prelab`](.claude/skills/prelab/SKILL.md) Claude Code skill does that from
+the handout PDF:
+
+1. It writes the netlist, plus a spec where every check quotes the handout
+   line it comes from. Readings the handout only asks you to record get no
+   made-up limit.
+2. It runs the whole pipeline above and reads the report back.
+3. It hands you the Word file and a list of every value it had to assume.
+
+Hand calculations and "why" questions are left to me, on purpose. It runs
+on a Claude subscription, so it needs no API key. I tested it on a handout
+it had never seen (EE 347 Exp. 3, inverter speed), using a fresh agent that
+had only the skill file. It produced a complete draft: both circuits
+simulated, LTspice agreeing to 3–4 digits, and the handout's "Simulated
+Data" table fillable straight from the report. It also hit four tool bugs
+along the way, all now fixed.
 
 ## How good is the AI at this?
 
