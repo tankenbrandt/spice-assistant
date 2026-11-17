@@ -13,12 +13,17 @@ the parts this course uses that is not a lookup:
   assignment that uses the fewest packages.
 * **4001B** -- four 2-input NOR gates. Unused inputs must be tied to a rail,
   which the pin table says.
+* **CD4016** -- four bilateral switches, one control pin each (the chip makes
+  the complementary control itself). Tie an unused control to VSS so its
+  switch stays off.
+* **7400 / 74HC00 / 74LS00** -- four 2-input NAND gates, one pinout for all
+  three (EE 347 Exp. 5, Figure 5.5). Unused inputs go to a rail.
 * **2N2222** -- pin 1 emitter, 2 base, 3 collector, on both the plastic TO-92
   (ON Semi PN2222) and the metal TO-18 can (Microsemi 2N2222A), so it does not
   matter which one is in the kit.
 
-Pinouts are from the course's Appendix A (Figures 1.1 and 2.5) and the two
-2N2222 datasheets. Pins are written m.n: package m, pin n.
+Pinouts are from the course's Appendix A (Figures 1.1 and 2.5), the EE 347
+Exp. 5 handout (Figures 5.4 and 5.5) and the two 2N2222 datasheets. Pins are written m.n: package m, pin n.
 
     python layout.py labs/ee347_exp4/fig4_5.cir
 """
@@ -34,8 +39,9 @@ import kit as kitmod
 @dataclass(frozen=True)
 class Slot:
     unit: str              # "Q1" (a transistor) or "A" (a gate)
-    kind: str              # nmos | pmos | nor2 | npn
-    pins: tuple            # MOSFET: (gate, sd1, sd2); NOR: (in1, in2, out); BJT: (c, b, e)
+    kind: str              # nmos | pmos | nor2 | nand2 | tg | npn
+    pins: tuple            # MOSFET: (gate, sd1, sd2); NOR/NAND: (in1, in2, out);
+    #                        switch: (in/out, out/in, control); BJT: (c, b, e)
 
 
 @dataclass(frozen=True)
@@ -81,6 +87,38 @@ def _cd4001() -> Package:
                    "and can draw supply current.")
 
 
+def _cd4016() -> Package:
+    slots = (Slot("A", "tg", (1, 2, 13)), Slot("B", "tg", (4, 3, 5)),
+             Slot("C", "tg", (8, 9, 6)), Slot("D", "tg", (11, 10, 12)))
+    labels = {}
+    for s in slots:
+        a, b, c = s.pins
+        labels[a] = labels[b] = f"switch {s.unit} in/out"
+        labels[c] = f"switch {s.unit} control"
+    labels.update({14: "VDD", 7: "VSS"})
+    return Package("CD4016", 14, slots, {14: "vdd", 7: "vss"}, labels,
+                   "EE 347 Exp. 5, Figure 5.4",
+                   "Each switch conducts both ways while its control pin is high "
+                   "(VDD) and is open while it is low. Tie every unused control to "
+                   "VSS so that switch stays off.")
+
+
+def _7400() -> Package:
+    slots = (Slot("A", "nand2", (1, 2, 3)), Slot("B", "nand2", (4, 5, 6)),
+             Slot("C", "nand2", (9, 10, 8)), Slot("D", "nand2", (12, 13, 11)))
+    labels = {}
+    for s in slots:
+        a, b, y = s.pins
+        labels[a] = labels[b] = f"gate {s.unit} input"
+        labels[y] = f"gate {s.unit} output"
+    labels.update({14: "VCC", 7: "GND"})
+    return Package("7400", 14, slots, {14: "vdd", 7: "vss"}, labels,
+                   "EE 347 Exp. 5, Figure 5.5 (7400, 74HC00 and 74LS00)",
+                   "Same pinout for the 7400, 74HC00 and 74LS00. Tie unused inputs "
+                   "to a rail. A TTL 7400 or 74LS00 output driving CMOS needs a "
+                   "1-2 kOhm pull-up to VCC (handout note); a 74HC00 does not.")
+
+
 def _2n2222() -> Package:
     return Package("2N2222", 3, (Slot("Q", "npn", (3, 2, 1)),), {},
                    {1: "emitter", 2: "base", 3: "collector"},
@@ -92,13 +130,26 @@ def _2n2222() -> Package:
                    "collector, so keep it off other metal.")
 
 
-PACKAGES = {"CD4007": _cd4007(), "4001B": _cd4001(), "2N2222": _2n2222()}
+PACKAGES = {"CD4007": _cd4007(), "4001B": _cd4001(), "CD4016": _cd4016(),
+            "7400": _7400(), "2N2222": _2n2222()}
+
+# Subcircuit name -> the packaged unit it is (`X... CD4016`, `X... NAND74HC00`).
+# Gate subcircuits are written (in1, in2, out, vdd, vss); a switch is
+# (in/out, out/in, control, vdd, vss).
+_SUBCKT_KINDS = (("4001", "nor2"), ("4016", "tg"),
+                 ("7400", "nand2"), ("74hc00", "nand2"), ("74ls00", "nand2"))
+_GATES = ("nor2", "nand2", "tg")
+
+
+def _subckt_kind(name: str) -> str:
+    low = name.lower()
+    return next((k for key, k in _SUBCKT_KINDS if key in low), "sub")
 
 
 @dataclass
 class Part:
     refdes: str
-    kind: str                  # nmos | pmos | nor2 | npn | two (R, C, L, sources)
+    kind: str                  # nmos | pmos | nor2 | nand2 | tg | npn | two (R, C, L, sources)
     nodes: tuple
     model: str = ""
     value: str = ""
@@ -160,8 +211,7 @@ def parts(netlist: str) -> list:
                             tuple(n.lower() for n in tok[1:4]), model))
         elif p == "X":
             nodes, name = tok[1:-1], tok[-1]
-            out.append(Part(ref, "nor2" if "4001" in name else "sub",
-                            tuple(n.lower() for n in nodes), name))
+            out.append(Part(ref, _subckt_kind(name), tuple(n.lower() for n in nodes), name))
         elif p in "RCLVID" and len(tok) >= 3:
             out.append(Part(ref, "two", (tok[1].lower(), tok[2].lower()),
                             value=" ".join(tok[3:])))
@@ -170,7 +220,7 @@ def parts(netlist: str) -> list:
 
 def _rails(ps: list) -> tuple:
     """(vdd, vss) nets: the substrate / supply pins every package shares."""
-    vdd = next((p.nodes[3] for p in ps if p.kind == "nor2"), None) \
+    vdd = next((p.nodes[3] for p in ps if p.kind in _GATES), None) \
         or next((p.nodes[3] for p in ps if p.kind == "pmos"), None)
     if vdd is None:
         best = 0.0
@@ -255,7 +305,10 @@ def place(netlist: str, op_nodes: dict | None = None) -> Layout:
                                        f"({want})"))
     mos = [p for p in mos if p.refdes not in {u for u, _ in unplaced}]
 
-    for pkg_name, devs in (("CD4007", mos), ("4001B", [p for p in ps if p.kind == "nor2"])):
+    groups = [("CD4007", mos)] + [(name, [p for p in ps if p.kind == kind])
+                                  for name, kind in (("4001B", "nor2"), ("CD4016", "tg"),
+                                                     ("7400", "nand2"))]
+    for pkg_name, devs in groups:
         if not devs:
             continue
         pkg = PACKAGES[pkg_name]
@@ -451,10 +504,14 @@ def unused_ties(pl: Placed, vss: str, rails=()) -> dict:
     ties = {}
     used = set(pl.units)
     for s in pl.package.slots:
-        if s.kind == "nor2":
+        if s.kind in ("nor2", "nand2"):
             for pin in s.pins[:2]:
                 if pin not in pl.nets:
                     ties[pin] = (vss, "unused input: tie to VSS")
+            continue
+        if s.kind == "tg":
+            if s.pins[2] not in pl.nets:
+                ties[s.pins[2]] = (vss, "unused control: tie to VSS (switch off)")
             continue
         if s.kind not in ("nmos", "pmos"):
             continue
@@ -495,10 +552,14 @@ def device_rows(lay: Layout) -> list:
             g, a, b = slot.pins
             pins = f"gate {pl.number}.{g}; S/D {pl.number}.{a}, {pl.number}.{b}"
             unit = f"{slot.unit} ({'P' if slot.kind == 'pmos' else 'N'})"
-        elif slot.kind == "nor2":
+        elif slot.kind in ("nor2", "nand2"):
             a, b, y = slot.pins
             pins = f"in {pl.number}.{a}, {pl.number}.{b}; out {pl.number}.{y}"
             unit = f"gate {slot.unit}"
+        elif slot.kind == "tg":
+            a, b, c = slot.pins
+            pins = f"in/out {pl.number}.{a}, {pl.number}.{b}; control {pl.number}.{c}"
+            unit = f"switch {slot.unit}"
         else:
             c, b, e = slot.pins
             pins = f"E {pl.number}.{e}, B {pl.number}.{b}, C {pl.number}.{c}"

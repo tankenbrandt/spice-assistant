@@ -287,7 +287,9 @@ def lt_simulation(spec, deck: str, asc: Path | None, out: Path, stem: str) -> di
 
     tran = next((n for n, a in spec.analyses.items()
                  if a.command.split()[0].lower() == "tran"), None)
-    res = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [], "error": None}
+    res = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [], "error": None,
+           "fallbacks": []}
+    ltspice.FALLBACKS.clear()
     if asc and tran:
         try:
             first = ltspice.run_asc(asc)
@@ -330,6 +332,7 @@ def lt_simulation(spec, deck: str, asc: Path | None, out: Path, stem: str) -> di
         except Exception as e:             # noqa: BLE001 - report what failed
             res["error"] = f"{label}: {e}"
         res["rows"].append(row)
+    res["fallbacks"] = list(ltspice.FALLBACKS)
     return res
 
 
@@ -1110,6 +1113,8 @@ def _lt_blocks(r: LabResult, h: str) -> list:
                             text=f"Figure: LTspice{where}"
                                  + (f", {lt['asc'].name} as drawn." if lt["asc"] else ".")
                                  + " Plotted from LTspice's own output file."))
+    for note in dict.fromkeys(lt.get("fallbacks") or []):
+        blocks.append(B("p", f"Note: LTspice's {note}"))
     if lt["error"]:
         blocks.append(B("p", f"LTspice could not complete every run: {lt['error']}"))
     return blocks
