@@ -5,8 +5,8 @@
 ## The problem
 
 I tried using AI to design the circuits for my electronics labs. Across three
-Claude models, every circuit simulated, but that turned out not to mean it
-worked:
+Claude models, every circuit simulated, but a circuit that simulates isn't
+necessarily one that works:
 
 - **It simulates, but it misses spec.** Sonnet 5's circuits all ran, yet only
   5–6 of 8 met spec. One amplifier had a gain of 107 instead of 50, and
