@@ -1,0 +1,182 @@
+# EE 347 Exp. 5 -- the two-stage shift register of Figure 5.2 in the test
+# setup of Figure 5.3 (clock buffers and feedback gate from a 7400).
+#
+# The handout's requirements, as checks (every one traces to a handout line):
+#   p. 5-2: "Using the test setup shown in Figures 5.3 and assuming initially
+#     that the input has been low for a long period of time, construct a
+#     complete timing diagram showing all the output nodes relative to the
+#     clock waveform"                                   -> the deck, its .ic
+#                                                          and the rows below
+#   p. 5-2: "Show at least nine complete clock cycles, so you can recognize
+#     the steady-state waveforms"                       -> 12 cycles simulated;
+#                                                          rows read in cycles 5-8
+#   p. 5-2: "Measure and sketch the waveforms at nodes 1, 2, and 3 of
+#     Figure 5.2. Also sketch the clock and anti-clock waveforms"
+#                                                       -> v(in), v(n2), v(out),
+#                                                          v(phi), v(phib)
+#   p. 5-2: "Pay attention to triggering protocol to maintain the same
+#     relative timing scale"                            -> the bench lines
+#
+# INTERPRETATION (no numeric limits in the handout): each timing-diagram row
+# is checked as a logic level (high >= 90% of VDD, low <= 10%, as in Exp. 4).
+# The expected level is what two one-bit stages inside an inverting loop must
+# do: node 2 is node 1 one clock later, node 3 is node 2 one clock later, and
+# node 1 = NOT node 3, so every node repeats every four clock periods.
+# The clock skew rows (phi to phibar through one 7400 gate) are recorded: they
+# say how long both switches are on together, which the handout does not ask
+# for by name but is what its "triggering protocol" and race questions rest on.
+#
+# Timing: the generator (1 kHz, CHOSEN -- see lab.yaml) makes phi high from
+# k + 0.5 ms to k + 1 ms. Data moves on phi's falling edge (phibar rising),
+# at each whole millisecond. Rows are read at k + 0.9 ms (end of phi high).
+# Run: 12.25 ms (twelve clock cycles).
+circuit: ee347_fig5_3
+description: >
+  Two stages of the dynamic CMOS shift register (Figure 5.2) in Figure 5.3's
+  test setup: a 1 kHz, 0-5 V pulse generator buffered by two 7400 gates into
+  phi and phibar, and a third 7400 gate feeding VOUT back inverted to VIN.
+  VDD = VCC = 5 V.
+analyses:
+  tran:
+    command: tran 2u 12.25m
+    vectors: [v(gen), v(phi), v(phib), v(in), v(n2), v(out)]
+
+measurements:
+  # ---- clock period 5 (k = 4) ------------------------------------------------
+  - name: n1_49
+    label: node 1 (VIN) at 4.9 ms
+    units: V
+    extract: {kind: value_at, of: v(in), at: 4.9e-3}
+    min: 4.5
+    bench: >
+      Scope CH1 on phi (7400 gate output), external or CH1 trigger on phi's
+      falling edge, and keep that trigger for every node so all traces share
+      one time scale. CH2 on node 1 (VIN, switch 1 input). Read it just
+      before phi falls.
+  - name: n2_49
+    label: node 2 at 4.9 ms
+    units: V
+    extract: {kind: value_at, of: v(n2), at: 4.9e-3}
+    max: 0.5
+    bench: Same trigger; CH2 on node 2 (stage 1 output = switch 3 input).
+  - name: n3_49
+    label: node 3 (VOUT) at 4.9 ms
+    units: V
+    extract: {kind: value_at, of: v(out), at: 4.9e-3}
+    max: 0.5
+    bench: Same trigger; CH2 on node 3 (VOUT, stage 2 output).
+  # ---- clock period 6 (k = 5) ------------------------------------------------
+  - name: n1_59
+    label: node 1 (VIN) at 5.9 ms
+    units: V
+    extract: {kind: value_at, of: v(in), at: 5.9e-3}
+    min: 4.5
+    bench: CH2 on node 1, one clock period later.
+  - name: n2_59
+    label: node 2 at 5.9 ms
+    units: V
+    extract: {kind: value_at, of: v(n2), at: 5.9e-3}
+    min: 4.5
+    bench: CH2 on node 2, one clock period later.
+  - name: n3_59
+    label: node 3 (VOUT) at 5.9 ms
+    units: V
+    extract: {kind: value_at, of: v(out), at: 5.9e-3}
+    max: 0.5
+    bench: CH2 on node 3, one clock period later.
+  # ---- clock period 7 (k = 6) ------------------------------------------------
+  - name: n1_69
+    label: node 1 (VIN) at 6.9 ms
+    units: V
+    extract: {kind: value_at, of: v(in), at: 6.9e-3}
+    max: 0.5
+    bench: CH2 on node 1, two clock periods later.
+  - name: n2_69
+    label: node 2 at 6.9 ms
+    units: V
+    extract: {kind: value_at, of: v(n2), at: 6.9e-3}
+    min: 4.5
+    bench: CH2 on node 2, two clock periods later.
+  - name: n3_69
+    label: node 3 (VOUT) at 6.9 ms
+    units: V
+    extract: {kind: value_at, of: v(out), at: 6.9e-3}
+    min: 4.5
+    bench: CH2 on node 3, two clock periods later.
+  # ---- clock period 8 (k = 7) ------------------------------------------------
+  - name: n1_79
+    label: node 1 (VIN) at 7.9 ms
+    units: V
+    extract: {kind: value_at, of: v(in), at: 7.9e-3}
+    max: 0.5
+    bench: CH2 on node 1, three clock periods later.
+  - name: n2_79
+    label: node 2 at 7.9 ms
+    units: V
+    extract: {kind: value_at, of: v(n2), at: 7.9e-3}
+    max: 0.5
+    bench: CH2 on node 2, three clock periods later.
+  - name: n3_79
+    label: node 3 (VOUT) at 7.9 ms
+    units: V
+    extract: {kind: value_at, of: v(out), at: 7.9e-3}
+    min: 4.5
+    bench: CH2 on node 3, three clock periods later.
+
+  # ---- VOUT period (record) ------------------------------------------------------
+  # last 75% starts at 3.06 ms: first VOUT rise is the 6 ms edge.
+  # last 50% starts at 6.13 ms: first VOUT rise is the 10 ms edge.
+  - name: t_out_r6
+    label: VOUT rises through 2.5 V (6 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(out), level: 2.5, direction: rising, window: last 75%}
+    informational: true
+    bench: Cursor on a VOUT rising edge.
+  - name: t_out_r10
+    label: VOUT rises through 2.5 V (10 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(out), level: 2.5, direction: rising, window: last 50%}
+    informational: true
+    bench: Cursor on the next VOUT rising edge.
+  - name: t_out_period
+    label: VOUT period (two stages inside an inverting loop)
+    units: s
+    expr: t_out_r10 - t_out_r6
+    record: true
+
+  # ---- phi / phibar skew through one 7400 gate (record) ----------------------
+  # last 50% starts at 6.13 ms: phi rises at 6.5 ms and falls at 7 ms.
+  - name: t_phi_r
+    label: phi rises through 2.5 V
+    units: s
+    extract: {kind: crossing, of: v(phi), level: 2.5, direction: rising, window: last 50%}
+    informational: true
+    bench: CH1 on phi, trigger on its rising edge, fastest time base.
+  - name: t_phib_f
+    label: phibar falls through 2.5 V
+    units: s
+    extract: {kind: crossing, of: v(phib), level: 2.5, direction: falling, window: last 50%}
+    informational: true
+    bench: CH2 on phibar, same trigger.
+  - name: t_phi_f
+    label: phi falls through 2.5 V
+    units: s
+    extract: {kind: crossing, of: v(phi), level: 2.5, direction: falling, window: last 50%}
+    informational: true
+    bench: CH1 on phi, trigger on its falling edge.
+  - name: t_phib_r
+    label: phibar rises through 2.5 V
+    units: s
+    extract: {kind: crossing, of: v(phib), level: 2.5, direction: rising, window: last 50%}
+    informational: true
+    bench: CH2 on phibar, same trigger.
+  - name: overlap_on
+    label: both switches on together (phi rises, phibar not yet fallen)
+    units: s
+    expr: t_phib_f - t_phi_r
+    record: true
+  - name: gap_off
+    label: both switches off together (phi falls, phibar not yet risen)
+    units: s
+    expr: t_phib_r - t_phi_f
+    record: true

@@ -287,7 +287,9 @@ def lt_simulation(spec, deck: str, asc: Path | None, out: Path, stem: str) -> di
 
     tran = next((n for n, a in spec.analyses.items()
                  if a.command.split()[0].lower() == "tran"), None)
-    res = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [], "error": None}
+    res = {"version": "LTspice", "asc": None, "mismatch": [], "rows": [], "error": None,
+           "fallbacks": []}
+    ltspice.FALLBACKS.clear()
     if asc and tran:
         try:
             first = ltspice.run_asc(asc)
@@ -330,6 +332,7 @@ def lt_simulation(spec, deck: str, asc: Path | None, out: Path, stem: str) -> di
         except Exception as e:             # noqa: BLE001 - report what failed
             res["error"] = f"{label}: {e}"
         res["rows"].append(row)
+    res["fallbacks"] = list(ltspice.FALLBACKS)
     return res
 
 
@@ -778,6 +781,12 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
 
     # ---- Simulation
     blocks += [B(H, "Simulation")]
+    if r.schematic:
+        blocks.append(B("image", path=r.schematic, text=(
+            f"Schematic: {r.asc.name}, the LTspice file for this part "
+            f"(it opens and simulates in LTspice as is)." if r.asc
+            else f"Schematic: {spec.name}, as simulated.")))
+    lt_col = _lt_column(r)
     if p.params:
         blocks.append(B("p", "The circuit was first simulated with the ideal (theory) "
                              "component values, to confirm the design meets its "
@@ -786,31 +795,26 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                         rows=[(prm.key, value(prm.nominal, prm.key[0], 5))
                               for prm in p.params]))
     blocks.append(B("table", header=["Measurement", "Theory / requirement",
-                                     "Simulated", "In spec"],
-                    rows=[(m.title, theory(m), num(p.ideal.get(m.name), m.units),
-                           in_spec(m, p.ideal.get(m.name)))
+                                     "ngspice" if lt_col else "Simulated"]
+                    + (["LTspice"] if lt_col else []) + ["In spec"],
+                    rows=[[m.title, theory(m), num(p.ideal.get(m.name), m.units)]
+                          + ([num(lt_col.get(m.name), m.units)] if lt_col else [])
+                          + [_in_spec_both(m, p.ideal.get(m.name), lt_col)]
                           for m in shown(spec)]))
     for aname, path in r.figures:
         what = ("Dashed: ideal values; solid: the kit build from the Design section."
                 if p.params else "Simulated waveforms.")
         blocks.append(B("image", path=path, text=f"Figure: ngspice, {spec.name}, {aname} "
                                                   f"analysis. {what}"))
-    if r.schematic:
-        blocks.append(B("image", path=r.schematic,
-                        text=f"Schematic: {r.asc.name}, the LTspice file for this part "
-                             f"(it opens and simulates in LTspice as is)."))
     if r.lt:
-        blocks += _lt_blocks(r, h)
-    blocks.append(B("p", "Netlist simulated:" if not p.params
-                    else "Netlist simulated (ideal values):"))
-    blocks.append(B("code", text=_deck_body(p.netlist)))
+        blocks += _lt_blocks(r, h, merged=bool(lt_col))
 
     # ---- Design
     blocks += [B(H, "Design")]
     if not p.params:
         blocks.append(B("p", "No resistor, capacitor or inductor values need choosing: "
                              "every part is fixed by the handout (transistors, ICs, "
-                             "sources). The table above is the predicted performance."))
+                             "sources). Hand calculations go here."))
     elif spec.objective == "margin":
         blocks += _design_blocks(r, h)
     else:
@@ -854,37 +858,6 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                    B("table", header=["Measurement", "Theory / requirement", "Ideal",
                                       "Kit build", "In spec"], rows=rows)]
 
-    if r.mc:
-        varied = []
-        if p.params:
-            varied.append("every chosen part by its kit tolerance (" + ", ".join(
-                f"{kitmod.FAMILY_KEYS[k]} ±{f.tol:.0%}"
-                for k, f in p.kit.families.items() if f) + ")")
-        varied.append(f"the supplies by ±{robustness.SUPPLY_TOL:.0%}")
-        varied.append("device model parameters by their typical spread"
-                      + _model_spread(r.kit_deck))
-        mrows = []
-        for m in shown(spec):
-            st = r.mc["metrics"].get(m.name)
-            if st:
-                mrows.append((m.title, num(st["mean"], m.units),
-                              _range(bench_range(r.mc, m.name), m.units),
-                              "—" if m.informational else f"{st['pass_rate']:.0%}"))
-        blocks += [B(h, "Tolerance analysis"),
-                   B("p", f"{r.mc['n']} Monte Carlo builds varied "
-                          f"{', '.join(varied[:-1])} and {varied[-1]}. "
-                          f"{r.mc['yield']:.0%} of builds met every requirement"
-                          + ("" if not r.mc_corners else
-                             " as written; at the corners: " + "; ".join(
-                                 f"{lb} {y:.0%}" for lb, y in r.mc_corners.items()))
-                          + "."),
-                   B("table", header=["Measurement", "Mean", "90% of builds",
-                                      "Builds in spec"], rows=mrows)]
-
-    if p.params:
-        blocks += [B("p", "Netlist of the kit build:"),
-                   B("code", text=_deck_body(r.kit_deck))]
-
     if r.layout is not None:
         blocks += _layout_blocks(r.layout, H, h)
 
@@ -905,7 +878,7 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
         blocks += [B(h, "Test set"),
                    B("image", path=r.test_set,
                      text="Test-set block diagram: which instrument connects to which "
-                          "node. The procedure below refers to these channels.")]
+                          "node.")]
 
     if p.params:
         prow = []
@@ -921,33 +894,6 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
                    B("table", header=["Component", "Part", "Acceptable reading"],
                      rows=prow)]
 
-    steps = [("Build the circuit from the wiring list in the Layout section"
-              if r.layout is not None else "Build the circuit from the netlist above")
-             + (", checking it against the schematic." if r.asc else ".")]
-    dcs = [s for s in r.supplies if s["kind"] == "dc"]
-    if dcs:
-        steps.append("Set the supplies before connecting them: " + "; ".join(
-            f"{s['name']} = {num(s['value'], 'V', 3)}" for s in dcs)
-            + ". Use a low current limit for the first power-up.")
-    if r.op_kit:
-        steps.append("With the input signal off, check the DC voltages in the "
-                     "checkpoint table below. Stop and find the wiring error if "
-                     "any is far off.")
-    # Inputs set up the same way are one step: "Inputs A, B, C, D: ...".
-    same: dict = {}
-    for s in r.supplies:
-        if s["kind"] in ("signal", "ac", "logic"):
-            same.setdefault(s["text"], []).append(s)
-    for text, group in same.items():
-        nodes = ", ".join(s["nodes"][0].upper() for s in group)
-        names = ", ".join(s["name"] for s in group)
-        steps.append(f"Input{'s' if len(group) > 1 else ''} {nodes} ({names}): {text}.")
-    # Informational readings stay in: a derived requirement is calculated from them.
-    steps += [instruction(m, spec) for m in spec.measurements]
-    steps.append("Record each reading in the results table and compare it with "
-                 "the expected range.")
-    blocks += [B(h, "Procedure"), B("steps", items=steps)]
-
     if r.op_kit:
         cols = ["Node", "Expected (kit build)", "Ideal values"] if p.params \
             else ["Node", "Expected"]
@@ -960,13 +906,11 @@ def compose(r: LabResult, top: int = 2, header: bool = True) -> list:
     bench = r.measured or {}
     readings = bench.get("readings") or {}
     if not readings:
-        res = [(m.title, num((p.best.values or {}).get(m.name), m.units),
-                _range(bench_range(r.mc, m.name), m.units), theory(m), "", "")
+        res = [(m.title, num((p.best.values or {}).get(m.name), m.units), theory(m), "")
                for m in shown(spec)]
         blocks += [B(h, "Results"),
-                   B("table", header=["Measurement", "Expected", "Expected range "
-                                      "(90% of builds)", "Requirement", "Measured",
-                                      "Pass?"], rows=res)]
+                   B("table", header=["Measurement", "Expected", "Requirement",
+                                      "Measured"], rows=res)]
         return blocks
     res = []
     for m in shown(spec):
@@ -1064,8 +1008,27 @@ def load_measured(path) -> dict:
     return out
 
 
-def _lt_blocks(r: LabResult, h: str) -> list:
-    """LTspice's own run: what it ran, its numbers at each condition, its waveforms."""
+def _in_spec_both(m, v, lt: dict | None) -> str:
+    """ngspice's verdict, flagged when LTspice's reading disagrees with it."""
+    said = in_spec(m, v)
+    w = (lt or {}).get(m.name)
+    if said in ("yes", "NO") and w is not None and (m.limits.ok(w)) != (said == "yes"):
+        said += " (LTspice: " + ("yes" if m.limits.ok(w) else "NO") + ")"
+    return said
+
+
+def _lt_column(r: LabResult) -> dict | None:
+    """LTspice's values, when they fit as one more column of the simulation
+    table: a single run with no corners and no Q-points to show."""
+    rows = [row for row in (r.lt or {}).get("rows", []) if row["values"]]
+    if len(rows) != 1 or r.spec.corners or rows[0]["qpoints"]:
+        return None
+    return rows[0]["values"]
+
+
+def _lt_blocks(r: LabResult, h: str, merged: bool = False) -> list:
+    """LTspice's own run: what it ran, its numbers at each condition, its waveforms.
+    `merged`: its numbers are already a column of the simulation table."""
     lt, spec, B = r.lt, r.spec, Block
     blocks = [B(h, "LTspice simulation")]
     if lt["asc"]:
@@ -1076,14 +1039,15 @@ def _lt_blocks(r: LabResult, h: str) -> list:
     else:
         what = (f"{lt['version']} ran the design's netlist"
                 + (" at each condition below" if spec.corners else "")
-                + ", independently of ngspice.")
+                + ", independently of ngspice"
+                + ("; its readings are the LTspice column above." if merged else "."))
     if lt["mismatch"]:
         what += (" The schematic file was NOT used, because it does not match the "
                  "design: " + "; ".join(lt["mismatch"]) + ". Fix the .asc before "
                  "handing it in.")
     blocks.append(B("p", what))
     rows = [row for row in lt["rows"] if row["values"]]
-    if rows:
+    if rows and not merged:
         blocks.append(B("table", header=["Requirement", "Limit"]
                         + [row["label"] for row in rows],
                         rows=[[m.title, theory(m)]
@@ -1110,6 +1074,8 @@ def _lt_blocks(r: LabResult, h: str) -> list:
                             text=f"Figure: LTspice{where}"
                                  + (f", {lt['asc'].name} as drawn." if lt["asc"] else ".")
                                  + " Plotted from LTspice's own output file."))
+    for note in dict.fromkeys(lt.get("fallbacks") or []):
+        blocks.append(B("p", f"Note: LTspice's {note}"))
     if lt["error"]:
         blocks.append(B("p", f"LTspice could not complete every run: {lt['error']}"))
     return blocks
@@ -1127,15 +1093,10 @@ def _layout_blocks(lay, H: str, h: str) -> list:
         if any(len(pl.package.slots) > 1 for pl in lay.packages):
             blocks.append(B("table", header=["Device", "Package", "Unit", "Pins"],
                             rows=layoutmod.device_rows(lay)))
-        noted = set()
-        for pl in lay.packages:
-            blocks.append(B(h, f"Package {pl.number}: {pl.package.name}"
-                               + (f" ({pl.refdes})" if pl.refdes else "")))
-            if pl.package.note and pl.package.name not in noted:
-                noted.add(pl.package.name)
-                blocks.append(B("p", pl.package.note))
-            blocks.append(B("table", header=["Pin", "Function", "Connects to"],
-                            rows=layoutmod.pin_rows(pl, lay.vss, (lay.vdd, lay.vss))))
+        notes = {pl.package.name: pl.package.note for pl in lay.packages
+                 if pl.package.note}
+        if notes:
+            blocks.append(B("bullets", items=[f"{n}: {t}" for n, t in notes.items()]))
         if lay.check:
             blocks.append(B("p", lay.check))
     first = [n for n in (lay.vdd, lay.vss) if n in lay.wiring]
@@ -1150,19 +1111,6 @@ def _layout_blocks(lay, H: str, h: str) -> list:
         blocks.append(B("bullets", items=[f"{ref}: not packaged ({why})."
                                           for ref, why in lay.unplaced]))
     return blocks
-
-
-def _model_spread(deck: str) -> str:
-    """Name the model parameters robustness.py actually varies in this deck."""
-    kinds = {k.lower() for k in re.findall(r"(?im)^\s*\.model\s+\S+\s+(\w+)", deck)}
-    said = []
-    if kinds & {"nmos", "pmos"}:
-        said.append(f"MOSFET threshold ±{robustness.MODEL_TOL[('nmos', 'vto')]:.0%}")
-    if kinds & {"npn", "pnp"}:
-        said.append(f"BJT beta ±{robustness.MODEL_TOL[('npn', 'bf')]:.0%}")
-    if "d" in kinds:
-        said.append(f"diode saturation current ±{robustness.MODEL_TOL[('d', 'is')]:.0%}")
-    return f" ({', '.join(said)})" if said else ""
 
 
 def _deck_body(deck: str) -> str:
@@ -1214,7 +1162,11 @@ def load_lab(path) -> Lab:
                       "deck": path.parent / raw["deck"],
                       "spec": path.parent / raw["spec"],
                       "fix": list(raw.get("fix", [])),
-                      "asc": path.parent / raw["asc"] if raw.get("asc") else None})
+                      "asc": path.parent / raw["asc"] if raw.get("asc") else None,
+                      # A drawn schematic (PNG) for a part with no .asc: the
+                      # report shows it as the part's schematic.
+                      "schematic": (path.parent / raw["schematic"]
+                                    if raw.get("schematic") else None)})
     if not parts:
         raise ValueError(f"{path}: a lab file needs at least one entry under 'parts'")
     return Lab(title=data.get("title", path.stem), parts=parts,
@@ -1227,7 +1179,7 @@ def compose_lab(lab: Lab, results: list) -> list:
     blocks = [Block("h1", lab.title),
               Block("p", f"Pre-lab prepared {today:%B} {today.day}, {today.year}. "
                          "Every value below is from an ngspice simulation; each "
-                         "part's netlist is included.")]
+                         "part's netlist is saved next to this report.")]
     if lab.notes:
         blocks.append(Block("bullets", items=lab.notes))
     for part, r in zip(lab.parts, results, strict=True):
@@ -1263,6 +1215,10 @@ def run_lab(path, out: Path, *, kit=None, mc_n: int = 200, seed: int = 0,
     for part, r in zip(lab.parts, results, strict=True):
         if part.get("asc"):
             r.asc, r.schematic = attach_schematic(part["asc"], out)
+        elif part.get("schematic"):
+            import shutil
+            r.schematic = out / part["schematic"].name
+            shutil.copyfile(part["schematic"], r.schematic)
     return lab, results
 
 

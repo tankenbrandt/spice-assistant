@@ -348,30 +348,80 @@ def sweep_axis(raw: Raw) -> list:
 
 # ------------------------------------------------------------------- runner
 
+_GEAR = re.compile(r"(?i)\bmethod\s*=\s*gear\b")
+
+# What `run` had to change to get an answer, in words the report can print.
+# Callers clear it before a batch of runs and read it after.
+FALLBACKS: list = []
+
+
+def without_gear(netlist: str) -> str | None:
+    """The deck with `method=gear` taken off its `.options` lines; None if absent.
+
+    ngspice needs Gear on level-1 MOSFET decks (trapezoidal stalls on their
+    gate capacitances). LTspice's own Gear can do the opposite: on the EE 347
+    Exp. 5 shift register it stalled at the first clock edge, relaxing its
+    tolerance one femtosecond at a time, where its default integrator ran the
+    whole deck in seconds.
+    """
+    out, hit = [], False
+    for ln in netlist.splitlines():
+        if ln.strip().lower().startswith(".option") and _GEAR.search(ln):
+            hit = True
+            ln = _GEAR.sub("", ln)
+            if not ln.split()[1:]:
+                continue                    # `.options` with nothing left: drop it
+        out.append(ln)
+    return "\n".join(out) + "\n" if hit else None
+
+
+def _run_deck(exe, text: str, tmp: Path):
+    """One LTspice batch run of `text`; the raw file, or why there is none."""
+    deck = tmp / "deck.net"
+    for stale in (deck.with_suffix(".raw"), deck.with_suffix(".log")):
+        stale.unlink(missing_ok=True)
+    deck.write_text(text, encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            [str(exe), "-b", "-ascii", "-Run", str(deck)],
+            capture_output=True, text=True, timeout=_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return None, f"LTspice did not finish in {_TIMEOUT} s"
+    rawfile = deck.with_suffix(".raw")
+    if not rawfile.exists():
+        log = deck.with_suffix(".log")
+        detail = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+        return None, ("LTspice wrote no raw file.\n"
+                      f"exit={proc.returncode}\n{(detail or proc.stdout or proc.stderr)[-800:]}")
+    return parse_raw(rawfile.read_text(encoding="utf-8", errors="replace")), ""
+
+
 def run(netlist: str, command: str, exe=None, keep=None, options=None):
-    """Simulate one analysis in LTspice; return its parsed raw file."""
+    """Simulate one analysis in LTspice; return its parsed raw file.
+
+    If the run stalls or fails and the deck asks for Gear integration, it is
+    run once more with LTspice's default integrator, and `FALLBACKS` says so.
+    """
     exe = find_executable(exe)
     if exe is None:
         raise RuntimeError("LTspice not found; set LTSPICE_EXE or pass --exe")
 
     tmp = Path(keep) if keep else Path(tempfile.mkdtemp(prefix="ltspice-"))
     tmp.mkdir(parents=True, exist_ok=True)
-    deck = tmp / "deck.net"
-    deck.write_text(deck_for(netlist, command, options), encoding="utf-8")
-
-    proc = subprocess.run(
-        [str(exe), "-b", "-ascii", "-Run", str(deck)],
-        capture_output=True, text=True, timeout=_TIMEOUT)
-
-    rawfile = deck.with_suffix(".raw")
-    if not rawfile.exists():
-        log = deck.with_suffix(".log")
-        detail = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
-        raise RuntimeError(
-            "LTspice wrote no raw file.\n"
-            f"exit={proc.returncode}\n{(detail or proc.stdout or proc.stderr)[-800:]}")
+    text = deck_for(netlist, command, options)
     try:
-        return parse_raw(rawfile.read_text(encoding="utf-8", errors="replace"))
+        raw, why = _run_deck(exe, text, tmp)
+        if raw is None and (plain := without_gear(text)) is not None:
+            raw, why2 = _run_deck(exe, plain, tmp)
+            if raw is not None:
+                FALLBACKS.append(
+                    f"{directive(command)}: {why.splitlines()[0]} with Gear integration "
+                    f"(.options method=gear, which ngspice needs), so it was run with "
+                    f"LTspice's default integrator.")
+            why = why2 or why
+        if raw is None:
+            raise RuntimeError(why)
+        return raw
     finally:
         if keep is None:
             shutil.rmtree(tmp, ignore_errors=True)

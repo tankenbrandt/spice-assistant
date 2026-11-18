@@ -1,0 +1,103 @@
+# EE 347 Exp. 5 pre-lab, as one document:
+#   python labreport.py --lab labs/ee347_exp5/lab.yaml --out runs/ee347_exp5
+title: EE 347 Experiment 5 — Dynamic Storage (pre-lab)
+
+notes:
+  - >
+    Scope: Part 1 is the pre-lab simulation the handout asks for (one stage of
+    Figure 5.1 plus one feedback inverter, clocks from two pulse sources).
+    Part 2 is Figure 5.3's full test setup (two stages, clock buffers and
+    feedback gate) over twelve clock cycles: it is the "complete timing
+    diagram ... at least nine complete clock cycles" the procedure asks you
+    to construct, and the nodes 1, 2 and 3 waveforms to compare against at the
+    bench. ngspice has no ten-transistor limit, so Part 2 keeps the 7400 clock
+    gates the PSpice note lets you drop. Part 1 is a simulation: its test plan
+    needs two complementary generators. At the bench, build Part 2, whose
+    wiring list includes the 7400 that makes phibar.
+  - >
+    Finding (Part 2): phibar comes one 7400 gate delay (about 6 ns in the
+    model) after phi, so at each rising phi both switches of a stage are on
+    together for a moment, and the next bit leaks into the node that should
+    be holding. In simulation, every cycle, the held node x2 drops from
+    5.0 V to 4.11 V (or rises from 0 V to 0.74 V), and x4 to 4.49 V (0.65 V).
+    These are still valid levels, but this is the race the clocking has to
+    win. Slower gates (a TTL 7400) or a heavily loaded phibar widen the
+    overlap. Part 1, with exact complementary clocks, shows no leak: its held
+    x2 only moves about 0.2 V past the rail (5.21 V, -0.19 V) from clock
+    feedthrough.
+  - >
+    Pre-lab questions: Q2 (where is the data stored?) rests on Part 1's x1
+    rows: x1 holds the old VIN while switch 1 is off. Q1 (how does it work?),
+    Q3 (purpose of the third inverter) and Q4 (minimum and maximum clock
+    frequency from 100 ms hold time and 50 ns delays) are for you to answer;
+    Q4 is a hand calculation, and the report does not do it.
+  - >
+    ASSUMED: VDD = VCC = 5 V. The handout gives no CMOS supply; the 7400
+    gates run at 5 V and drive the CD4016 controls directly, and the pull-up
+    note (to VCC) implies one 5 V rail.
+  - >
+    ASSUMED: transistor models are the Exp. 3 / Exp. 4 pre-lab cards: level 1,
+    TOX = 0.1 um, VTO = +/-1.5 V, typical metal-gate CD4000 GAMMA, PHI,
+    LAMBDA, UO and overlap/junction capacitances. This handout gives no
+    transistor data. Logic levels barely depend on them; the clock-to-output
+    delays depend on all of them, and the scope probe's ~15 pF is not modelled,
+    so treat the simulated delays as order-of-magnitude only.
+  - >
+    ASSUMED: the inverters of Figure 5.1 are built from CD4007 transistors
+    (N W/L 30/5, P W/L 60/5, as in Exp. 3 / Exp. 4). The handout draws them
+    at transistor level and names no inverter chip. Two inverters fit one
+    CD4007 (Part 1); four need two (Part 2).
+  - >
+    ASSUMED: each CD4016 switch is an NMOS (W/L 30/5) and a PMOS (W/L 60/5) in
+    parallel, with an internal inverter making the complementary control
+    (handout p. 5-2). Simulated on-resistance at VDD = 5 V: about 2.6 kOhm
+    with the signal near either rail, rising to about 14.5 kOhm at 2.5 V,
+    where both transistors are barely on. Each switch only charges a gate,
+    so this sets nanosecond delays, not logic levels. A CD4016B datasheet's
+    RON curve at 5 V would replace it.
+  - >
+    ASSUMED: the 7400 gates are modelled as CMOS 74HC00 NAND gates (transistor
+    level, inputs tied as inverters). Figure 5.5 names the 7400, 74HC00 and
+    74LS00 as the same pinout. With a 74HC00 no pull-ups are needed; with a
+    TTL 7400 or 74LS00 the high level is only about 3.4 V, below a 5 V
+    CD4016's reliable control threshold, so fit the 1 kOhm or 2 kOhm pull-ups
+    to VCC the handout's note describes.
+  - >
+    ASSUMED: "the input has been low for a long period of time" is set as
+    initial conditions (.ic): VIN and every stored node at the value a
+    long-low input leaves (x nodes low, inverter outputs high, nodes 2 and 3
+    low). The loop then runs from that state.
+  - >
+    CHOSEN (the handout leaves the clock to the student): 0-5 V, 1 kHz, 50%
+    duty, 1 ns edges. 1 kHz is far above the minimum frequency the 100 ms
+    hold time allows and far below the maximum the 50 ns delays allow, so
+    the waveforms are clean logic; it also matches the Exp. 4 clock. In
+    Part 1, phi and phibar are exact complements (two pulse statements, as
+    the handout says); in Part 2, phibar comes one 7400 gate delay after phi,
+    as on the bench.
+  - >
+    Interpretation, not an added requirement: the handout gives no numeric
+    limits. Each timing-diagram row is checked as a logic level (>= 90% /
+    <= 10% of VDD, as in Exp. 4), at the level a shift register in an
+    inverting loop must reach: VOUT is VIN one clock later, so one stage
+    toggles every clock (period 2T) and two stages repeat every 4T. Delays,
+    VOUT period and phi/phibar skew are recorded with no limit.
+  - >
+    Leakage is not modelled (level-1 junctions leak femtoamps), so the
+    simulation holds a stored node indefinitely and cannot show the minimum
+    clock frequency. At the bench, the hold time is set by the CD4016 and
+    CD4007 leakage and the scope probe; lower the generator frequency until
+    the outputs fail to find it.
+  - >
+    Hand calculations (step 2 of the ten-step method) are not automated; the
+    report sets them beside simulation.
+
+parts:
+  - title: Part 1 — one stage of Figure 5.1 with a feedback inverter (pre-lab simulation 1)
+    deck: fig5_1.cir
+    spec: fig5_1.yaml
+    schematic: fig5_1_schematic.png   # drawn by schematics.py
+  - title: Part 2 — two stages in Figure 5.3's test setup (timing diagram, 12 clock cycles)
+    deck: fig5_3.cir
+    spec: fig5_3.yaml
+    schematic: fig5_3_schematic.png

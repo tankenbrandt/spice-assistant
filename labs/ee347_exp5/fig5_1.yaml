@@ -1,0 +1,174 @@
+# EE 347 Exp. 5, pre-lab simulation 1 -- one stage of Figure 5.1 with one
+# feedback inverter from VOUT to VIN.
+#
+# The handout's requirements, as checks (every one traces to a handout line):
+#   Pre-lab sim 1: "Perform a PSPICE simulation of 1 stage of the shift
+#     register in Figure 5.1. Include one feedback inverter from VOUT to VIN,
+#     as in Figure 5.3."                                -> the deck
+#   Pre-lab sim 1: "Use two input voltage pulse statements to create the
+#     clock and anti-clock signals"                     -> Vphi, Vphib
+#   p. 5-2: "assuming initially that the input has been low for a long period
+#     of time, construct a complete timing diagram showing all the output
+#     nodes relative to the clock waveform"             -> the .ic and the
+#                                                          timing-diagram rows
+#   p. 5-2: "Measure and sketch the waveforms ... Also sketch the clock and
+#     anti-clock waveforms"                             -> the plotted vectors
+#   Pre-lab Q2: "Where does the dynamic shift register store the data?"
+#                                                       -> x1 holding while TG1 is off
+#   Pre-lab Q4 / p. 5-2: "What are the maximum and minimum clock frequencies?"
+#                                                       -> clock-to-VOUT delays
+#                                                          (record only; the
+#                                                          estimate is a hand calc)
+#
+# INTERPRETATION (the handout gives no numeric limits): each timing-diagram
+# row is checked as a logic level, high >= 90% of VDD, low <= 10%, as in the
+# Exp. 4 pre-lab. The expected level is what a one-bit shift register inside
+# an inverting loop must do: VOUT is VIN one clock later, so the loop toggles
+# once per clock. Stored (dynamic) nodes can overshoot VDD by clock
+# feedthrough, so highs have no upper limit.
+#
+# Timing: phi (1 kHz, CHOSEN -- see lab.yaml) is high from k + 0.5 ms to
+# k + 1 ms, when TG1 loads x1; phibar is high from k to k + 0.5 ms, when TG2
+# loads x2 and VOUT changes. Rows are read 0.1 ms before each clock edge in
+# clock periods 5 to 7 (steady state). Run: 10.25 ms (ten clock cycles).
+circuit: ee347_fig5_1
+description: >
+  One stage of the dynamic CMOS shift register (Figure 5.1: CD4016 switch,
+  inverter, CD4016 switch, inverter) with a feedback inverter from VOUT to VIN,
+  clocked by complementary 0-5 V, 1 kHz phi and phibar. VDD = 5 V.
+analyses:
+  tran:
+    command: tran 2u 10.25m
+    vectors: [v(phi), v(phib), v(in), v(x1), v(x2), v(out)]
+
+measurements:
+  # ---- clock period 5, phi high: TG1 on, x1 follows VIN ---------------------
+  - name: in_49
+    label: VIN at 4.9 ms (end of phi high)
+    units: V
+    extract: {kind: value_at, of: v(in), at: 4.9e-3}
+    min: 4.5
+    bench: >
+      Scope CH1 on phi (switch 1 control), CH2 on VIN, both DC-coupled, same
+      time base. Trigger on phi; read VIN just before phi falls.
+  - name: x1_49
+    label: x1 (stored node) at 4.9 ms, following VIN while phi is high
+    units: V
+    extract: {kind: value_at, of: v(x1), at: 4.9e-3}
+    min: 4.5
+    bench: >
+      CH2 on x1 (switch 1 output = inverter 1 input). The probe's capacitance
+      and 10 MOhm load the stored charge, so expect it to sag while held.
+  - name: out_49
+    label: VOUT at 4.9 ms (end of phi high)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 4.9e-3}
+    max: 0.5
+    bench: CH2 on VOUT (inverter 2 output); read it just before phi falls.
+  # ---- phi low: TG1 off (x1 holds), TG2 on (x2 loads, VOUT changes) ---------
+  - name: in_54
+    label: VIN at 5.4 ms (end of phi low)
+    units: V
+    extract: {kind: value_at, of: v(in), at: 5.4e-3}
+    max: 0.5
+    bench: CH2 on VIN; read it just before phi rises.
+  - name: x1_54
+    label: x1 at 5.4 ms, holding the old VIN while TG1 is off
+    units: V
+    extract: {kind: value_at, of: v(x1), at: 5.4e-3}
+    min: 4.5
+    bench: CH2 on x1; read it just before phi rises. It stays high although VIN is now low.
+  - name: out_54
+    label: VOUT at 5.4 ms (end of phi low)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 5.4e-3}
+    min: 4.5
+    bench: CH2 on VOUT; read it just before phi rises.
+  # ---- clock period 6 --------------------------------------------------------
+  - name: in_59
+    label: VIN at 5.9 ms (end of phi high)
+    units: V
+    extract: {kind: value_at, of: v(in), at: 5.9e-3}
+    max: 0.5
+    bench: CH2 on VIN; read it just before phi falls.
+  - name: x1_59
+    label: x1 at 5.9 ms, following VIN while phi is high
+    units: V
+    extract: {kind: value_at, of: v(x1), at: 5.9e-3}
+    max: 0.5
+    bench: CH2 on x1; read it just before phi falls.
+  - name: out_59
+    label: VOUT at 5.9 ms (end of phi high)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 5.9e-3}
+    min: 4.5
+    bench: CH2 on VOUT; read it just before phi falls.
+  - name: in_64
+    label: VIN at 6.4 ms (end of phi low)
+    units: V
+    extract: {kind: value_at, of: v(in), at: 6.4e-3}
+    min: 4.5
+    bench: CH2 on VIN; read it just before phi rises.
+  - name: x1_64
+    label: x1 at 6.4 ms, holding the old VIN while TG1 is off
+    units: V
+    extract: {kind: value_at, of: v(x1), at: 6.4e-3}
+    max: 0.5
+    bench: CH2 on x1; read it just before phi rises. It stays low although VIN is now high.
+  - name: out_64
+    label: VOUT at 6.4 ms (end of phi low)
+    units: V
+    extract: {kind: value_at, of: v(out), at: 6.4e-3}
+    max: 0.5
+    bench: CH2 on VOUT; read it just before phi rises.
+
+  # ---- clock-to-VOUT delays and VOUT's period (record, no limit) ------------
+  # Each window catches one steady-state edge: last 35% starts at 6.66 ms
+  # (phibar and VOUT both rise at 7 ms); last 25% starts at 7.69 ms (phibar
+  # rises and VOUT falls at 8 ms); last 15% starts at 8.71 ms (VOUT rises at
+  # 9 ms, one VOUT period after 7 ms).
+  - name: t_phib_r7
+    label: phibar rises through 2.5 V (7 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(phib), level: 2.5, direction: rising, window: last 35%}
+    informational: true
+    bench: Trigger CH1 on phibar rising (switch 2 control).
+  - name: t_out_r7
+    label: VOUT rises through 2.5 V (7 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(out), level: 2.5, direction: rising, window: last 35%}
+    informational: true
+    bench: Cursor where VOUT crosses 2.5 V rising.
+  - name: t_phib_r8
+    label: phibar rises through 2.5 V (8 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(phib), level: 2.5, direction: rising, window: last 25%}
+    informational: true
+    bench: Trigger CH1 on phibar rising.
+  - name: t_out_f8
+    label: VOUT falls through 2.5 V (8 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(out), level: 2.5, direction: falling, window: last 25%}
+    informational: true
+    bench: Cursor where VOUT crosses 2.5 V falling.
+  - name: t_out_r9
+    label: VOUT rises through 2.5 V (9 ms edge)
+    units: s
+    extract: {kind: crossing, of: v(out), level: 2.5, direction: rising, window: last 15%}
+    informational: true
+    bench: Next VOUT rising edge.
+  - name: tplh_clk_out
+    label: delay, phibar rising to VOUT rising (switch 2 + inverter 2)
+    units: s
+    expr: t_out_r7 - t_phib_r7
+    record: true
+  - name: tphl_clk_out
+    label: delay, phibar rising to VOUT falling (switch 2 + inverter 2)
+    units: s
+    expr: t_out_f8 - t_phib_r8
+    record: true
+  - name: t_out_period
+    label: VOUT period (one stage inside an inverting loop)
+    units: s
+    expr: t_out_r9 - t_out_r7
+    record: true

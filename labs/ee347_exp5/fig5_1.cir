@@ -1,0 +1,58 @@
+One-stage dynamic CMOS shift register with feedback inverter -- EE 347 Exp. 5, Figure 5.1
+* Pre-lab simulation 1: "1 stage of the shift register in Figure 5.1. Include
+* one feedback inverter from VOUT to VIN, as in Figure 5.3." VDD = 5 V.
+* Path: in -TG(phi)-> x1 -inverter-> y1 -TG(phibar)-> x2 -inverter-> out,
+* and out -NAND-as-inverter-> in (the third gate of Figure 5.3).
+VDD vdd 0 DC 5
+* Clock and anti-clock as two pulse statements, as the handout allows (the
+* 7400 clock inverters are left out). 1 kHz, 1 ns edges: phi is low for the
+* first half period, then high.
+Vphi phi 0 PULSE(0 5 0.5m 1n 1n 0.499999m 1m)
+Vphib phib 0 PULSE(5 0 0.5m 1n 1n 0.499999m 1m)
+* Transmission gate 1 (phi): one switch of the CD4016
+XTG1 in x1 phi vdd 0 CD4016
+* Inverter 1 (CD4007 transistors)
+M1P y1 x1 vdd vdd PM W=60u L=5u
+M1N y1 x1 0 0 NM W=30u L=5u
+* Transmission gate 2 (phibar): a second CD4016 switch
+XTG2 y1 x2 phib vdd 0 CD4016
+* Inverter 2 (CD4007 transistors) drives VOUT
+M2P out x2 vdd vdd PM W=60u L=5u
+M2N out x2 0 0 NM W=30u L=5u
+* Feedback inverter VOUT -> VIN: 1/4 7400 with both inputs tied (Figure 5.3)
+XU1 out out in vdd 0 NAND74HC00
+* "Assuming initially that the input has been low for a long period of time":
+* every node holds the value a low input leaves behind.
+.ic v(in)=0 v(x1)=0 v(y1)=5 v(x2)=5 v(out)=0
+* --- Models (shared by both figures in this lab) ----------------------------
+* Level 1 with TOX = 0.1 um and the same ASSUMED threshold, body-effect and
+* capacitance values as the Exp. 3 and Exp. 4 pre-labs; this handout gives no
+* transistor data at all.
+.model NM NMOS (LEVEL=1 TOX=0.1u VTO=1.5 GAMMA=0.8 PHI=0.6 LAMBDA=0.02 UO=600
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+.model PM PMOS (LEVEL=1 TOX=0.1u VTO=-1.5 GAMMA=0.6 PHI=0.6 LAMBDA=0.02 UO=250
++ CGSO=3e-10 CGDO=3e-10 CBD=20f CBS=20f)
+* --- CD4016: one transmission gate (Figure 5.4) -----------------------------
+* One non-inverting control pin; the chip makes the complementary control
+* internally (handout p. 5-2), modelled here as an inverter. Sizes ASSUMED.
+.subckt CD4016 a b ctl vdd vss
+MTGCP ctlb ctl vdd vdd PM W=60u L=5u
+MTGCN ctlb ctl vss vss NM W=30u L=5u
+MTGN a ctl b vss NM W=30u L=5u
+MTGP a ctlb b vdd PM W=60u L=5u
+.ends CD4016
+* --- 7400-family 2-input NAND (Figure 5.5), modelled as CMOS (74HC00) ------
+* ASSUMED: the 74HC00 is one of the three parts Figure 5.5 names; a TTL 7400
+* has the same logic but a weaker high level (the handout's pull-up note).
+.subckt NAND74HC00 a b y vdd vss
+MNDPA y a vdd vdd PM W=60u L=5u
+MNDPB y b vdd vdd PM W=60u L=5u
+MNDNA y a nd1 vss NM W=60u L=5u
+MNDNB nd1 b vss vss NM W=60u L=5u
+.ends NAND74HC00
+* CD4007 discrete transistors: size ASSUMED as in Exp. 3/4 (N 30/5, P 60/5).
+.options method=gear
+.control
+tran 2u 10.25m
+.endc
+.end

@@ -138,3 +138,52 @@ def test_the_check_catches_a_floating_unused_transistor():
     finally:
         layout.unused_ties = orig
     assert msg.startswith("FAILED"), msg
+
+
+EXP5 = PROJECT_DIR / "labs" / "ee347_exp5"
+
+
+def test_cd4016_pinout_matches_exp5_figure_5_4():
+    pkg = layout.PACKAGES["CD4016"]
+    # (in/out, out/in, control) per switch, top view of Figure 5.4.
+    assert [s.pins for s in pkg.slots] == [(1, 2, 13), (4, 3, 5), (8, 9, 6), (11, 10, 12)]
+    assert {s.kind for s in pkg.slots} == {"tg"}
+    assert pkg.rails == {14: "vdd", 7: "vss"}
+    assert set(pkg.labels) == set(range(1, 15))
+
+
+def test_7400_pinout_matches_exp5_figure_5_5():
+    pkg = layout.PACKAGES["7400"]
+    assert [s.pins for s in pkg.slots] == [(1, 2, 3), (4, 5, 6), (9, 10, 8), (12, 13, 11)]
+    assert pkg.labels[14] == "VCC" and pkg.labels[7] == "GND"
+    assert "74HC00" in pkg.source and "74LS00" in pkg.source
+
+
+@pytest.mark.parametrize("name, kind", [("CD4016", "tg"), ("NAND74HC00", "nand2"),
+                                        ("SN7400", "nand2"), ("74LS00", "nand2"),
+                                        ("CD4001B", "nor2"), ("MYAMP", "sub")])
+def test_subcircuit_names_map_to_packaged_units(name, kind):
+    assert layout._subckt_kind(name) == kind
+
+
+def test_shift_register_test_setup_packs_into_four_chips():
+    lay = layout.place((EXP5 / "fig5_3.cir").read_text(encoding="utf-8"))
+    assert not lay.unplaced
+    assert [pl.package.name for pl in lay.packages] == ["CD4007", "CD4007", "CD4016", "7400"]
+    tg = lay.packages[2]
+    # Switches 1 and 3 run on phi, 2 and 4 on phibar.
+    ctl = {lay.where[r][1].pins[2]: tg.nets[lay.where[r][1].pins[2]]
+           for r in ("XTG1", "XTG2", "XTG3", "XTG4")}
+    assert sorted(ctl.values()) == ["phi", "phi", "phib", "phib"]
+    nand = lay.packages[3]
+    rows = {r[0]: r[2] for r in layout.pin_rows(nand, lay.vss)}
+    assert all("tie to VSS" in rows[f"4.{p}"] for p in (12, 13))   # gate D unused
+    assert rows["4.11"] == "no connection"
+
+
+def test_an_unused_cd4016_switch_has_its_control_tied_off():
+    lay = layout.place((EXP5 / "fig5_1.cir").read_text(encoding="utf-8"))
+    tg = next(pl for pl in lay.packages if pl.package.name == "CD4016")
+    rows = {r[0]: r[2] for r in layout.pin_rows(tg, lay.vss)}
+    unused = [r for r in rows.values() if "switch off" in r]
+    assert len(unused) == 2                    # two of four switches used

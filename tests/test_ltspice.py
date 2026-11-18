@@ -375,3 +375,22 @@ def test_live_ltspice_runs_the_schematic_file_itself(have_ltspice):
     vce = ltspice.vector(hot.op, "v(out)")[0] - ltspice.vector(hot.op, "v(e)")[0]
     assert vce == pytest.approx(8.64, abs=0.05)
     assert ltspice.vector(hot.op, "Ic(Q1)")[0] == pytest.approx(1.99e-3, rel=0.01)
+
+
+def test_without_gear_drops_only_the_gear_option():
+    deck = "t\nR1 a 0 1k\n.options method=gear reltol=1e-4\n.end\n"
+    out = ltspice.without_gear(deck)
+    assert ".options  reltol=1e-4" in out or ".options reltol=1e-4" in out
+    assert "gear" not in out.lower()
+    assert "R1 a 0 1k" in out
+
+
+def test_without_gear_removes_an_options_line_left_empty():
+    out = ltspice.without_gear("t\n.OPTIONS METHOD=GEAR\nR1 a 0 1k\n.end\n")
+    assert ".options" not in out.lower() and "R1 a 0 1k" in out
+
+
+def test_without_gear_is_none_when_there_is_no_gear():
+    assert ltspice.without_gear("t\nR1 a 0 1k\n.options reltol=1e-4\n.end\n") is None
+    # a comment that mentions gear is not an option
+    assert ltspice.without_gear("t\n* .options method=gear needed\n.end\n") is None

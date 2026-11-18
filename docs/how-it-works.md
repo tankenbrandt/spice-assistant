@@ -46,12 +46,6 @@ achieves (92%). The point that survives: a design centred at 47.8 passes a
 47.5-52.5 window at nominal and fails about one build in three. Nominal
 pass/fail can't see that; the tolerance check can.
 
-What happens when the model *is* told the tolerance test, and how it gamed the
-grader, is the pre-registered A/B in `ab_tolerance.py` (`logs/ab_tolerance/report.md`)
-and its as-built re-grade (`python ab_tolerance.py asbuilt`,
-`logs/ab_tolerance/asbuilt_regrade.md`), summarised in the
-[README](../README.md#holding-spec-across-real-parts-the-model-gamed-the-grader).
-
 | Layer | Question | Cost |
 |-------|----------|------|
 | `main.py` | does the deck simulate at all? | one API call per repair |
@@ -70,6 +64,44 @@ written simulator**. The same spec is re-measured in LTspice, headlessly, and
 The three misses are the buck converter's ripple and two readings that are
 roughly zero in both simulators. See
 [Two simulators, one spec](#two-simulators-one-spec-crosscheckpy-ltspicepy).
+
+### Told the tolerance test, the model gamed the grader
+
+To see what happens when the model *is* told
+the tolerance test, I ran a pre-registered A/B ([`ab_tolerance.py`](../ab_tolerance.py)): the
+benchmark's CE amplifier prompt, with and without the tolerance test spelled
+out, 33 designs in all, $1.82 of API spend
+([results](../logs/ab_tolerance/report.md)).
+
+- **Told the test, Opus 5.5 scored 100%** Monte Carlo yield (500 builds
+  each), against 75% without it. Sonnet 5.5 didn't improve.
+- **None of those five designs could be built as drawn.** Each split
+  resistors into strings of equal pieces at values no one sells
+  (4 × 2275 Ω, 3 × 7200 Ω, 4 × 32.7 Ω), and one biased the transistor with
+  an ideal current source the grader never varied.
+- **Re-graded as built** ([`asbuilt.py`](#grading-as-built-asbuiltpy-bench2py),
+  `python ab_tolerance.py asbuilt`,
+  [full table](../logs/ab_tolerance/asbuilt_regrade.md)), the gain is gone:
+
+| Opus 5.5, mean yield | Told the test | Not told | Difference (95% CI) |
+|---|---|---|---|
+| A/B grader | 100% | 75% | +25 pts (+10 to +41) |
+| Chains merged, ideal sources refused | 77% | 75% | +2 pts (−38 to +36) |
+| …and values rounded to buyable 5% parts | 36% | 74% | −38 pts (−80 to +5) |
+| …and the handout 2N2222 model | 51% | 65% | −14 pts (−61 to +36) |
+
+The centring was real: with chains merged, the four legal designs still
+yield 96–97%, so splitting itself bought only about 4 points. But it was
+built from parts you can't buy. Rounded to real 5% values, two of the four
+miss spec outright, because every piece of a split resistor rounds the same
+way and the errors add up instead of averaging out.
+
+**Caveats.** 5–6 designs per group, so no as-built difference is
+significant; the pre-registered pooled comparison was null even on the
+original grader (+6 pts, −26 to +37); the re-grade is post hoc; and the A/B
+prompts never stated the as-built rules. Benchmark v2 states every rule in
+the prompt ([below](#grading-as-built-asbuiltpy-bench2py)); it hasn't been
+run against the models yet. All of this is simulation.
 
 <p align="center">
   <img src="schematic.png" width="420" alt="An op-amp active low-pass rendered from an LTspice .asc file">
@@ -201,8 +233,8 @@ That installs the CLIs on your `PATH`:
 | `spice-design` | `design.py` | generate and repair until the spec passes (API) |
 
 Every example below also works as `python <module>.py ...` straight from a
-clone, with no install. Only `spice-assistant` and `spice-design` need an
-API key; everything else is ngspice only.
+clone, with no install. Only generation needs an API key (see
+Requirements); everything else is ngspice only.
 
 ### ngspice
 
@@ -323,7 +355,7 @@ python report.py --describe "a common-emitter amplifier with gain -50" `
 ```
 
 ```
-spice-report -> runsmp
+spice-report -> runs/amp
   [1/6] netlist..................... `repaired/ce_bjt_amp.cir`
   [2/6] schematic................... 12 devices -> ce_bjt_amp.svg
   [3/6] operating point............. 7 nodes, 12 branches
@@ -407,24 +439,29 @@ of 48.1. The search moves both down about 9%, which keeps their ratio, and
 the gain lands at 50.04. In the active low-pass, rounding Cf gives fc =
 1047 Hz. 1.5 nF ∥ 100 pF gives 982.6 Hz.
 
-`labreport.py` turns the same inputs into the three pre-lab sections:
+`labreport.py` turns the same inputs into the four pre-lab sections:
 
 ```bash
 python labreport.py reference/inv_active_lowpass.cir --spec specs_lib/inv_active_lowpass.yaml \
     --title "Lab 5: Active filters" --out runs/lab5
 ```
 
-- **Simulation:** the ideal circuit, theory beside simulation, a plot (ideal
-  dashed, kit build solid) and the netlist.
+- **Simulation:** the schematic, theory beside simulation (with LTspice's
+  reading as a second column), and the plots (ideal dashed, kit build
+  solid). The netlist is saved next to the report, not printed in it.
 - **Design:** the parts chosen and how far each is from ideal, what rounding
-  alone would have given, predicted performance, and a Monte Carlo run over
-  the kit's tolerances. On the low-pass, with a ±10% capacitor, 18% of
-  builds land outside a ±5% corner-frequency requirement.
+  alone would have given, and predicted performance. Monte Carlo still runs
+  (its ranges feed `--measured`), but the report leaves the tolerance table
+  out: it isn't one of the course's ten steps.
+- **Layout:** which package and unit each device uses, and a wiring list by
+  node, unused pins included.
 - **Test plan:** equipment, a DMM check for every part with its acceptable
-  reading, supply settings, DC checkpoints, one bench step per measurement
-  ("raise the frequency until the output falls to 0.707×…"), and a results
-  table with the expected value, the range 90% of real builds land in, and
-  an empty *Measured* column.
+  reading, the test-set block diagram, DC checkpoints, and a results table
+  with the expected value and an empty *Measured* column.
+
+A part with no `.asc` can carry a drawn schematic instead:
+`schematic: fig5_1_schematic.png` in the lab file (`labs/ee347_exp5/` draws
+its own with `schematics.py`, pin numbers taken from `layout.place`).
 
 A handout with several circuits goes in one document. A lab file lists the
 parts, and each gets its own heading. `labs/ee347_exp4/` is a real one: EE 347
@@ -443,6 +480,27 @@ while the transmission-gate version reaches 8.0 V. Building the domino gate's
 stimulus also surfaced a timing rule. Changing the inputs on the same clock
 edge that ends evaluation races the evaluate transistor and glitches X low,
 so the inputs change 50 µs into pre-charge.
+
+**Layout on a CD4007 is a real problem.** A CD4007 holds six transistors
+that share gate pins, a drain and the supply pins, so `layout.py` *assigns*
+each circuit's transistors to package slots (one chip for most of Exp. 4's
+figures, two for Fig. 4.5's five NMOS) and the CD4016 switches and 7400
+gates of Exp. 5 to their units. It then re-simulates the circuit rebuilt pin
+by pin, idle transistors included. That check caught an idle P-channel left
+floating on Fig. 4.4's precharged node: with breadboard-grade leakage on its
+free pin, the node sagged to 2.15 V. The wiring list now ties that pin back
+to the node.
+
+**From the handout PDF: `/prelab`.** The tool needs each lab written down
+first: netlists, specs, a lab file. The
+[`/prelab`](../.claude/skills/prelab/SKILL.md) Claude Code skill writes them
+from the handout, with every check quoting the handout line it comes from,
+runs `labreport.py`, reads the report back and lists every value it had to
+assume. Hand calculations and "why" questions are left out on purpose. It
+runs on a Claude subscription, so no API key. Tested on a handout it had
+never seen (EE 347 Exp. 3) by a fresh agent with only the skill file, it
+produced a complete draft, with LTspice agreeing to 3–4 digits, and hit four
+tool bugs along the way, all since fixed.
 
 **Bench readings.** `--measured-template PATH` (with `--lab`) writes a YAML
 sheet listing every reading and DC checkpoint with its expected value and
@@ -699,12 +757,13 @@ The layout is mechanical -- a column per net, a row per device -- and it does
 not try to be draughtsmanship. What it guarantees is connectivity: `--check`
 re-extracts the drawing and compares it device by device, and the tests
 additionally round-trip it through **LTspice's own netlister**. **42 of the
-repo's 46 decks round-trip exactly**, op-amps included: a VCVS macromodel is
+repo's 48 decks round-trip exactly**, op-amps included: a VCVS macromodel is
 drawn with LTspice's `e` symbol, and a subcircuit call lands on the generic
 `opamp2` -- but only when the `.subckt`'s pin names read as In+ In- V+ V- OUT
 in that symbol's order, so a supply is never drawn as an input. Anything else
 (an undefined or non-op-amp subcircuit, F/H sources, POLY) is refused rather
-than guessed; that is the other four decks, which call the CD4001B gate.
+than guessed; that is the other six decks, which call CD4001B, CD4016 or
+7400 subcircuits.
 LTspice simulating the generated schematic above measures
 |gain| = 51.5265, against 51.5266 from the deck it was written from; for the
 active low-pass op-amp example the two agree to every printed digit.
@@ -814,7 +873,7 @@ python bench2.py grade rc_lowpass my.cir
 Yields depend heavily on the draw distribution: under uniform draws the CE
 ceiling is 71% instead of 92%. Quote the distribution with any yield.
 
-## Layout
+## Repo layout
 
 ```
 main.py  speccheck.py  specs.py  robustness.py      the layers
@@ -840,7 +899,7 @@ bench2/          benchmark v2 suite, reference decks and device models
 logs/            full per-attempt evidence behind REPORT.md / ROBUSTNESS.md
 logs/repeats/    summary.json: the 4-run spread (raw runs gitignored, ~30 MB)
 docs/            per-round analysis prose and the README images
-tests/           736 tests, no API calls
+tests/           751 tests, no API calls
 ```
 
 `REPORT.md` and `ROBUSTNESS.md` are generated from `logs/`, and regenerate
@@ -869,7 +928,7 @@ python robustness_study.py --report-only
 - ngspice accepts some malformed decks (a component with no value) and reports
   a clean run. That gap is the reason the spec layer exists.
 - **The benchmark is small and hand-written.** Fifteen textbook analog
-  circuits of 5-15 components (`benchmark.py`), chosen by the author. They
+  circuits of 5-15 components (`benchmark.py`: 8 in round 1, 7 in round 2), chosen by the author. They
   represent coursework and bench work, not an IC or a supply with real
   compensation, and the selection is not independent of the tool. The headline
   worth quoting is therefore not the absolute 62% but the *gap* between "100%
