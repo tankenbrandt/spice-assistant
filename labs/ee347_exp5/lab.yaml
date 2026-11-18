@@ -96,6 +96,8 @@ parts:
   - title: Part 1 — one stage of Figure 5.1 with a feedback inverter (pre-lab simulation 1)
     deck: fig5_1.cir
     spec: fig5_1.yaml
+    schematic: fig5_1_schematic.png   # drawn by schematics.py
   - title: Part 2 — two stages in Figure 5.3's test setup (timing diagram, 12 clock cycles)
     deck: fig5_3.cir
     spec: fig5_3.yaml
+    schematic: fig5_3_schematic.png

@@ -32,11 +32,15 @@ Describe a circuit, or hand over the lab handout, and get back:
 - the **schematic, pin layout, test-set block diagram and test plan** as a
   first draft of the pre-lab.
 
+**In these classes pre-labs are not required or submitted. This is only to
+use lab time more efficiently: walk in knowing what to build, which parts to
+grab and what the scope should show.**
+
 ## The solution
 
 1. **Writes the circuit.** From a plain-English description, Claude writes an
    ngspice netlist and repairs it until it simulates. With
-   [`/prelab`](#the-prelab-skill-from-handout-to-pre-lab), it works from the
+   [`/prelab`](.claude/skills/prelab/SKILL.md), it works from the
    handout PDF instead.
 2. **Checks the spec, not just that it runs.** A spec file says what
    "working" means (a gain, a swing, a truth table) and the extremes it must
@@ -66,9 +70,6 @@ free and runs locally.
 ## Contents
 
 - [Analog lab: designing a CE amplifier](#analog-lab-a-ce-amplifier-ee-346-experiment-8)
-- [Digital lab: CMOS gates](#digital-lab-cmos-gates-ee-347-experiment-4)
-- [The `/prelab` skill: from handout to pre-lab](#the-prelab-skill-from-handout-to-pre-lab)
-- [How good is the AI at this?](#how-good-is-the-ai-at-this)
 - [Quick start](#quick-start)
 
 ## Analog lab: a CE amplifier (EE 346, Experiment 8)
@@ -175,9 +176,8 @@ the kit build (solid) never comes close:
 ### The test plan
 
 The report also writes the test plan: equipment, the test-set block diagram
-(the course's step 6), a bench step per reading with the exact drive level
-(2.17 Vp-p), DC checkpoints, and a results table with the range 90% of real
-builds land in.
+(the course's step 6), DC checkpoints, and a results table of expected
+readings to fill in at the bench.
 
 <p align="center">
   <img src="docs/exp8-test-set.png" width="560" alt="Test-set block diagram: 20 V supply, function generator into IN, oscilloscope channels on IN, OUT and E, common ground">
@@ -194,125 +194,6 @@ with its expected value and predicted range
 outside the predicted range (widened by the scope's accuracy,
 `--meter-tol`), and checks the DC voltages too. I don't have bench readings
 for this build, so these predictions haven't been checked at the bench.
-
-### Where it fits in the course's ten-step method
-
-| Step | What the tool does |
-|---|---|
-| 1. Specify | `/prelab` writes the spec from the handout: requirements, limits and the extremes they hold at, each traced to a handout line. |
-| 2. Design (hand calculations) | **Not automated, on purpose.** The hand design is the starting point, and the report shows where it holds and where it doesn't. |
-| 3. Simulate | ngspice and LTspice, every requirement at every extreme. LTspice runs the `.asc` you hand in and its waveforms go in the report. |
-| 4. Layout | Generated: every package pin, unused pins included, and a wiring list by node. CMOS assignments are re-simulated as wired. |
-| 5. Test plan | Generated: equipment, procedure, expected readings and ranges. |
-| 6. Test-set block diagram | Generated from the circuit's sources and the probed nodes. |
-| 7–9. Build, test, parasitics | At the bench. |
-| 10. Discuss (double weight) | Every expected reading comes with the range real builds land in; `--measured` flags any bench reading outside it, which means something is wrong. |
-
-## Digital lab: CMOS gates (EE 347, Experiment 4)
-
-Five circuits from CD4007 transistors and 4001B gates, with truth tables as
-specs. **All 37 rows simulate as expected and LTspice agrees on all five.**
-Two of the handout's questions come back as numbers: the NMOS pass-gate mux
-only pulls X to **5.19 V** from an 8 V supply (threshold plus body effect),
-while the transmission-gate version reaches the full **8.0 V**.
-
-**Layout is a real problem here.** A CD4007 holds six transistors that share
-gate pins, a drain and the supply pins. So the tool *assigns* each circuit's
-transistors to package slots: one chip for most figures, two for Fig. 4.5's
-five NMOS. It then re-simulates the circuit rebuilt pin by pin, idle
-transistors included. That check caught an idle P-channel left floating on
-Fig. 4.4's precharged node: with breadboard-grade leakage on its free pin, the
-node sagged to 2.15 V. The pin table now ties that pin back to the node.
-
-Pre-lab 2's timing diagram comes out the way the handout draws it:
-
-<p align="center">
-  <img src="docs/ee347-domino-timing.png" width="560" alt="Timing diagram: clock, inputs A to D, dynamic node X and output Y = AB + CD over four clock periods">
-</p>
-
-## The `/prelab` skill: from handout to pre-lab
-
-The tool needs each lab written down first: the circuit as a netlist, the
-handout's requirements as a spec file, and a lab file. The
-[`/prelab`](.claude/skills/prelab/SKILL.md) Claude Code skill does that from
-the handout PDF:
-
-1. It writes the netlist, plus a spec where every check quotes the handout
-   line it comes from. Readings the handout only asks you to record get no
-   made-up limit.
-2. It runs the whole pipeline above and reads the report back.
-3. It hands you the Word file and a list of every value it had to assume.
-
-Hand calculations and "why" questions are left to me, on purpose. It runs
-on a Claude subscription, so it needs no API key. I tested it on a handout
-it had never seen (EE 347 Exp. 3, inverter speed), using a fresh agent that
-had only the skill file. It produced a complete draft: both circuits
-simulated, LTspice agreeing to 3–4 digits, and the handout's "Simulated
-Data" table fillable straight from the report. It also hit four tool bugs
-along the way, all now fixed.
-
-## How good is the AI at this?
-
-### Meeting spec at nominal: mostly solved
-
-8 circuits × 4 runs per model, every result measured against its spec:
-
-| Model | Simulate | Meet spec |
-|---|---|---|
-| Sonnet 5 (Sept 2026) | 8/8 | 5–6 |
-| Sonnet 5.5 (Nov 2026) | 8/8 | 7–8 |
-| Opus 5.5 (Nov 2026) | 8/8 | 7–8 |
-
-All four runs per model cost $0.33–0.59. The September worst case, a CE
-amplifier that ran perfectly with a gain of **107 instead of 50** (its bypass
-capacitor shorted the whole emitter resistor), is written up with the repair
-in [docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really).
-
-<p align="center">
-  <img src="docs/spec-fail.png" width="560" alt="Gain of 107 V/V sitting far above the 47.5 to 52.5 acceptance band">
-</p>
-
-### Holding spec across real parts: the model gamed the grader
-
-An earlier version of this README said passing amplifiers held spec in only
-63–91% of simulated builds. That graded the models on part tolerances their
-prompt never mentioned, so I ran a
-[pre-registered](ab_tolerance.py) A/B test: the benchmark's CE amplifier
-prompt, with and without the tolerance test spelled out, 33 designs in all,
-$1.82 of API spend ([results](logs/ab_tolerance/report.md)).
-
-- **Told the test, Opus 5.5 scored 100%** Monte Carlo yield (500 builds
-  each), against 75% without it. Sonnet 5.5 didn't improve.
-- **None of those five designs could be built as drawn.** Each split
-  resistors into strings of equal pieces at values no one sells
-  (4 × 2275 Ω, 3 × 7200 Ω, 4 × 32.7 Ω), and one biased the transistor with
-  an ideal current source the grader never varied.
-- **So I wrote an as-built grader**, [`asbuilt.py`](asbuilt.py): every part
-  snaps to the nearest value sold in its tolerance grade, series and
-  parallel chains are tested as the one part they make, and ideal sources
-  are refused. Re-graded, the gain is gone
-  ([full table](logs/ab_tolerance/asbuilt_regrade.md)):
-
-| Opus 5.5, mean yield | Told the test | Not told | Difference (95% CI) |
-|---|---|---|---|
-| A/B grader | 100% | 75% | +25 pts (+10 to +41) |
-| Chains merged, ideal sources refused | 77% | 75% | +2 pts (−38 to +36) |
-| …and values rounded to buyable 5% parts | 36% | 74% | −38 pts (−80 to +5) |
-| …and the handout 2N2222 model | 51% | 65% | −14 pts (−61 to +36) |
-
-The centring was real: with chains merged, the four legal designs still
-yield 96–97%, so splitting itself bought only about 4 points. But it was
-built from parts you can't buy. Rounded to real 5% values, two of the four
-miss spec outright, because every piece of a split resistor rounds the same
-way and the errors add up instead of averaging out.
-
-**Caveats.** 5–6 designs per group, so no as-built difference is
-significant; the pre-registered pooled comparison was null even on the
-original grader (+6 pts, −26 to +37); the re-grade is post hoc; and the A/B
-prompts never stated the as-built rules. Benchmark v2
-([`bench2.py`](bench2.py), 12 circuits whose reference designs each yield
-≥ 85% as built) states every rule in the prompt; it hasn't been run against
-the models yet. All of this is simulation.
 
 ## Quick start
 

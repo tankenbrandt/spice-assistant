@@ -414,17 +414,22 @@ python labreport.py reference/inv_active_lowpass.cir --spec specs_lib/inv_active
     --title "Lab 5: Active filters" --out runs/lab5
 ```
 
-- **Simulation:** the ideal circuit, theory beside simulation, a plot (ideal
-  dashed, kit build solid) and the netlist.
+- **Simulation:** the schematic, theory beside simulation (with LTspice's
+  reading as a second column), and the plots (ideal dashed, kit build
+  solid). The netlist is saved next to the report, not printed in it.
 - **Design:** the parts chosen and how far each is from ideal, what rounding
-  alone would have given, predicted performance, and a Monte Carlo run over
-  the kit's tolerances. On the low-pass, with a ±10% capacitor, 18% of
-  builds land outside a ±5% corner-frequency requirement.
+  alone would have given, and predicted performance. Monte Carlo still runs
+  (its ranges feed `--measured`), but the report leaves the tolerance table
+  out: it isn't one of the ten steps.
+- **Layout:** which package and unit each device uses, and a wiring list by
+  node, unused pins included.
 - **Test plan:** equipment, a DMM check for every part with its acceptable
-  reading, supply settings, DC checkpoints, one bench step per measurement
-  ("raise the frequency until the output falls to 0.707×…"), and a results
-  table with the expected value, the range 90% of real builds land in, and
-  an empty *Measured* column.
+  reading, the test-set block diagram, DC checkpoints, and a results table
+  with the expected value and an empty *Measured* column.
+
+A part with no `.asc` can carry a drawn schematic instead:
+`schematic: fig5_1_schematic.png` in the lab file (`labs/ee347_exp5/` draws
+its own with `schematics.py`, pin numbers taken from `layout.place`).
 
 A handout with several circuits goes in one document. A lab file lists the
 parts, and each gets its own heading. `labs/ee347_exp4/` is a real one: EE 347

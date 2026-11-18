@@ -65,6 +65,11 @@ def test_report_has_the_three_sections_and_the_kit_build(tmp_path):
         assert heading in md
     assert "100pF ‖ 1.5nF in parallel" in md
     assert "Measured" in md
+    # A pre-lab is the ten steps' sections: no tolerance table, no bench
+    # procedure, no netlist printed (it's saved beside the report instead).
+    for gone in ("Tolerance analysis", "#### Procedure", "### Procedure", "```",
+                 "90% of builds"):
+        assert gone not in md
     # The Monte Carlo must be centred on the real design (regression for the
     # subcircuit key collision that put the gain near -26 dB).
     assert 19 < r.mc["metrics"]["gain"]["mean"] < 21
@@ -157,6 +162,37 @@ def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
     import ltspice
     per_part = 3 if ltspice.available() else 2      # timing diagram, test set (+ LTspice run)
     assert len(doc.inline_shapes) == 5 * per_part
+
+
+def test_lab_part_shows_its_drawn_schematic_and_no_package_tables(tmp_path):
+    pytest.importorskip("docx")
+    pytest.importorskip("matplotlib")
+    lab = lr.load_lab(PROJECT_DIR / "labs" / "ee347_exp5" / "lab.yaml")
+    assert all(p["schematic"].exists() for p in lab.parts)
+    lab.parts = lab.parts[:1]
+    _, results = lr.run_lab(PROJECT_DIR / "labs" / "ee347_exp5" / "lab.yaml", tmp_path, mc_n=0)
+    results = results[:1]
+    md = lr.write_lab(lab, results, tmp_path)["md"].read_text(encoding="utf-8")
+    sim = md.index("### Simulation")
+    assert md.index("(fig5_1_schematic.png)") > sim                # schematic leads Simulation
+    assert (tmp_path / "fig5_1_schematic.png").exists()
+    assert "#### Wiring list" in md and "| XTG1 | 2: CD4016 | switch A |" in md
+    assert "#### Package" not in md                                # no pin-by-pin tables
+    assert "1-2 kOhm pull-up" in md                                # the package notes stay
+
+
+def test_ltspice_readings_join_the_simulation_table_when_they_fit():
+    spec = specs.load(PROJECT_DIR / "labs" / "ee347_exp5" / "fig5_1.yaml")
+    m = next(m for m in spec.specs)
+    r = lr.LabResult(spec=spec, title="", pick=None, kit_deck="", mc=None, op_ideal=None,
+                     op_kit=None, figures=[], supplies=[],
+                     lt={"rows": [{"values": {m.name: 5.0}, "qpoints": []}]})
+    assert lr._lt_column(r) == {m.name: 5.0}
+    r.lt["rows"].append({"values": {m.name: 5.0}, "qpoints": []})   # two conditions
+    assert lr._lt_column(r) is None
+    ok, bad = (5.0, 0.0) if m.limits.ok(5.0) else (0.0, 5.0)
+    assert lr._in_spec_both(m, ok, {m.name: ok}) == "yes"
+    assert lr._in_spec_both(m, ok, {m.name: bad}) == "yes (LTspice: NO)"
 
 
 def test_power_rating_is_the_next_standard_size_at_twice_the_dissipation():
