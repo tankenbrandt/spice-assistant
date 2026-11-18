@@ -21,10 +21,6 @@ necessarily one that works:
   ideal current source. Graded as the circuit could actually be built, the
   improvement disappeared.
 
-The runs, the A/B test and its caveats (5–6 designs per group, so no
-as-built difference is statistically significant) are in
-[docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really).
-
 ## The goal
 
 Describe a circuit, or hand over the lab handout, and get back:
@@ -208,6 +204,8 @@ python kit.py examples/ce_bjt_amp_recentred.cir --spec specs_lib/ce_bjt_amp.yaml
 python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_API_KEY
 ```
 
-Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 751 tests, no API calls,
-CI on Linux and Windows.
+Install details, every module and how each claim above was verified,
+including the model runs and the A/B test behind "The problem" (with its
+caveat: 5–6 designs per group, so no as-built difference is statistically
+significant): **[docs/how-it-works.md](docs/how-it-works.md)**. 751 tests,
+no API calls, CI on Linux and Windows.
