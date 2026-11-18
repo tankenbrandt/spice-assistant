@@ -68,8 +68,8 @@ or answer the handout's "why" questions; those stay mine.
 Only step 1 calls the Claude API. Hand it a netlist and everything else is
 free and runs locally.
 
-It runs the analog EE 346 labs and the digital CMOS EE 347 labs
-([`labs/`](labs/)). One lab, end to end:
+It works for analog and digital labs alike. Here's an analog one, end to
+end:
 
 ## Analog lab: a CE amplifier (EE 346, Experiment 8)
 
