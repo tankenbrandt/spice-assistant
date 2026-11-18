@@ -164,6 +164,7 @@ def test_lab_report_is_one_document_with_a_timing_diagram(tmp_path):
     assert len(doc.inline_shapes) == 5 * per_part
 
 
+@needs_ngspice
 def test_lab_part_shows_its_drawn_schematic_and_no_package_tables(tmp_path):
     pytest.importorskip("docx")
     pytest.importorskip("matplotlib")
