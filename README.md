@@ -90,9 +90,10 @@ of checks at each extreme, plus a third at the β I measured in the previous
 lab. This was the session that became `/prelab`. The input is set from each
 design's measured gain, so every design is tested at exactly 10 Vp-p out.
 
-### The hand design, simulated
+### The course's worked design, simulated
 
-The starting point is the course's worked example: V<sub>CC</sub> = 20 V,
+The starting point is the worked example in the course's design notes,
+designed there by hand analysis: V<sub>CC</sub> = 20 V,
 47k/10k divider, R<sub>E</sub> = 1k, which gives a gain of about 4.7. As a
 netlist:
 
@@ -107,7 +108,7 @@ RE  e 0 1k
 Q1  out b e Q2N2222      ; handout's 2N2222 parameters
 ```
 
-**It saturates at both extremes.** The hand analysis checked the 5 V output
+**It saturates at both extremes.** That analysis checked the 5 V output
 peak against V<sub>C</sub> = 6.8 V but left out the 2.8 V across
 R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
 
@@ -120,7 +121,7 @@ R<sub>E</sub>, so the bottom of the swing runs out of V<sub>CE</sub>:
 
 The tool tried every combination of resistors from my lab kit (the course's
 3306L parts list, with its quantities: one 47k, two 10k, one 4.7k already
-taken by R<sub>L</sub>) within 4× of the hand values. That's **96 buildable
+taken by R<sub>L</sub>) within 4× of the worked design's values. That's **96 buildable
 combinations, and only 7 pass at every condition.** The pick moves one
 resistor, **R<sub>B1</sub> 47k → 68k**, and nothing else.
 
@@ -143,7 +144,7 @@ output file; the pre-lab has one of these for each condition):
   <img src="docs/exp8-ltspice-hot.png" width="640" alt="LTspice waveforms of ce_amp.asc at 100 C, beta 325: IN, OUT, OUT minus E and VCC minus OUT, all clean sines">
 </p>
 
-The same comparison in ngspice, against the hand design (dashed). The hand
+The same comparison in ngspice, against the worked design (dashed). The worked
 design's V<sub>CE</sub> (OUT − E) sits flat at 0 V for part of every cycle;
 the kit build (solid) never comes close:
 
@@ -162,7 +163,7 @@ the kit build (solid) never comes close:
 - **LTspice agrees:** running the `.asc` at every condition, it gives the
   same Q-points to three figures and every check passes.
 - **With my own transistor:** I measured β = 116 at 1.7 mA in the previous
-  lab (Exp. 7). At that β the hand design still clips (V<sub>CE</sub>
+  lab (Exp. 7). At that β the worked design still clips (V<sub>CE</sub>
   bottoms at 0.05 V), while the kit build sits at V<sub>CE</sub> = 9.9 V,
   I<sub>C</sub> = 1.77 mA, gain 4.58: the numbers to expect at the bench.
 - **Power ratings:** the worst resistor (R<sub>L</sub>) dissipates 18.7 mW,
