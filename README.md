@@ -21,6 +21,10 @@ necessarily one that works:
   ideal current source. Graded as the circuit could actually be built, the
   improvement disappeared.
 
+The runs, the A/B test and its caveats (5–6 designs per group, so no
+as-built difference is statistically significant) are in
+[docs/how-it-works.md](docs/how-it-works.md#how-good-is-the-ai-at-this-really).
+
 ## The goal
 
 Describe a circuit, or hand over the lab handout, and get back:
@@ -34,7 +38,8 @@ Describe a circuit, or hand over the lab handout, and get back:
 
 **In these classes pre-labs are not required or submitted. This is only to
 use lab time more efficiently: walk in knowing what to build, which parts to
-grab and what the scope should show.**
+grab and what the scope should show.** It doesn't do the hand calculations
+or answer the handout's "why" questions; those stay mine.
 
 ## The solution
 
@@ -52,8 +57,8 @@ grab and what the scope should show.**
    tolerances.*
 4. **Designs from my kit.** It searches the parts I actually own, quantities
    and power ratings included, for the build with the most margin. Every
-   value is one I have in the drawer. For the model benchmark,
-   [`asbuilt.py`](asbuilt.py) grades the same way: it snaps every value to
+   value is one I have in the drawer. When I benchmark the models,
+   [`asbuilt.py`](asbuilt.py) grades them the same way: it snaps every value to
    one that's sold, treats a string of resistors as the one part it makes,
    and refuses ideal current sources. *Answers: it gamed the test.*
 5. **Gets a second opinion.** Everything is re-measured in LTspice, which
@@ -61,16 +66,14 @@ grab and what the scope should show.**
    in, after checking that it matches the design.
 6. **Drafts the pre-lab.** The Simulation, Design, Layout and Test Plan
    sections come out as a Word file: plots, schematic, pin assignments,
-   test-set block diagram, and expected bench readings with their ranges.
+   test-set block diagram, and the expected bench readings.
    *Meets the goal.*
 
 Only step 1 calls the Claude API. Hand it a netlist and everything else is
 free and runs locally.
 
-## Contents
-
-- [Analog lab: designing a CE amplifier](#analog-lab-a-ce-amplifier-ee-346-experiment-8)
-- [Quick start](#quick-start)
+It runs the analog EE 346 labs and the digital CMOS EE 347 labs
+([`labs/`](labs/)). One lab, end to end:
 
 ## Analog lab: a CE amplifier (EE 346, Experiment 8)
 
@@ -175,9 +178,9 @@ the kit build (solid) never comes close:
 
 ### The test plan
 
-The report also writes the test plan: equipment, the test-set block diagram
-(the course's step 6), DC checkpoints, and a results table of expected
-readings to fill in at the bench.
+The report also writes the test plan: equipment, the test-set block diagram,
+DC checkpoints, and a results table of expected readings to fill in at the
+bench.
 
 <p align="center">
   <img src="docs/exp8-test-set.png" width="560" alt="Test-set block diagram: 20 V supply, function generator into IN, oscilloscope channels on IN, OUT and E, common ground">
@@ -206,5 +209,5 @@ python main.py "an RC low-pass filter with a 1 kHz cutoff"   # needs ANTHROPIC_A
 ```
 
 Install details, every module and how each claim above was verified:
-**[docs/how-it-works.md](docs/how-it-works.md)**. 736 tests, no API calls,
+**[docs/how-it-works.md](docs/how-it-works.md)**. 751 tests, no API calls,
 CI on Linux and Windows.
